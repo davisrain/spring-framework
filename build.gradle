@@ -1,6 +1,6 @@
 plugins {
 	id 'io.spring.dependency-management' version '1.0.9.RELEASE' apply false
-	id 'io.spring.ge.conventions' version '0.0.7'
+//	id 'io.spring.ge.conventions' version '0.0.7'
 	id 'io.spring.nohttp' version '0.0.5.RELEASE'
 	id "io.freefair.aspectj" version '4.1.6' apply false
 	id 'org.jetbrains.dokka' version '0.10.1' apply false
@@ -277,6 +277,8 @@ configure(allprojects) { project ->
 			cacheChangingModulesFor 0, "seconds"
 		}
 		repositories {
+			maven { url 'https://maven.aliyun.com/nexus/content/groups/public/' }
+			maven { url 'https://maven.aliyun.com/nexus/content/repositories/jcenter'}
 			mavenCentral()
 			maven { url "https://repo.spring.io/libs-spring-framework-build" }
 		}
