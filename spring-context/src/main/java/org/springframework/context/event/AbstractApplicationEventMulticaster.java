@@ -170,7 +170,7 @@ public abstract class AbstractApplicationEventMulticaster
 	protected Collection<ApplicationListener<?>> getApplicationListeners(
 			ApplicationEvent event, ResolvableType eventType) {
 
-		// 获取时间中的source，每个ApplicationEvent都会有一个source
+		// 获取事件中的source，每个ApplicationEvent都会有一个source
 		Object source = event.getSource();
 		Class<?> sourceType = (source != null ? source.getClass() : null);
 		// 根据source的Type的event的Type的包装类型 resolvableType生成listener缓存的key

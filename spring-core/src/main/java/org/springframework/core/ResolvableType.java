@@ -439,14 +439,18 @@ public class ResolvableType implements Serializable {
 	 * @see #getSuperType()
 	 * @see #getInterfaces()
 	 */
+	// 该方法是将本resolvableType转换为给定的class对象的resolvableType返回，逻辑是从本resolvableType的接口或者父类中寻找，
+	// 如果不匹配，返回一个特定的resolvableType NONE, 表示没有。
 	public ResolvableType as(Class<?> type) {
 		if (this == NONE) {
 			return NONE;
 		}
 		Class<?> resolved = resolve();
+		// 如果本身的resolved字段为null或者 resolved的class与参数type相等，直接返回本身
 		if (resolved == null || resolved == type) {
 			return this;
 		}
+		// 对interface进行循环查找
 		for (ResolvableType interfaceType : getInterfaces()) {
 			ResolvableType interfaceAsType = interfaceType.as(type);
 			if (interfaceAsType != NONE) {
@@ -499,9 +503,11 @@ public class ResolvableType implements Serializable {
 		}
 		ResolvableType[] interfaces = this.interfaces;
 		if (interfaces == null) {
+			// 返回Type类型数组的接口信息，即若接口带有泛型参数的话，返回的就是ParameterizedType，而不是Class
 			Type[] genericIfcs = resolved.getGenericInterfaces();
 			interfaces = new ResolvableType[genericIfcs.length];
 			for (int i = 0; i < genericIfcs.length; i++) {
+				// 使用forType方法针对Type类型的接口进行解析， 并且指定自身为接口resolveType的owner
 				interfaces[i] = forType(genericIfcs[i], this);
 			}
 			this.interfaces = interfaces;
@@ -811,18 +817,26 @@ public class ResolvableType implements Serializable {
 		return (this.resolved != null ? this.resolved : fallback);
 	}
 
+	// 根据resolvableType的type字段 解析出class对象赋值给resolved字段
 	@Nullable
 	private Class<?> resolveClass() {
+		// 如果是预先定义的空type，返回null
 		if (this.type == EmptyType.INSTANCE) {
 			return null;
 		}
+		// 如果type就是class对象，直接返回type
 		if (this.type instanceof Class) {
 			return (Class<?>) this.type;
 		}
+		// 如果type是GenericArrayType类型的 进行解析
 		if (this.type instanceof GenericArrayType) {
+			// 通过方法getComponentType获取到其componentType的ResolvableType，并返回其resolved字段的class对象
 			Class<?> resolvedComponent = getComponentType().resolve();
+			// 如果class对象不为null，获取其class对象的数组class对象返回。
 			return (resolvedComponent != null ? Array.newInstance(resolvedComponent, 0).getClass() : null);
 		}
+		// 如果type是其他类型的 如ParametrizedType TypeVariable WildcardType，
+		// 调用resolveType方法生成一个新的resolvableType，并返回其resolved字段
 		return resolveType().resolve();
 	}
 
@@ -832,26 +846,37 @@ public class ResolvableType implements Serializable {
 	 * as it cannot be serialized.
 	 */
 	ResolvableType resolveType() {
+		// 如果Type是ParametrizedType类型的，调用getRawType方法获取到不含泛型的class类型的type，
+		// 以及本身的variableResolver作为参数生成一个新的resolvableType，
 		if (this.type instanceof ParameterizedType) {
 			return forType(((ParameterizedType) this.type).getRawType(), this.variableResolver);
 		}
+		// 如果type是WildcardType类型的
 		if (this.type instanceof WildcardType) {
+			// 先解析它的上界。
+			// resolveBounds方法直接拿数组第一个元素进行筛选，
+			// 如果为null或者为Object类型，返回null，否则，返回参数数组第一个元素
 			Type resolved = resolveBounds(((WildcardType) this.type).getUpperBounds());
 			if (resolved == null) {
+				// 如果为null，再解析它的下界
 				resolved = resolveBounds(((WildcardType) this.type).getLowerBounds());
 			}
+			// 根据其上下界以及variableResolver生成一个新的resolvableType进行解析
 			return forType(resolved, this.variableResolver);
 		}
+		// 如果type是TypeVariable类型的
 		if (this.type instanceof TypeVariable) {
 			TypeVariable<?> variable = (TypeVariable<?>) this.type;
 			// Try default variable resolution
 			if (this.variableResolver != null) {
+				// 如果variableResolver不为null，调用其resolveVariable方法解析TypeVariable类型的type
 				ResolvableType resolved = this.variableResolver.resolveVariable(variable);
 				if (resolved != null) {
 					return resolved;
 				}
 			}
 			// Fallback to bounds
+			// 如果variableResolver为空，或者解析失败了，根据其TypeVariable的上界生成新的resolveType进行解析
 			return forType(resolveBounds(variable.getBounds()), this.variableResolver);
 		}
 		return NONE;
@@ -1377,6 +1402,7 @@ public class ResolvableType implements Serializable {
 	public static ResolvableType forType(@Nullable Type type, @Nullable ResolvableType owner) {
 		VariableResolver variableResolver = null;
 		if (owner != null) {
+			// 将owner作为可变解析器
 			variableResolver = owner.asVariableResolver();
 		}
 		return forType(type, variableResolver);
@@ -1434,12 +1460,19 @@ public class ResolvableType implements Serializable {
 		cache.purgeUnreferencedEntries();
 
 		// Check the cache - we may have a ResolvableType which has been resolved before...
+		// 根据type typeProvider variableResolver初始化resolvableType，
+		// 该构造方法会根据type，typeProvider，variableResolver，componentType来计算其hashcode
 		ResolvableType resultType = new ResolvableType(type, typeProvider, variableResolver);
+		// 从缓存map中查找
 		ResolvableType cachedType = cache.get(resultType);
 		if (cachedType == null) {
+			// 如果缓存未命中，根据type typeProvider variableResolver resultType的hash 这四个变量再初始化一个resolvableType。
+			// 这个构造函数会去根据resolveClass方法解析出一个class对象来赋值resolved字段
 			cachedType = new ResolvableType(type, typeProvider, variableResolver, resultType.hash);
+			// 将第二个resolvableType同时当作key value 存入缓存
 			cache.put(cachedType, cachedType);
 		}
+		// 将缓存的resolvableType的resolved字段赋值给resultType，用于返回
 		resultType.resolved = cachedType.resolved;
 		return resultType;
 	}
