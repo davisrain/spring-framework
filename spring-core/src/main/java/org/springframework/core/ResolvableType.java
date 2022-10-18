@@ -388,16 +388,23 @@ public class ResolvableType implements Serializable {
 	 * @see #isArray()
 	 */
 	public ResolvableType getComponentType() {
+		// 如果this本身就是NONE，那么也返回NONE
 		if (this == NONE) {
 			return NONE;
 		}
+		// 如果自身的componentType存在，那么直接返回
 		if (this.componentType != null) {
 			return this.componentType;
 		}
+		// 如果自身的type是属于class类型的
 		if (this.type instanceof Class) {
+			// 获取class的componentType，
+			// 如果不是数组class，会返回null，那么forType方法会返回NONE
+			// 如果是数组class，那么会根据数组的componentType调用forType方法生成componentType相关的resolvableType
 			Class<?> componentType = ((Class<?>) this.type).getComponentType();
 			return forType(componentType, this.variableResolver);
 		}
+		// 如果自身type是属于GenericArrayType，那么调用getGenericComponentType方法获取到Type，递归调用forType方法进行解析
 		if (this.type instanceof GenericArrayType) {
 			return forType(((GenericArrayType) this.type).getGenericComponentType(), this.variableResolver);
 		}
@@ -679,10 +686,15 @@ public class ResolvableType implements Serializable {
 	 * @see #resolveGenerics()
 	 */
 	public ResolvableType getGeneric(@Nullable int... indexes) {
+		// 获取本resolvableType的所有generics
 		ResolvableType[] generics = getGenerics();
+		// 如果indexes参数为null胡哦这indexes数组长度为0，
+		// 判断generics长度是否为0，如果为0，返回NONE，如果不为0，返回第一个
 		if (indexes == null || indexes.length == 0) {
 			return (generics.length == 0 ? NONE : generics[0]);
 		}
+		// 如果indexes参数有值，循环调用，每次将generic赋值为上一个拿到的generic，
+		// 并且调用其getGenerics方法拿到generics，根据indexes数组中的值去取generic
 		ResolvableType generic = this;
 		for (int index : indexes) {
 			generics = generic.getGenerics();
@@ -713,6 +725,7 @@ public class ResolvableType implements Serializable {
 		}
 		ResolvableType[] generics = this.generics;
 		if (generics == null) {
+			// 如果type是class，那么generics等于其typeParameters数组的元素对应的resolveType所组成的数组
 			if (this.type instanceof Class) {
 				Type[] typeParams = ((Class<?>) this.type).getTypeParameters();
 				generics = new ResolvableType[typeParams.length];
@@ -720,6 +733,7 @@ public class ResolvableType implements Serializable {
 					generics[i] = ResolvableType.forType(typeParams[i], this);
 				}
 			}
+			// 如果type是ParameterizedType，其generics是actualTypeArguments数组的元组对应的resolveType所组成的数组
 			else if (this.type instanceof ParameterizedType) {
 				Type[] actualTypeArguments = ((ParameterizedType) this.type).getActualTypeArguments();
 				generics = new ResolvableType[actualTypeArguments.length];
@@ -727,6 +741,7 @@ public class ResolvableType implements Serializable {
 					generics[i] = forType(actualTypeArguments[i], this.variableResolver);
 				}
 			}
+			// 其余情况调用resolveType之后再调用getGenerics
 			else {
 				generics = resolveType().getGenerics();
 			}

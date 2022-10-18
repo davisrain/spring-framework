@@ -5,11 +5,13 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.*;
 import java.util.List;
 
-class TypeTests<T> {
+class TypeTests<T extends List<T>> {
 
 	static List<List<String>> parameterizedTypeField;
 
 	static List<? extends List<String>> wildcardTypeField;
+
+	static List<Object>[] genericArrayTypeField;
 
 
 	@Test
@@ -39,5 +41,15 @@ class TypeTests<T> {
 		TypeVariable<Class<TypeTests>> typeVariable = TypeTests.class.getTypeParameters()[0];
 		Type bound = typeVariable.getBounds()[0];
 		System.out.println(bound);
+		System.out.println(bound instanceof Class);
+		System.out.println(bound instanceof ParameterizedType);
+	}
+
+	@Test
+	void testGetGenerics() throws Exception {
+		Field genericArrayTypeField = TypeTests.class.getDeclaredField("genericArrayTypeField");
+		ResolvableType resolvableType = ResolvableType.forType(genericArrayTypeField.getGenericType());
+		ResolvableType[] generics = resolvableType.getGenerics();
+		System.out.println(generics);
 	}
 }

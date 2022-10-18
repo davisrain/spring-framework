@@ -55,7 +55,8 @@ public class GenericApplicationListenerAdapter implements GenericApplicationList
 	public GenericApplicationListenerAdapter(ApplicationListener<?> delegate) {
 		Assert.notNull(delegate, "Delegate listener must not be null");
 		this.delegate = (ApplicationListener<ApplicationEvent>) delegate;
-		//	根据被代理的监听器解析出它所声明的支持的事件类型。即ApplicationListener<E extends ApplicationEvent>中的E
+		//	根据被代理的监听器解析出它所声明的支持的事件类型的resolvableType。
+		//	即ApplicationListener<E extends ApplicationEvent>中的E的resolvableType
 		this.declaredEventType = resolveDeclaredEventType(this.delegate);
 	}
 
@@ -96,7 +97,7 @@ public class GenericApplicationListenerAdapter implements GenericApplicationList
 
 	@Nullable
 	private static ResolvableType resolveDeclaredEventType(ApplicationListener<ApplicationEvent> listener) {
-		// 根据监听器的类型进行解析
+		// 根据监听器的类型进行解析,得到监听器声明的event的resolvableType
 		ResolvableType declaredEventType = resolveDeclaredEventType(listener.getClass());
 		if (declaredEventType == null || declaredEventType.isAssignableFrom(ApplicationEvent.class)) {
 			Class<?> targetClass = AopUtils.getTargetClass(listener);
