@@ -93,6 +93,8 @@ public class SimpleCommandLinePropertySource extends CommandLinePropertySource<C
 	 * @see CommandLinePropertySource#CommandLinePropertySource(Object)
 	 */
 	public SimpleCommandLinePropertySource(String... args) {
+		// 创建一个SimpleCommandLineArgsParser来解析传入的命令行参数，
+		// 将解析后的结果CommandLineArgs对象当作参数调用父类的构造方法
 		super(new SimpleCommandLineArgsParser().parse(args));
 	}
 

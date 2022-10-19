@@ -63,9 +63,16 @@ class SimpleCommandLineArgsParser {
 	 * {@link CommandLineArgs} object.
 	 * @param args command line arguments, typically from a {@code main()} method
 	 */
+	// 命令行参数的解析方法
 	public CommandLineArgs parse(String... args) {
+		// 创建一个CommandLineArgs对象来保存命令行参数，
+		// 其中以--开头的optionArgs是Map<String,List<String>>结构的，
+		// 不以--开头的nonOptionArgs是List<String>结构的
 		CommandLineArgs commandLineArgs = new CommandLineArgs();
+		// 循环命令行参数数组
 		for (String arg : args) {
+			// 如果参数以--开头，属于optionArg，
+			// 根据=分隔解析出optionName和optionValue；如果没有=，则只有optionName
 			if (arg.startsWith("--")) {
 				String optionText = arg.substring(2);
 				String optionName;
@@ -81,8 +88,10 @@ class SimpleCommandLineArgsParser {
 				if (optionName.isEmpty()) {
 					throw new IllegalArgumentException("Invalid argument syntax: " + arg);
 				}
+				// 调用addOptionArg方法将optionName和optionValue存入
 				commandLineArgs.addOptionArg(optionName, optionValue);
 			}
+			// 不以--开头的 属于NonOptionArg
 			else {
 				commandLineArgs.addNonOptionArg(arg);
 			}

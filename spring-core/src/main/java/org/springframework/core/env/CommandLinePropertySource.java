@@ -222,6 +222,7 @@ public abstract class CommandLinePropertySource<T> extends EnumerablePropertySou
 	 * {@value #COMMAND_LINE_PROPERTY_SOURCE_NAME} and backed by the given source object.
 	 */
 	public CommandLinePropertySource(T source) {
+		// 使用常量commandLineArgs作为propertySource的name传入父类的构造方法
 		super(COMMAND_LINE_PROPERTY_SOURCE_NAME, source);
 	}
 

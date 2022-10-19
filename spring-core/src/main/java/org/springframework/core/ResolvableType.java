@@ -907,36 +907,44 @@ public class ResolvableType implements Serializable {
 
 	@Nullable
 	private ResolvableType resolveVariable(TypeVariable<?> variable) {
+		// 如果type是TypeVariable类型的，先调用resolveType方法将type进行解析之后再调用resolveVariable方法来解析TypeVariable
 		if (this.type instanceof TypeVariable) {
 			return resolveType().resolveVariable(variable);
 		}
+		// 如果type是ParameterizedType类型的
 		if (this.type instanceof ParameterizedType) {
 			ParameterizedType parameterizedType = (ParameterizedType) this.type;
 			Class<?> resolved = resolve();
 			if (resolved == null) {
 				return null;
 			}
+			// 用resolved字段的class的getTypeParameters方法获取到类上声明的TypeVariables
 			TypeVariable<?>[] variables = resolved.getTypeParameters();
 			for (int i = 0; i < variables.length; i++) {
+				// 循环比较typeVariable的name，如果相等，取type上同下标的actualTypeArgument，解析成resolvableType返回
 				if (ObjectUtils.nullSafeEquals(variables[i].getName(), variable.getName())) {
 					Type actualType = parameterizedType.getActualTypeArguments()[i];
 					return forType(actualType, this.variableResolver);
 				}
 			}
+			// 如果class上没有匹配的typeVariable，获取parameterizedType的ownerType，转换为resolvableType来解析该typeVariable
 			Type ownerType = parameterizedType.getOwnerType();
 			if (ownerType != null) {
 				return forType(ownerType, this.variableResolver).resolveVariable(variable);
 			}
 		}
+		// 如果type是wildcardType类型的，先调用resolvableType方法将type解析之后再调用resolveVariable方法来解析TypeVariable
 		if (this.type instanceof WildcardType) {
 			ResolvableType resolved = resolveType().resolveVariable(variable);
 			if (resolved != null) {
 				return resolved;
 			}
 		}
+		// 如果自身还存在variableResolver， 使用这个variableResolver来解析typeVariable
 		if (this.variableResolver != null) {
 			return this.variableResolver.resolveVariable(variable);
 		}
+		// 上述逻辑都不存在的时候， 返回null
 		return null;
 	}
 
