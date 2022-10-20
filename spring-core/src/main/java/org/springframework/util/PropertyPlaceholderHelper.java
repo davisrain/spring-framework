@@ -90,10 +90,14 @@ public class PropertyPlaceholderHelper {
 		Assert.notNull(placeholderSuffix, "'placeholderSuffix' must not be null");
 		this.placeholderPrefix = placeholderPrefix;
 		this.placeholderSuffix = placeholderSuffix;
+		// 根据后缀去map中拿到简单前缀
 		String simplePrefixForSuffix = wellKnownSimplePrefixes.get(this.placeholderSuffix);
+		// 如果简单前缀不为null，并且占位符前缀是以简单前缀结尾的
 		if (simplePrefixForSuffix != null && this.placeholderPrefix.endsWith(simplePrefixForSuffix)) {
+			// 那么就将该值赋给simplePrefix字段
 			this.simplePrefix = simplePrefixForSuffix;
 		}
+		// 否则简单前缀字段就等于占位符前缀
 		else {
 			this.simplePrefix = this.placeholderPrefix;
 		}
@@ -130,6 +134,7 @@ public class PropertyPlaceholderHelper {
 			String value, PlaceholderResolver placeholderResolver, @Nullable Set<String> visitedPlaceholders) {
 
 		int startIndex = value.indexOf(this.placeholderPrefix);
+		// 如果不存在占位符前缀，直接返回
 		if (startIndex == -1) {
 			return value;
 		}
@@ -137,26 +142,40 @@ public class PropertyPlaceholderHelper {
 		StringBuilder result = new StringBuilder(value);
 		while (startIndex != -1) {
 			int endIndex = findPlaceholderEndIndex(result, startIndex);
+			// 当endIndex不为-1时，说明查找到了占位符后缀
 			if (endIndex != -1) {
+				// 截取出占位符前缀后缀所包裹的内容 例如${name} 截取出的就是name
 				String placeholder = result.substring(startIndex + this.placeholderPrefix.length(), endIndex);
+				// 将其赋值给originPlaceholder
 				String originalPlaceholder = placeholder;
+				// 如果visitedPlaceholders为null，初始化一个初始容量为4的set
 				if (visitedPlaceholders == null) {
 					visitedPlaceholders = new HashSet<>(4);
 				}
+				// 将originalPlaceholder放入set中，如果已经访问过的placeholder再次访问的话，会循环引用的错误
 				if (!visitedPlaceholders.add(originalPlaceholder)) {
 					throw new IllegalArgumentException(
 							"Circular placeholder reference '" + originalPlaceholder + "' in property definitions");
 				}
 				// Recursive invocation, parsing placeholders contained in the placeholder key.
+				// 递归调用，解析占位符中的占位符
 				placeholder = parseStringValue(placeholder, placeholderResolver, visitedPlaceholders);
 				// Now obtain the value for the fully resolved key...
+				// 通过方法传入的占位符解析器解析占位符，比如传入的AbstractPropertyResolver类中的模板方法getPropertyAsRawString的具体实现，
+				// 拿到占位符对应的具体的值
 				String propVal = placeholderResolver.resolvePlaceholder(placeholder);
+				// 如果对应的值为null并且valueSeparator不为null
 				if (propVal == null && this.valueSeparator != null) {
+					// 判断占位符中是否存在valueSeparator 比如这种形式 ${name:tom}
 					int separatorIndex = placeholder.indexOf(this.valueSeparator);
 					if (separatorIndex != -1) {
+						// 如果存在，根据valueSeparator分割，取到实际的占位符 name
 						String actualPlaceholder = placeholder.substring(0, separatorIndex);
+						// valueSeparator后面的是默认值，也分割出来 tom
 						String defaultValue = placeholder.substring(separatorIndex + this.valueSeparator.length());
+						// 再根据实际的占位符去解析
 						propVal = placeholderResolver.resolvePlaceholder(actualPlaceholder);
+						// 如果得到的值还是为null的话，将默认值赋给propVal
 						if (propVal == null) {
 							propVal = defaultValue;
 						}
@@ -182,6 +201,7 @@ public class PropertyPlaceholderHelper {
 				}
 				visitedPlaceholders.remove(originalPlaceholder);
 			}
+			// 当endIndex为-1时，说明没有完整的占位符，将startIndex置为-1，结束循环，直接返回原值
 			else {
 				startIndex = -1;
 			}
@@ -190,22 +210,31 @@ public class PropertyPlaceholderHelper {
 	}
 
 	private int findPlaceholderEndIndex(CharSequence buf, int startIndex) {
+		// 将index指向前缀后面的第一个字符
 		int index = startIndex + this.placeholderPrefix.length();
 		int withinNestedPlaceholder = 0;
+		// 当index等于buf的长度时，循环结束，没有找到占位符结束的位置，返回-1
 		while (index < buf.length()) {
+			// 判断buf从index位置开始是不是和placeholderSuffix相匹配
 			if (StringUtils.substringMatch(buf, index, this.placeholderSuffix)) {
+				// 当和placeholderSuffix匹配时，判断是否有嵌套的占位符
 				if (withinNestedPlaceholder > 0) {
+					// 如果有，将withinNestedPlaceholder-1，并且将index指向placeholderSuffix后面一个字符，继续循环，查找外层的占位符后缀
 					withinNestedPlaceholder--;
 					index = index + this.placeholderSuffix.length();
 				}
+				// 当withinNestedPlaceholder = 0时，返回index的值，此时index指向最外层的占位符后缀
 				else {
 					return index;
 				}
 			}
+			// 判断buf从index位置开始是不是和simplePrefix相匹配
 			else if (StringUtils.substringMatch(buf, index, this.simplePrefix)) {
+				// 当和simplePrefix匹配时，说明有嵌套的占位符，将withinNestedPlaceholder+1，并且将index指向simplePrefix后面一个字符
 				withinNestedPlaceholder++;
 				index = index + this.simplePrefix.length();
 			}
+			// 如果都不匹配，将index+1，继续比较
 			else {
 				index++;
 			}

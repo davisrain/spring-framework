@@ -77,17 +77,23 @@ public class PropertySourcesPropertyResolver extends AbstractPropertyResolver {
 	@Nullable
 	protected <T> T getProperty(String key, Class<T> targetValueType, boolean resolveNestedPlaceholders) {
 		if (this.propertySources != null) {
+			// 循环propertySources
 			for (PropertySource<?> propertySource : this.propertySources) {
 				if (logger.isTraceEnabled()) {
 					logger.trace("Searching for key '" + key + "' in PropertySource '" +
 							propertySource.getName() + "'");
 				}
+				// 调用propertySource的getProperty方法
 				Object value = propertySource.getProperty(key);
 				if (value != null) {
+					// 如果value是String类型的并且需要解析占位符
 					if (resolveNestedPlaceholders && value instanceof String) {
+						// 调用解析占位符的方法
 						value = resolveNestedPlaceholders((String) value);
 					}
+					// 打印日志
 					logKeyFound(key, propertySource, value);
+					// 如果需要的话，转换value类型
 					return convertValueIfNecessary(value, targetValueType);
 				}
 			}

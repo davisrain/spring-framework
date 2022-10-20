@@ -234,7 +234,10 @@ public abstract class AbstractEnvironment implements ConfigurableEnvironment {
 	 */
 	protected Set<String> doGetActiveProfiles() {
 		synchronized (this.activeProfiles) {
+			// 判断activeProfiles字段的set是否为空，
+			// 如果为空的话，根据spring.profiles.active属性去取值，然后通过setActiveProfiles方法设置进activeProfiles字段中
 			if (this.activeProfiles.isEmpty()) {
+				// 调用持有的PropertySourcePropertyResolver的getProperty方法
 				String profiles = getProperty(ACTIVE_PROFILES_PROPERTY_NAME);
 				if (StringUtils.hasText(profiles)) {
 					setActiveProfiles(StringUtils.commaDelimitedListToStringArray(
@@ -252,9 +255,12 @@ public abstract class AbstractEnvironment implements ConfigurableEnvironment {
 			logger.debug("Activating profiles " + Arrays.asList(profiles));
 		}
 		synchronized (this.activeProfiles) {
+			// 首先清空activeProfiles字段的set
 			this.activeProfiles.clear();
 			for (String profile : profiles) {
+				// 循环判断profile是否合法(profile不能为空字符串并且不能以!开头)
 				validateProfile(profile);
+				// 依次加入activeProfiles的set中
 				this.activeProfiles.add(profile);
 			}
 		}

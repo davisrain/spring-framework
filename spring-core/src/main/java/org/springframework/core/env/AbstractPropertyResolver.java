@@ -196,6 +196,7 @@ public abstract class AbstractPropertyResolver implements ConfigurablePropertyRe
 
 	@Override
 	public String resolvePlaceholders(String text) {
+		// 忽略不能解析的占位符，使用nonStrictHelper(不严格的placeholderHelper)
 		if (this.nonStrictHelper == null) {
 			this.nonStrictHelper = createPlaceholderHelper(true);
 		}
@@ -204,6 +205,7 @@ public abstract class AbstractPropertyResolver implements ConfigurablePropertyRe
 
 	@Override
 	public String resolveRequiredPlaceholders(String text) throws IllegalArgumentException {
+		// 不忽略无法解析的占位符，使用strictHelper(严格的placeholderHelper)
 		if (this.strictHelper == null) {
 			this.strictHelper = createPlaceholderHelper(false);
 		}
@@ -226,16 +228,20 @@ public abstract class AbstractPropertyResolver implements ConfigurablePropertyRe
 		if (value.isEmpty()) {
 			return value;
 		}
+		// 根据参数是否需要忽略无法解析的内嵌占位符来选择调用哪个方法，默认为false，不忽略
 		return (this.ignoreUnresolvableNestedPlaceholders ?
 				resolvePlaceholders(value) : resolveRequiredPlaceholders(value));
 	}
 
 	private PropertyPlaceholderHelper createPlaceholderHelper(boolean ignoreUnresolvablePlaceholders) {
+		// 根据placeholderPrefix placeholderSuffix valuesSeparator ignoreUnresolvablePlaceholders 这四个参数创建一个PropertyPlaceholderHelper
 		return new PropertyPlaceholderHelper(this.placeholderPrefix, this.placeholderSuffix,
 				this.valueSeparator, ignoreUnresolvablePlaceholders);
 	}
 
+	// 实际进行解析占位符的方法
 	private String doResolvePlaceholders(String text, PropertyPlaceholderHelper helper) {
+		// 调用helper的replacePlaceHolders方法来解析，参数为要解析的值 和 一个lambda表达式(getPropertyAsRawString这个模板方法的具体实现)
 		return helper.replacePlaceholders(text, this::getPropertyAsRawString);
 	}
 
