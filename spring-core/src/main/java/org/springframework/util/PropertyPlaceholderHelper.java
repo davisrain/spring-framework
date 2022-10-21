@@ -184,21 +184,28 @@ public class PropertyPlaceholderHelper {
 				if (propVal != null) {
 					// Recursive invocation, parsing placeholders contained in the
 					// previously resolved placeholder value.
+					// 递归解析propVal，如果propVal还有占位符的话，继续解析
 					propVal = parseStringValue(propVal, placeholderResolver, visitedPlaceholders);
+					// 将最后得到的propVal用于替换包含前缀和后缀的占位符 例如 ${name:tom}会整个被替换成tom
 					result.replace(startIndex, endIndex + this.placeholderSuffix.length(), propVal);
 					if (logger.isTraceEnabled()) {
 						logger.trace("Resolved placeholder '" + placeholder + "'");
 					}
+					// 继续往后解析字符串，看是否还存在占位符前缀
 					startIndex = result.indexOf(this.placeholderPrefix, startIndex + propVal.length());
 				}
+				// 如果propVal为null且ignoreUnresolvablePlaceholders参数为true，
+				// 忽略无法解析的占位符，将startIndex指向下一个占位符前缀的位置
 				else if (this.ignoreUnresolvablePlaceholders) {
 					// Proceed with unprocessed value.
 					startIndex = result.indexOf(this.placeholderPrefix, endIndex + this.placeholderSuffix.length());
 				}
+				// 如果参数为false，直接报错
 				else {
 					throw new IllegalArgumentException("Could not resolve placeholder '" +
 							placeholder + "'" + " in value \"" + value + "\"");
 				}
+				// 将原始占位符从set中移除
 				visitedPlaceholders.remove(originalPlaceholder);
 			}
 			// 当endIndex为-1时，说明没有完整的占位符，将startIndex置为-1，结束循环，直接返回原值

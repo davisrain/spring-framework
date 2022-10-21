@@ -90,11 +90,13 @@ public class SystemEnvironmentPropertySource extends MapPropertySource {
 	@Override
 	@Nullable
 	public Object getProperty(String name) {
+		// 解析属性名称，拿到实际名称
 		String actualName = resolvePropertyName(name);
 		if (logger.isDebugEnabled() && !name.equals(actualName)) {
 			logger.debug("PropertySource '" + getName() + "' does not contain property '" + name +
 					"', but found equivalent '" + actualName + "'");
 		}
+		// 根据实际名称去source(source是一个map)中取得属性值
 		return super.getProperty(actualName);
 	}
 
@@ -105,10 +107,15 @@ public class SystemEnvironmentPropertySource extends MapPropertySource {
 	 */
 	protected final String resolvePropertyName(String name) {
 		Assert.notNull(name, "Property name must not be null");
+		// 检查是否含有该属性名
+		// 如果原名字存在，直接返回
+		// 如果原名字没有，会尝试把.替换成_ 以及把-替换成_去查找，如果找到了，会返回替换后的名字，没有则返回null
 		String resolvedName = checkPropertyName(name);
 		if (resolvedName != null) {
 			return resolvedName;
 		}
+		// 上述逻辑没找到，将属性名转换为全大写去查找，重复上述逻辑，如果找到了，返回解析后的name
+		// 如果没找到，直接返回name
 		String uppercasedName = name.toUpperCase();
 		if (!name.equals(uppercasedName)) {
 			resolvedName = checkPropertyName(uppercasedName);

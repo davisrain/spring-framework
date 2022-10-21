@@ -259,6 +259,8 @@ public abstract class AbstractPropertyResolver implements ConfigurablePropertyRe
 		if (targetType == null) {
 			return (T) value;
 		}
+		// 获取propertyResolver的conversionService，
+		// SpringApplication的configureEnvironment方法会传入一个ApplicationConversionService的单例对象进来
 		ConversionService conversionServiceToUse = this.conversionService;
 		if (conversionServiceToUse == null) {
 			// Avoid initialization of shared DefaultConversionService if
@@ -266,8 +268,10 @@ public abstract class AbstractPropertyResolver implements ConfigurablePropertyRe
 			if (ClassUtils.isAssignableValue(targetType, value)) {
 				return (T) value;
 			}
+			// 如果没有，使用单例的DefaultConversionService
 			conversionServiceToUse = DefaultConversionService.getSharedInstance();
 		}
+		// 进行属性值类型的转换
 		return conversionServiceToUse.convert(value, targetType);
 	}
 
