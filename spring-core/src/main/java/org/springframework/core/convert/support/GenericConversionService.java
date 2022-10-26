@@ -61,6 +61,9 @@ import org.springframework.util.StringUtils;
  * @author David Haraburda
  * @since 3.0
  */
+// GenericConversionService实现了ConversionService接口和ConverterRegistry接口，
+// ConversionService主要用于判断是否能够转换以及转换操作；
+// ConverterRegistry用于添加converter的操作
 public class GenericConversionService implements ConfigurableConversionService {
 
 	/**
@@ -82,16 +85,23 @@ public class GenericConversionService implements ConfigurableConversionService {
 
 	// ConverterRegistry implementation
 
+	// GenericConversionService接受的都是GenericConverter，因此需要将Converter接口转换为GenericConverter接口，
+	// ConverterAdapter适配器提供了这样的功能
+
 	@Override
 	public void addConverter(Converter<?, ?> converter) {
+		// 获取到convert对应的Convert类型的接口声明上的两个泛型参数的ResolvableType
 		ResolvableType[] typeInfo = getRequiredTypeInfo(converter.getClass(), Converter.class);
+		// 如果typeInfo为null，并且convert是属于装饰器代理，那么拿到其被装饰的class对象再次调用getRequiredTypeInfo方法
 		if (typeInfo == null && converter instanceof DecoratingProxy) {
 			typeInfo = getRequiredTypeInfo(((DecoratingProxy) converter).getDecoratedClass(), Converter.class);
 		}
+		// 如果typeInfo仍然为null，报错
 		if (typeInfo == null) {
 			throw new IllegalArgumentException("Unable to determine source type <S> and target type <T> for your " +
 					"Converter [" + converter.getClass().getName() + "]; does the class parameterize those types?");
 		}
+		// 调用addConvert的重载方法，并且使用适配器，将convert转换为ConditionalGenericConvert接口
 		addConverter(new ConverterAdapter(converter, typeInfo[0], typeInfo[1]));
 	}
 
@@ -290,11 +300,15 @@ public class GenericConversionService implements ConfigurableConversionService {
 
 	@Nullable
 	private ResolvableType[] getRequiredTypeInfo(Class<?> converterClass, Class<?> genericIfc) {
+		// 将convertClass转换为ResolvableType，并且获取到它的接口类型是Convert的ResolvableType
 		ResolvableType resolvableType = ResolvableType.forClass(converterClass).as(genericIfc);
+		// 调用resolvableType的getGenerics方法，因为上一步获得的resolveType的type一定是ParameterizedType类型，
+		// 因此能够获取到两个泛型参数的resolvableType
 		ResolvableType[] generics = resolvableType.getGenerics();
 		if (generics.length < 2) {
 			return null;
 		}
+		// 拿到两个泛型参数的class对象，判断是否为null
 		Class<?> sourceType = generics[0].resolve();
 		Class<?> targetType = generics[1].resolve();
 		if (sourceType == null || targetType == null) {
