@@ -69,11 +69,28 @@ import static org.mockito.Mockito.verify;
  */
 @SuppressWarnings("rawtypes")
 @ExtendWith(MockitoExtension.class)
-class ResolvableTypeTests {
+class ResolvableTypeTests<E> {
 
 	@Captor
 	private ArgumentCaptor<TypeVariable<?>> typeVariableCaptor;
 
+	static class TypeToken<T> {
+
+		Type getType() {
+			Type genericSuperclass = getClass().getGenericSuperclass();
+			ParameterizedType parameterizedType = (ParameterizedType) genericSuperclass;
+			return parameterizedType.getActualTypeArguments()[0];
+		}
+	}
+
+
+	@Test
+	void testVariableResolver() {
+		ResolvableType owner = ResolvableType.forType(new TypeToken<List<String>>() {
+		}.getType());
+		ResolvableType[] generics = ResolvableType.forType(new TypeToken<List<E>>(){}.getType(), owner).getGenerics();
+		System.out.println();
+	}
 
 	@Test
 	void noneReturnValues() throws Exception {

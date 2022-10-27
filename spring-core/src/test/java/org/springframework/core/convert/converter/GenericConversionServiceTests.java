@@ -1,6 +1,7 @@
 package org.springframework.core.convert.converter;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.convert.support.GenericConversionService;
@@ -8,11 +9,12 @@ import org.springframework.core.convert.support.GenericConversionService;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
-class GenericConversionServiceTests {
+class GenericConversionServiceTests<E> {
 
 	private final GenericConversionService genericConversionService = new GenericConversionService();
 
@@ -22,8 +24,11 @@ class GenericConversionServiceTests {
 		List<Object> source = new ArrayList<>();
 		source.add(2);
 		source.add(new BigDecimal("1.11"));
-		genericConversionService.convert(source, TypeDescriptor.forObject(source),
-				new TypeDescriptor(ResolvableType.forType(new TypeToken<List<String>>(){}.getType()),null, null));
+		List<String> converted = (List<String>) genericConversionService.convert(source, TypeDescriptor.forObject(source),
+				new TypeDescriptor(ResolvableType.forType(new TypeToken<List<String>>() {
+				}.getType()), null, null));
+		System.out.println(converted);
+
 	}
 
 	static class TypeToken<T> {

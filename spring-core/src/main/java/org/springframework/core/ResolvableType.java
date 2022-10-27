@@ -1021,23 +1021,23 @@ public class ResolvableType implements Serializable {
 	 */
 	@Override
 	public String toString() {
-		if (isArray()) {
-			return getComponentType() + "[]";
-		}
-		if (this.resolved == null) {
-			return "?";
-		}
-		if (this.type instanceof TypeVariable) {
-			TypeVariable<?> variable = (TypeVariable<?>) this.type;
-			if (this.variableResolver == null || this.variableResolver.resolveVariable(variable) == null) {
-				// Don't bother with variable boundaries for toString()...
-				// Can cause infinite recursions in case of self-references
-				return "?";
-			}
-		}
-		if (hasGenerics()) {
-			return this.resolved.getName() + '<' + StringUtils.arrayToDelimitedString(getGenerics(), ", ") + '>';
-		}
+//		if (isArray()) {
+//			return getComponentType() + "[]";
+//		}
+//		if (this.resolved == null) {
+//			return "?";
+//		}
+//		if (this.type instanceof TypeVariable) {
+//			TypeVariable<?> variable = (TypeVariable<?>) this.type;
+//			if (this.variableResolver == null || this.variableResolver.resolveVariable(variable) == null) {
+//				// Don't bother with variable boundaries for toString()...
+//				// Can cause infinite recursions in case of self-references
+//				return "?";
+//			}
+//		}
+//		if (hasGenerics()) {
+//			return this.resolved.getName() + '<' + StringUtils.arrayToDelimitedString(getGenerics(), ", ") + '>';
+//		}
 		return this.resolved.getName();
 	}
 
