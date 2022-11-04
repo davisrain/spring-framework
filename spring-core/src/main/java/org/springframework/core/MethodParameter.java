@@ -161,9 +161,14 @@ public class MethodParameter {
 	 */
 	MethodParameter(Executable executable, int parameterIndex, @Nullable Class<?> containingClass) {
 		Assert.notNull(executable, "Executable must not be null");
+		// 只有Method和Constructor实现了Executable接口
 		this.executable = executable;
+		// 验证参数下标是否合法，executable有parameterCount方法，能够返回参数的个数，
+		// 参数下标需要为-1或者[0，parameterCount)
 		this.parameterIndex = validateIndex(executable, parameterIndex);
+		// 嵌套级别为1
 		this.nestingLevel = 1;
+		// 方法是属于哪个类的，如果为null的话，调用getContainingClass方法的时候会调用Executable的getDeclareClass拿到声明方法的类
 		this.containingClass = containingClass;
 	}
 
@@ -464,7 +469,9 @@ public class MethodParameter {
 	 * @see #getDeclaringClass()
 	 */
 	public Class<?> getContainingClass() {
+		// 获取到方法参数的持有类
 		Class<?> containingClass = this.containingClass;
+		// 如果为null的话，调用getDeclaringClass去获取声明Executable的类
 		return (containingClass != null ? containingClass : getDeclaringClass());
 	}
 
@@ -503,15 +510,22 @@ public class MethodParameter {
 	public Type getGenericParameterType() {
 		Type paramType = this.genericParameterType;
 		if (paramType == null) {
+			// 如果参数索引小于0，说明是方法的返回类型
 			if (this.parameterIndex < 0) {
+				// 获取方法，如果是executable的构造方法，那么会返回null
 				Method method = getMethod();
+				// 如果返回的不是null，调用method的getGenericReturnType方法拿到包含泛型的方法返回类型
 				paramType = (method != null ?
 						(KotlinDetector.isKotlinReflectPresent() && KotlinDetector.isKotlinType(getContainingClass()) ?
 						KotlinDelegate.getGenericReturnType(method) : method.getGenericReturnType()) : void.class);
 			}
 			else {
+				// 如果参数索引大于等于0，说明是方法的参数
+				// 获取到executable类型的所有泛型参数类型
 				Type[] genericParameterTypes = this.executable.getGenericParameterTypes();
 				int index = this.parameterIndex;
+				// 如果executable是构造器并且声明它的类是内部类 并且 该构造器的参数数组的长度等于参数个数 -1， 那么将参数索引-1
+				// 这是javac编译器的一个bug，内部类的构造器参数类型数组不包含其外部类的实例，因此需要将参数 -1
 				if (this.executable instanceof Constructor &&
 						ClassUtils.isInnerClass(this.executable.getDeclaringClass()) &&
 						genericParameterTypes.length == this.executable.getParameterCount() - 1) {

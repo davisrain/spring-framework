@@ -29,6 +29,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.math.BigDecimal;
 import java.util.AbstractCollection;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -91,6 +92,39 @@ class ResolvableTypeTests<E> {
 		ResolvableType[] generics = ResolvableType.forType(new TypeToken<List<E>>(){}.getType(), owner).getGenerics();
 		System.out.println();
 	}
+
+	@Test
+	void testAssignableFrom() {
+//		System.out.println(CharSequence.class.isAssignableFrom(String.class));
+//		System.out.println(String.class.isAssignableFrom(CharSequence.class));
+		Type type1 = new TypeToken<List<CharSequence>>() {}.getType();
+		Type type2 = new TypeToken<List<String>>() {}.getType();
+		Type type3 = new TypeToken<List<Integer>>(){}.getType();
+		Type type4 = new TypeToken<List<? extends BigDecimal>>(){}.getType();
+		Type type5 = new TypeToken<List<? extends Number>>(){}.getType();
+
+		Type type6 = new TypeToken<List<E>>(){}.getType();
+
+		Type type7 = new TypeToken<ArrayList<BigDecimal>>(){}.getType();
+
+		boolean result = ResolvableType.forType(type1).isAssignableFrom(ResolvableType.forType(type2));
+		System.out.println(result);
+		result = ResolvableType.forType(type2).isAssignableFrom(ResolvableType.forType(type1));
+		System.out.println(result);
+		result = ResolvableType.forType(type5).isAssignableFrom(ResolvableType.forType(type3));
+		System.out.println(result);
+		result = ResolvableType.forType(type5).isAssignableFrom(ResolvableType.forType(type4));
+		System.out.println(result);
+		result = ResolvableType.forType(type5).isAssignableFrom(ResolvableType.forType(type7));
+		System.out.println(result);
+		result = ResolvableType.forType(type4).isAssignableFrom(ResolvableType.forType(type5));
+		System.out.println(result);
+		result = ResolvableType.forType(type6).isAssignableFrom(ResolvableType.forType(type3));
+		System.out.println(result);
+
+	}
+
+
 
 	@Test
 	void noneReturnValues() throws Exception {

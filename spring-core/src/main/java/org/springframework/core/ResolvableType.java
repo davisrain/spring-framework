@@ -274,6 +274,8 @@ public class ResolvableType implements Serializable {
 	 * @return {@code true} if the specified other type can be assigned to this
 	 * {@code ResolvableType}; {@code false} otherwise
 	 */
+	// 判断resolvableType是否is assignable from 另一个resolvableType
+	// 不仅要比较他们的resolved的class对象是否assignable的，还要比较他们的generics是否是assignable的
 	public boolean isAssignableFrom(ResolvableType other) {
 		return isAssignableFrom(other, null);
 	}
@@ -282,24 +284,31 @@ public class ResolvableType implements Serializable {
 		Assert.notNull(other, "ResolvableType must not be null");
 
 		// If we cannot resolve types, we are not assignable
+		// 如果两者任意一个是NONE，直接返回false
 		if (this == NONE || other == NONE) {
 			return false;
 		}
 
 		// Deal with array by delegating to the component type
+		// 如果两者都是array，那么委托给componentType去比较，递归调用isAssignableFrom方法
 		if (isArray()) {
 			return (other.isArray() && getComponentType().isAssignableFrom(other.getComponentType()));
 		}
 
+		// 如果matchedBefore不为null，在匹配前先根据this.type作为key去map中取value，如果value和需要比较的resolvableType的type相等，
+		// 那么不用比较，直接返回true
 		if (matchedBefore != null && matchedBefore.get(this.type) == other.type) {
 			return true;
 		}
 
 		// Deal with wildcard bounds
+		// 处理wildcard bounds
+		// 获取到resolvableType可能存在的wildcard边界
 		WildcardBounds ourBounds = WildcardBounds.get(this);
 		WildcardBounds typeBounds = WildcardBounds.get(other);
 
 		// In the form X is assignable to <? extends Number>
+		// 判断二者是否都有wildcardBounds，且类型是否一样，如果类型一样，用二者的边界进行isAssignableFrom比较
 		if (typeBounds != null) {
 			return (ourBounds != null && ourBounds.isSameKind(typeBounds) &&
 					ourBounds.isAssignableFrom(typeBounds.getBounds()));
@@ -345,14 +354,17 @@ public class ResolvableType implements Serializable {
 
 		// We need an exact type match for generics
 		// List<CharSequence> is not assignable from List<String>
+		// 判断它们的class对象是否是isAssignableFrom的
 		if (exactMatch ? !ourResolved.equals(otherResolved) : !ClassUtils.isAssignable(ourResolved, otherResolved)) {
 			return false;
 		}
 
+		// 比较泛型
 		if (checkGenerics) {
 			// Recursively check each generic
 			ResolvableType[] ourGenerics = getGenerics();
 			ResolvableType[] typeGenerics = other.as(ourResolved).getGenerics();
+			// 如果泛型个数不同，直接返回false
 			if (ourGenerics.length != typeGenerics.length) {
 				return false;
 			}
@@ -361,6 +373,7 @@ public class ResolvableType implements Serializable {
 			}
 			matchedBefore.put(this.type, other.type);
 			for (int i = 0; i < ourGenerics.length; i++) {
+				// 将泛型resolvableType依次进行isAssignableFrom比较
 				if (!ourGenerics[i].isAssignableFrom(typeGenerics[i], matchedBefore)) {
 					return false;
 				}
@@ -378,6 +391,9 @@ public class ResolvableType implements Serializable {
 		if (this == NONE) {
 			return false;
 		}
+		// 如果type是class类型的且type是数组对象 返回true
+		// 如果type是GenericArrayType返回true
+		// 如果resolveType解析出的resolvableType是数组对象 返回true
 		return ((this.type instanceof Class && ((Class<?>) this.type).isArray()) ||
 				this.type instanceof GenericArrayType || resolveType().isArray());
 	}
@@ -474,16 +490,21 @@ public class ResolvableType implements Serializable {
 	 * @see #getInterfaces()
 	 */
 	public ResolvableType getSuperType() {
+		// 获取this.resolved字段，拿到class对象
 		Class<?> resolved = resolve();
+		// 如果resolved为null，返回NONE
 		if (resolved == null) {
 			return NONE;
 		}
 		try {
+			// 获取resolved带泛型的superclass
 			Type superclass = resolved.getGenericSuperclass();
+			// 如果superclass为null，返回NONE
 			if (superclass == null) {
 				return NONE;
 			}
 			ResolvableType superType = this.superType;
+			// 判断原本的this.superType字段是否为null，如果是，调用forType方法对superclass进行解析，然后赋值给this.superType字段
 			if (superType == null) {
 				superType = forType(superclass, this);
 				this.superType = superType;
@@ -649,8 +670,16 @@ public class ResolvableType implements Serializable {
 	 * nesting level (may be {@code null})
 	 * @return a {@link ResolvableType} for the nested level, or {@link #NONE}
 	 */
+	// 根据nestingLevel嵌套级别去获取到对应的ResolvableType
 	public ResolvableType getNested(int nestingLevel, @Nullable Map<Integer, Integer> typeIndexesPerLevel) {
 		ResolvableType result = this;
+		// 例如：List<Set<Integer>>
+		// 如果为1，获取到的就是自己本身 List的resolvableType
+		// 如果为2，获取到的就是最后一个泛型，如果没有指定typeIndexesPerLevel的话，默认获取generics的最后一个 Set的resolvableType
+		// 如果为3，获取到的就是上一步获取到的泛型的泛型 Integer的resolvableType
+
+		// 上述步骤中，如果存在数组，那么获取的是componentType 例如String[] nestedLevel为2的话 获取的是String的resolvableType
+		// 在获取泛型的时候，如果自身没有，那么会去其superType对应的resolvableType中获取
 		for (int i = 2; i <= nestingLevel; i++) {
 			if (result.isArray()) {
 				result = result.getComponentType();
@@ -1175,6 +1204,7 @@ public class ResolvableType implements Serializable {
 	 */
 	public static ResolvableType forField(Field field) {
 		Assert.notNull(field, "Field must not be null");
+		// 创建一个FieldTypeProvider作为TypeProvider调用forType方法
 		return forType(null, new FieldTypeProvider(field), null);
 	}
 
@@ -1335,6 +1365,8 @@ public class ResolvableType implements Serializable {
 	 * @return a {@link ResolvableType} for the specified method parameter
 	 * @see #forMethodParameter(Method, int)
 	 */
+	// 所有的跟方法参数相关的ResolvableType解析方法都会调用这个方法，无论是构造函数的参数，或者是方法的返回类型，或者是方法的参数，
+	// 都是生成一个MethodParameter，然后调用该方法进行解析
 	public static ResolvableType forMethodParameter(MethodParameter methodParameter) {
 		return forMethodParameter(methodParameter, (Type) null);
 	}
@@ -1386,7 +1418,10 @@ public class ResolvableType implements Serializable {
 	static ResolvableType forMethodParameter(
 			MethodParameter methodParameter, @Nullable Type targetType, int nestingLevel) {
 
+		// 根据方法参数的持有类解析出resolvableType并调用as方法将其转换为方法声明的类的resolvableType
+		// 例如一个类并没有重写Object的toString方法，那么toString方法的持有类可以是它本身，但是声明类是Object.class
 		ResolvableType owner = forType(methodParameter.getContainingClass()).as(methodParameter.getDeclaringClass());
+		// 调用forType解析出resolvableType，用methodParameter构建一个MethodParameterTypeProvider作为参数
 		return forType(targetType, new MethodParameterTypeProvider(methodParameter), owner.asVariableResolver()).
 				getNested(nestingLevel, methodParameter.typeIndexesPerLevel);
 	}
@@ -1712,19 +1747,27 @@ public class ResolvableType implements Serializable {
 		@Nullable
 		public static WildcardBounds get(ResolvableType type) {
 			ResolvableType resolveToWildcard = type;
+			// 判断resolvableType的type是不是wildcardType类型的，
+			// 如果不是，判断resolvableType是否为NONE，为NONE的话直接返回null
+			// 否则调用resolveType方法对type进行解析，并将解析出resolvableType赋值给原本的引用，循环判断，直到resolvableType为NONE
 			while (!(resolveToWildcard.getType() instanceof WildcardType)) {
+
 				if (resolveToWildcard == NONE) {
 					return null;
 				}
 				resolveToWildcard = resolveToWildcard.resolveType();
 			}
+			// 如果存在type是wildcardType类型的resolvableType
 			WildcardType wildcardType = (WildcardType) resolveToWildcard.type;
+			// 判断其是含有上界还是下界，然后获取其上下界进行解析
 			Kind boundsType = (wildcardType.getLowerBounds().length > 0 ? Kind.LOWER : Kind.UPPER);
 			Type[] bounds = (boundsType == Kind.UPPER ? wildcardType.getUpperBounds() : wildcardType.getLowerBounds());
+			// 生成resolvableType数组
 			ResolvableType[] resolvableBounds = new ResolvableType[bounds.length];
 			for (int i = 0; i < bounds.length; i++) {
 				resolvableBounds[i] = ResolvableType.forType(bounds[i], type.variableResolver);
 			}
+			// 根据边界类型和边界resolvableType数组创建一个WildcardBounds实例返回
 			return new WildcardBounds(boundsType, resolvableBounds);
 		}
 

@@ -28,7 +28,6 @@ class GenericConversionServiceTests<E> {
 				new TypeDescriptor(ResolvableType.forType(new TypeToken<List<String>>() {
 				}.getType()), null, null));
 		System.out.println(converted);
-
 	}
 
 	static class TypeToken<T> {
