@@ -576,21 +576,31 @@ public class ResolvableType implements Serializable {
 	 * i.e. without substituting that interface's type variables.
 	 * The result will be {@code true} only in those two scenarios.
 	 */
+	// 判断type中是否有无法解析的泛型
+	// 1.有无法解析的TypeVariable类型
+	// 2.实现了一个泛型接口，但是是用的RawType
+	// 以上两种情况会返回true
 	public boolean hasUnresolvableGenerics() {
 		if (this == NONE) {
 			return false;
 		}
+		// 获取自身的泛型
 		ResolvableType[] generics = getGenerics();
 		for (ResolvableType generic : generics) {
+			// 如果泛型有不能解析的TypeVariable或者是没有边界的wildcard 返回true
 			if (generic.isUnresolvableTypeVariable() || generic.isWildcardWithoutBounds()) {
 				return true;
 			}
 		}
 		Class<?> resolved = resolve();
+		// 如果resolved字段不为null
 		if (resolved != null) {
 			try {
+				// 获取带泛型的接口
 				for (Type genericInterface : resolved.getGenericInterfaces()) {
+					// 如果接口是class类型的
 					if (genericInterface instanceof Class) {
+						// 判断是否有泛型，如果有的话，说明实现接口的时候，使用的是rawType，没有指定泛型，返回true
 						if (forClass((Class<?>) genericInterface).hasGenerics()) {
 							return true;
 						}
@@ -600,8 +610,10 @@ public class ResolvableType implements Serializable {
 			catch (TypeNotPresentException ex) {
 				// Ignore non-present types in generic signature
 			}
+			// 获取父类，递归调用本方法
 			return getSuperType().hasUnresolvableGenerics();
 		}
+		// 如果resolved为null，返回false
 		return false;
 	}
 
@@ -610,16 +622,21 @@ public class ResolvableType implements Serializable {
 	 * cannot be resolved through the associated variable resolver.
 	 */
 	private boolean isUnresolvableTypeVariable() {
+		// 如果type是TypeVariable类型的
 		if (this.type instanceof TypeVariable) {
+			// 如果variableResolver为null，直接返回true
 			if (this.variableResolver == null) {
 				return true;
 			}
 			TypeVariable<?> variable = (TypeVariable<?>) this.type;
+			// 使用variableResolver对TypeVariable进行解析
 			ResolvableType resolved = this.variableResolver.resolveVariable(variable);
+			// 如果解析的结果为null，或者解析的结果调用自身的本方法为true， 返回true
 			if (resolved == null || resolved.isUnresolvableTypeVariable()) {
 				return true;
 			}
 		}
+		// 如果type不是TypeVariable类型的，返回false
 		return false;
 	}
 
@@ -628,8 +645,10 @@ public class ResolvableType implements Serializable {
 	 * without specific bounds (i.e., equal to {@code ? extends Object}).
 	 */
 	private boolean isWildcardWithoutBounds() {
+		// 如果type类型为WildcardType
 		if (this.type instanceof WildcardType) {
 			WildcardType wt = (WildcardType) this.type;
+			// 判断是否有上下界 或者上界是Object，如果是的话，返回true，表示没有边界
 			if (wt.getLowerBounds().length == 0) {
 				Type[] upperBounds = wt.getUpperBounds();
 				if (upperBounds.length == 0 || (upperBounds.length == 1 && Object.class == upperBounds[0])) {
@@ -637,6 +656,7 @@ public class ResolvableType implements Serializable {
 				}
 			}
 		}
+		// 如果type类型不为wildcardType，返回false
 		return false;
 	}
 

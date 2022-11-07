@@ -74,8 +74,10 @@ public class OrderComparator implements Comparator<Object> {
 	}
 
 	private int doCompare(@Nullable Object o1, @Nullable Object o2, @Nullable OrderSourceProvider sourceProvider) {
+		// 判断要比较的两个对象是否实现了PriorityOrdered接口
 		boolean p1 = (o1 instanceof PriorityOrdered);
 		boolean p2 = (o2 instanceof PriorityOrdered);
+		// 如果只有一个实现了PriorityOrdered接口的话，实现了该接口的排在前面
 		if (p1 && !p2) {
 			return -1;
 		}
@@ -83,6 +85,7 @@ public class OrderComparator implements Comparator<Object> {
 			return 1;
 		}
 
+		// 如果两个对象都实现了或者都没有实现，调用getOrder方法获取它们的order，进行比较
 		int i1 = getOrder(o1, sourceProvider);
 		int i2 = getOrder(o2, sourceProvider);
 		return Integer.compare(i1, i2);
@@ -113,6 +116,7 @@ public class OrderComparator implements Comparator<Object> {
 				}
 			}
 		}
+		// 调用getOrder方法获取order
 		return (order != null ? order : getOrder(obj));
 	}
 
@@ -124,12 +128,14 @@ public class OrderComparator implements Comparator<Object> {
 	 * @return the order value, or {@code Ordered.LOWEST_PRECEDENCE} as fallback
 	 */
 	protected int getOrder(@Nullable Object obj) {
+		// 如果对象不为null，调用findOrder方法获取order
 		if (obj != null) {
 			Integer order = findOrder(obj);
 			if (order != null) {
 				return order;
 			}
 		}
+		// 如果上述步骤没有返回，那么直接返回最低的优先级
 		return Ordered.LOWEST_PRECEDENCE;
 	}
 
@@ -142,6 +148,7 @@ public class OrderComparator implements Comparator<Object> {
 	 */
 	@Nullable
 	protected Integer findOrder(Object obj) {
+		// 判断对象是否实现了Ordered接口，如果实现了，调用getOrder方法获取order，否则返回null
 		return (obj instanceof Ordered ? ((Ordered) obj).getOrder() : null);
 	}
 

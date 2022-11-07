@@ -61,21 +61,29 @@ public class AnnotationAwareOrderComparator extends OrderComparator {
 	@Override
 	@Nullable
 	protected Integer findOrder(Object obj) {
+		// 调用父类的findOrder方法，如果获取到的order不为null的话，直接返回
 		Integer order = super.findOrder(obj);
 		if (order != null) {
 			return order;
 		}
+		// 如果获取到的order为null，尝试从注解中寻找
 		return findOrderFromAnnotation(obj);
 	}
 
 	@Nullable
 	private Integer findOrderFromAnnotation(Object obj) {
+		// 判断对象是否是AnnotatedElement，如果不是的话，获取对象的class对象
 		AnnotatedElement element = (obj instanceof AnnotatedElement ? (AnnotatedElement) obj : obj.getClass());
+		// 获取到element的所有注解信息
 		MergedAnnotations annotations = MergedAnnotations.from(element, SearchStrategy.TYPE_HIERARCHY);
+		// 先找element上标注的@Order注解，如果存在，返回其value值
+		// 如果不存在，找标注的@Priority注解，如果存在，返回其value值
 		Integer order = OrderUtils.getOrderFromAnnotations(element, annotations);
+		// 如果order仍然为null的话，并且对象是属于DecoratingProxy，获取其被装饰的对象上的order信息
 		if (order == null && obj instanceof DecoratingProxy) {
 			return findOrderFromAnnotation(((DecoratingProxy) obj).getDecoratedClass());
 		}
+		// 返回order值
 		return order;
 	}
 
