@@ -121,15 +121,21 @@ public abstract class HttpAccessor {
 	 * @see ClientHttpRequestFactory#createRequest(URI, HttpMethod)
 	 */
 	protected ClientHttpRequest createRequest(URI url, HttpMethod method) throws IOException {
+		// 用自身持有的requestFactory来创建httpRequest对象，而requestFactory可以在初始化restTemplate时进行设置，
+		// 如果没有指定，那么默认使用的是SimpleClientHttpRequestFactory，即使用java原生的urlconnection进行http连接，
+		// 可以通过替换requestFactory来使得restTemplate支持httpClient、okhttp3、netty等http框架
 		ClientHttpRequest request = getRequestFactory().createRequest(url, method);
+		// 初始化httpRequest请求对象
 		initialize(request);
 		if (logger.isDebugEnabled()) {
 			logger.debug("HTTP " + method.name() + " " + url);
 		}
+		// 返回request对象
 		return request;
 	}
 
 	private void initialize(ClientHttpRequest request) {
+		// 循环调用restTemplate中的请求初始化器，对请求对象进行初始化
 		this.clientHttpRequestInitializers.forEach(initializer -> initializer.initialize(request));
 	}
 

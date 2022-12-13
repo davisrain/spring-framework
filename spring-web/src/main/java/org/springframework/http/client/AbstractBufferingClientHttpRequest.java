@@ -41,11 +41,15 @@ abstract class AbstractBufferingClientHttpRequest extends AbstractClientHttpRequ
 
 	@Override
 	protected ClientHttpResponse executeInternal(HttpHeaders headers) throws IOException {
+		// 将请求对象中保存请求体数据的输出流转换为字节数组
 		byte[] bytes = this.bufferedOutput.toByteArray();
+		// 检查请求头中的Content-Length属性的值，如果不对，重新设置
 		if (headers.getContentLength() < 0) {
 			headers.setContentLength(bytes.length);
 		}
+		// 将请求头和请求体的字节数组作为参数调用executeInternal方法
 		ClientHttpResponse result = executeInternal(headers, bytes);
+		// 执行完成后，将输出流重置
 		this.bufferedOutput = new ByteArrayOutputStream(0);
 		return result;
 	}

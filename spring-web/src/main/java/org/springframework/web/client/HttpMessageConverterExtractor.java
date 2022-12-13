@@ -86,19 +86,24 @@ public class HttpMessageConverterExtractor<T> implements ResponseExtractor<T> {
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes", "resource"})
 	public T extractData(ClientHttpResponse response) throws IOException {
+		// 构造一个包装类型的response
 		MessageBodyClientHttpResponseWrapper responseWrapper = new MessageBodyClientHttpResponseWrapper(response);
+		// 判断是否有返回体信息或者返回体信息是否为空
 		if (!responseWrapper.hasMessageBody() || responseWrapper.hasEmptyMessageBody()) {
 			return null;
 		}
+		// 从返回头中获取Content-Type属性，并解析为MediaType
 		MediaType contentType = getContentType(responseWrapper);
 
 		try {
+			// 循环消息转换器，找到能够读取这种contentType和responseType的消息转换器，进行读取，然后将结果返回
 			for (HttpMessageConverter<?> messageConverter : this.messageConverters) {
 				if (messageConverter instanceof GenericHttpMessageConverter) {
 					GenericHttpMessageConverter<?> genericMessageConverter =
 							(GenericHttpMessageConverter<?>) messageConverter;
 					if (genericMessageConverter.canRead(this.responseType, null, contentType)) {
 						if (logger.isDebugEnabled()) {
+							// 将responseType解析为ResolvableType类型
 							ResolvableType resolvableType = ResolvableType.forType(this.responseType);
 							logger.debug("Reading to [" + resolvableType + "]");
 						}
@@ -121,6 +126,7 @@ public class HttpMessageConverterExtractor<T> implements ResponseExtractor<T> {
 					this.responseType + "] and content type [" + contentType + "]", ex);
 		}
 
+		// 如果每找到对应的消息转换器，抛出不能识别的Content-Type异常
 		throw new UnknownContentTypeException(this.responseType, contentType,
 				response.getRawStatusCode(), response.getStatusText(), response.getHeaders(),
 				getResponseBody(response));
@@ -133,11 +139,13 @@ public class HttpMessageConverterExtractor<T> implements ResponseExtractor<T> {
 	 * @return the MediaType, or "application/octet-stream"
 	 */
 	protected MediaType getContentType(ClientHttpResponse response) {
+		// 从返回头中获取Content-Type
 		MediaType contentType = response.getHeaders().getContentType();
 		if (contentType == null) {
 			if (logger.isTraceEnabled()) {
 				logger.trace("No content-type, using 'application/octet-stream'");
 			}
+			// 如果返回头中没有该属性，使用application/octet-stream作为返回头的Content-Type
 			contentType = MediaType.APPLICATION_OCTET_STREAM;
 		}
 		return contentType;

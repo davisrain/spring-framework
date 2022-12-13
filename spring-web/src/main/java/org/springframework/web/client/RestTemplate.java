@@ -420,10 +420,12 @@ public class RestTemplate extends InterceptingHttpAccessor implements RestOperat
 	@Nullable
 	public <T> T postForObject(String url, @Nullable Object request, Class<T> responseType,
 			Map<String, ?> uriVariables) throws RestClientException {
-
+		// 根据request和返回的class类型生成一个请求callback对象，在发送请求前执行回调
 		RequestCallback requestCallback = httpEntityCallback(request, responseType);
+		// 根据返回类型和httpMessageConverter初始化一个返回提取器，用于从response中提取返回类型
 		HttpMessageConverterExtractor<T> responseExtractor =
 				new HttpMessageConverterExtractor<>(responseType, getMessageConverters(), logger);
+		// 开始执行http请求，方法为post方法，将请求回调和返回提取器以及uri变量都传入
 		return execute(url, HttpMethod.POST, requestCallback, responseExtractor, uriVariables);
 	}
 
@@ -689,7 +691,9 @@ public class RestTemplate extends InterceptingHttpAccessor implements RestOperat
 			@Nullable ResponseExtractor<T> responseExtractor, Map<String, ?> uriVariables)
 			throws RestClientException {
 
+		// 根据uri变量扩展uri
 		URI expanded = getUriTemplateHandler().expand(url, uriVariables);
+		// 执行请求
 		return doExecute(expanded, method, requestCallback, responseExtractor);
 	}
 
@@ -730,12 +734,18 @@ public class RestTemplate extends InterceptingHttpAccessor implements RestOperat
 		Assert.notNull(method, "HttpMethod is required");
 		ClientHttpResponse response = null;
 		try {
+			// 创建http请求对象
 			ClientHttpRequest request = createRequest(url, method);
+			// 如果requestCallback不为null的话，进行回调，对request对象进行一系列的设置
 			if (requestCallback != null) {
+				// 设置请求的请求头和请求体等信息
 				requestCallback.doWithRequest(request);
 			}
+			// 调用执行方法，发送请求，拿到返回
 			response = request.execute();
+			// 处理返回对象
 			handleResponse(url, method, response);
+			// 如果返回提取器不为空的话，从返回中提取数组并返回
 			return (responseExtractor != null ? responseExtractor.extractData(response) : null);
 		}
 		catch (IOException ex) {
@@ -764,7 +774,9 @@ public class RestTemplate extends InterceptingHttpAccessor implements RestOperat
 	 * @see #setErrorHandler
 	 */
 	protected void handleResponse(URI url, HttpMethod method, ClientHttpResponse response) throws IOException {
+		// 获取错误处理器，如果没有自定义设置，默认为DefaultResponseErrorHandler
 		ResponseErrorHandler errorHandler = getErrorHandler();
+		// 通过错误处理器判断返回是否有错误，根据状态码判断，如果以4或者5开头，表示有错误
 		boolean hasError = errorHandler.hasError(response);
 		if (logger.isDebugEnabled()) {
 			try {
@@ -777,6 +789,7 @@ public class RestTemplate extends InterceptingHttpAccessor implements RestOperat
 			}
 		}
 		if (hasError) {
+			// 如果有错误，处理错误
 			errorHandler.handleError(url, method, response);
 		}
 	}
@@ -844,6 +857,8 @@ public class RestTemplate extends InterceptingHttpAccessor implements RestOperat
 
 		@Override
 		public void doWithRequest(ClientHttpRequest request) throws IOException {
+			// 如果返回类型不为null，那么查找所有能够读这种返回类型的消息转换器，并且将他们支持的MIME类型都集合到一起，
+			// 去重，并根据权重排序，然后设置到httpHeader的accept属性中
 			if (this.responseType != null) {
 				List<MediaType> allSupportedMediaTypes = getMessageConverters().stream()
 						.filter(converter -> canReadResponse(this.responseType, converter))
@@ -896,9 +911,12 @@ public class RestTemplate extends InterceptingHttpAccessor implements RestOperat
 
 		public HttpEntityRequestCallback(@Nullable Object requestBody, @Nullable Type responseType) {
 			super(responseType);
+			// 如果请求对象已经是一个HttpEntity类型的了，直接赋值给requestEntity
 			if (requestBody instanceof HttpEntity) {
 				this.requestEntity = (HttpEntity<?>) requestBody;
 			}
+			// 如果不是，且requestBody不为null，将其作为参数构造一个httpEntity对象赋值给requestEntity
+			// HttpEntity中包含了一个T泛型的body和一个HttpHeaders，是http请求的头信息
 			else if (requestBody != null) {
 				this.requestEntity = new HttpEntity<>(requestBody);
 			}
@@ -910,25 +928,37 @@ public class RestTemplate extends InterceptingHttpAccessor implements RestOperat
 		@Override
 		@SuppressWarnings("unchecked")
 		public void doWithRequest(ClientHttpRequest httpRequest) throws IOException {
+			// 调用父类的方法，根据返回类型和消息转换器支持的MIME类型设置请求头中的accept属性
 			super.doWithRequest(httpRequest);
+			// 获取requestCallback中的requestEntity中的body对象
 			Object requestBody = this.requestEntity.getBody();
+			// 如果请求体为null
 			if (requestBody == null) {
+				// 将requestCallback中的请求头信息循环添加到请求对象中
 				HttpHeaders httpHeaders = httpRequest.getHeaders();
 				HttpHeaders requestHeaders = this.requestEntity.getHeaders();
 				if (!requestHeaders.isEmpty()) {
 					requestHeaders.forEach((key, values) -> httpHeaders.put(key, new ArrayList<>(values)));
 				}
+				// 并且如果头信息中的内容长度小于0，将其设置为0
 				if (httpHeaders.getContentLength() < 0) {
 					httpHeaders.setContentLength(0L);
 				}
 			}
+			// 如果请求体不为null的话
 			else {
+				// 获取请求体的类型
 				Class<?> requestBodyClass = requestBody.getClass();
+				// 如果请求体是RequestEntity类型的，调用其getType方法获取到RequestEntity中请求体的类型，
+				// 否则，直接将请求体类型赋值给requestBodyType
 				Type requestBodyType = (this.requestEntity instanceof RequestEntity ?
 						((RequestEntity<?>)this.requestEntity).getType() : requestBodyClass);
 				HttpHeaders httpHeaders = httpRequest.getHeaders();
 				HttpHeaders requestHeaders = this.requestEntity.getHeaders();
+				// 从请求头中查找ContentType属性，查看请求体需要用什么MIME格式发送
 				MediaType requestContentType = requestHeaders.getContentType();
+				// 然后遍历消息转换器，看哪个转换器能够写这种格式的内容，找到对应转换器之后，将callback中的请求头复制到request对象的请求头中，
+				// 并且调用转换器的写方法，将请求体写入请求对象中
 				for (HttpMessageConverter<?> messageConverter : getMessageConverters()) {
 					if (messageConverter instanceof GenericHttpMessageConverter) {
 						GenericHttpMessageConverter<Object> genericConverter =

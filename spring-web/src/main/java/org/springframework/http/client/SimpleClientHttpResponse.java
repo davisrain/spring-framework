@@ -85,6 +85,7 @@ final class SimpleClientHttpResponse extends AbstractClientHttpResponse {
 
 	@Override
 	public InputStream getBody() throws IOException {
+		// 尝试从connection中获取errorStream，如果没有的话，获取connection的inputStream，并复制给responseStream字段
 		InputStream errorStream = this.connection.getErrorStream();
 		this.responseStream = (errorStream != null ? errorStream : this.connection.getInputStream());
 		return this.responseStream;

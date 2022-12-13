@@ -58,8 +58,11 @@ public class DefaultResponseErrorHandler implements ResponseErrorHandler {
 	 */
 	@Override
 	public boolean hasError(ClientHttpResponse response) throws IOException {
+		// 获取返回的状态码
 		int rawStatusCode = response.getRawStatusCode();
+		// 将int类型的状态码解析为枚举
 		HttpStatus statusCode = HttpStatus.resolve(rawStatusCode);
+		// 如果找到了枚举，根据枚举判断是否存在错误，否则根据int类型的状态码判断
 		return (statusCode != null ? hasError(statusCode) : hasError(rawStatusCode));
 	}
 
@@ -88,6 +91,7 @@ public class DefaultResponseErrorHandler implements ResponseErrorHandler {
 	 * @see org.springframework.http.HttpStatus.Series#SERVER_ERROR
 	 */
 	protected boolean hasError(int unknownStatusCode) {
+		// 如果状态码以4或者5开头，说明有错误
 		HttpStatus.Series series = HttpStatus.Series.resolve(unknownStatusCode);
 		return (series == HttpStatus.Series.CLIENT_ERROR || series == HttpStatus.Series.SERVER_ERROR);
 	}
@@ -111,14 +115,19 @@ public class DefaultResponseErrorHandler implements ResponseErrorHandler {
 	@Override
 	public void handleError(ClientHttpResponse response) throws IOException {
 		HttpStatus statusCode = HttpStatus.resolve(response.getRawStatusCode());
+		// 如果是未知的错误状态码
 		if (statusCode == null) {
+			// 从返回中拿到返回体并转换为字节数组
 			byte[] body = getResponseBody(response);
+			// 根据状态码和返回体等信息构建错误信息
 			String message = getErrorMessage(response.getRawStatusCode(),
 					response.getStatusText(), body, getCharset(response));
+			// 抛出未识别的http状态码异常
 			throw new UnknownHttpStatusCodeException(message,
 					response.getRawStatusCode(), response.getStatusText(),
 					response.getHeaders(), body, getCharset(response));
 		}
+		// 如果是可以转换为枚举的错误状态码，调用带枚举参数的handleError方法
 		handleError(response, statusCode);
 	}
 
@@ -164,6 +173,7 @@ public class DefaultResponseErrorHandler implements ResponseErrorHandler {
 		Charset charset = getCharset(response);
 		String message = getErrorMessage(statusCode.value(), statusText, body, charset);
 
+		// 根据状态码，抛出客户端或服务端异常或者未识别的状态码异常
 		switch (statusCode.series()) {
 			case CLIENT_ERROR:
 				throw HttpClientErrorException.create(message, statusCode, statusText, headers, body, charset);
@@ -203,6 +213,7 @@ public class DefaultResponseErrorHandler implements ResponseErrorHandler {
 	 */
 	protected byte[] getResponseBody(ClientHttpResponse response) {
 		try {
+			// 将response中的返回体转换为字节数组返回
 			return FileCopyUtils.copyToByteArray(response.getBody());
 		}
 		catch (IOException ex) {

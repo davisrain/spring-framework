@@ -59,13 +59,16 @@ class MessageBodyClientHttpResponseWrapper implements ClientHttpResponse {
 	 */
 	public boolean hasMessageBody() throws IOException {
 		HttpStatus status = HttpStatus.resolve(getRawStatusCode());
+		// 如果http状态码是1开头或者是204或者是304，返回false，表示没有返回内容
 		if (status != null && (status.is1xxInformational() || status == HttpStatus.NO_CONTENT ||
 				status == HttpStatus.NOT_MODIFIED)) {
 			return false;
 		}
+		// 如果返回头中，content-length属性为0，表示没有返回内容，也返回false
 		if (getHeaders().getContentLength() == 0) {
 			return false;
 		}
+		// 否则返回true
 		return true;
 	}
 
@@ -81,27 +84,38 @@ class MessageBodyClientHttpResponseWrapper implements ClientHttpResponse {
 	 */
 	@SuppressWarnings("ConstantConditions")
 	public boolean hasEmptyMessageBody() throws IOException {
+		// 获取返回中的返回体
 		InputStream body = this.response.getBody();
 		// Per contract body shouldn't be null, but check anyway..
+		// 如果body为null，返回true
 		if (body == null) {
 			return true;
 		}
+		// 如果输入流是可以mark的
 		if (body.markSupported()) {
+			// 将mark设置到1的位置
 			body.mark(1);
+			// 如果没有读取到数据，返回true
 			if (body.read() == -1) {
 				return true;
 			}
+			// 否则，调用reset方法，将pos重新设置为mark的位置
 			else {
 				body.reset();
 				return false;
 			}
 		}
+		// 如果是不支持mark的
 		else {
+			// 使用装饰器模式将返回体的inputStream修饰
 			this.pushbackInputStream = new PushbackInputStream(body);
+			// 调用装饰器的读取方法读取一个字节
 			int b = this.pushbackInputStream.read();
+			// 如果没有读取到数据，说明是返回体为空，返回true
 			if (b == -1) {
 				return true;
 			}
+			// 否则调用unread方法将读取出来的字段放入pushbackInputStream中，这样下次读取还能读到
 			else {
 				this.pushbackInputStream.unread(b);
 				return false;

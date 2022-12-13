@@ -514,6 +514,7 @@ public enum HttpStatus {
 	 * @see #is5xxServerError()
 	 */
 	public boolean isError() {
+		// 如果状态码以4或者5开头，说明有错误
 		return (is4xxClientError() || is5xxServerError());
 	}
 
