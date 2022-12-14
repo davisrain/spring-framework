@@ -285,7 +285,9 @@ public class DispatcherServlet extends FrameworkServlet {
 		// This is currently strictly internal and not meant to be customized
 		// by application developers.
 		try {
+			// 加载classpath下名为DispatcherServlet.properties的配置文件
 			ClassPathResource resource = new ClassPathResource(DEFAULT_STRATEGIES_PATH, DispatcherServlet.class);
+			// 并将其转换为Properties对象赋值给defaultStrategies字段
 			defaultStrategies = PropertiesLoaderUtils.loadProperties(resource);
 		}
 		catch (IOException ex) {
@@ -499,6 +501,7 @@ public class DispatcherServlet extends FrameworkServlet {
 	 * Initialize the strategy objects that this servlet uses.
 	 * <p>May be overridden in subclasses in order to initialize further strategy objects.
 	 */
+	// 在servlet的init方法中，会调用到这个方法，初始化dispatcherServlet的策略
 	protected void initStrategies(ApplicationContext context) {
 		initMultipartResolver(context);
 		initLocaleResolver(context);
@@ -671,16 +674,21 @@ public class DispatcherServlet extends FrameworkServlet {
 	private void initHandlerExceptionResolvers(ApplicationContext context) {
 		this.handlerExceptionResolvers = null;
 
+		// 如果探测所有处理器异常解析器的参数为true
 		if (this.detectAllHandlerExceptionResolvers) {
 			// Find all HandlerExceptionResolvers in the ApplicationContext, including ancestor contexts.
+			// 会从容器中查找所有HandlerExceptionResolver对象
 			Map<String, HandlerExceptionResolver> matchingBeans = BeanFactoryUtils
 					.beansOfTypeIncludingAncestors(context, HandlerExceptionResolver.class, true, false);
 			if (!matchingBeans.isEmpty()) {
+				// 如果找到的对象不为空，将其赋值给dispatcherServlet持有
 				this.handlerExceptionResolvers = new ArrayList<>(matchingBeans.values());
 				// We keep HandlerExceptionResolvers in sorted order.
+				// 并且根据order来排序
 				AnnotationAwareOrderComparator.sort(this.handlerExceptionResolvers);
 			}
 		}
+		// 如果不探测所有的解析器，那么只用找到一个名为handlerExceptionResolver且类型是HandlerExceptionResolver的解析器即可
 		else {
 			try {
 				HandlerExceptionResolver her =
@@ -694,7 +702,9 @@ public class DispatcherServlet extends FrameworkServlet {
 
 		// Ensure we have at least some HandlerExceptionResolvers, by registering
 		// default HandlerExceptionResolvers if no other resolvers are found.
+		// 如果从容器中没有找到的话，那么就需要加载默认的策略
 		if (this.handlerExceptionResolvers == null) {
+			// 即从DispatcherServlet.properties配置文件中找到配置的异常解析器并加载
 			this.handlerExceptionResolvers = getDefaultStrategies(context, HandlerExceptionResolver.class);
 			if (logger.isTraceEnabled()) {
 				logger.trace("No HandlerExceptionResolvers declared in servlet '" + getServletName() +
@@ -858,15 +868,22 @@ public class DispatcherServlet extends FrameworkServlet {
 	 */
 	@SuppressWarnings("unchecked")
 	protected <T> List<T> getDefaultStrategies(ApplicationContext context, Class<T> strategyInterface) {
+		// 根据类的全限定名作为key
 		String key = strategyInterface.getName();
+		// 从properties中找到对应的实现类的全限定名
 		String value = defaultStrategies.getProperty(key);
 		if (value != null) {
+			// 将value按照逗号分隔为数组
 			String[] classNames = StringUtils.commaDelimitedListToStringArray(value);
 			List<T> strategies = new ArrayList<>(classNames.length);
+			// 循环数组进行加载
 			for (String className : classNames) {
 				try {
+					// 加载对应实现类
 					Class<?> clazz = ClassUtils.forName(className, DispatcherServlet.class.getClassLoader());
+					// 根据class对象创建bean并注入容器
 					Object strategy = createDefaultStrategy(context, clazz);
+					// 添加进集合，后续赋值给dispathcerServlet持有
 					strategies.add((T) strategy);
 				}
 				catch (ClassNotFoundException ex) {
@@ -1005,6 +1022,7 @@ public class DispatcherServlet extends FrameworkServlet {
 		HandlerExecutionChain mappedHandler = null;
 		boolean multipartRequestParsed = false;
 
+		// 从request中获取异步管理器，如果没有，就创建一个放入request的attribute中
 		WebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(request);
 
 		try {
@@ -1012,10 +1030,13 @@ public class DispatcherServlet extends FrameworkServlet {
 			Exception dispatchException = null;
 
 			try {
+				// 检查请求是否是multipart类型的上传请求
 				processedRequest = checkMultipart(request);
+				// 如果处理过的请求不等于原请求，那么将multipartRequestParsed参数置为ture
 				multipartRequestParsed = (processedRequest != request);
 
 				// Determine handler for the current request.
+				// 为请求确定一个handler
 				mappedHandler = getHandler(processedRequest);
 				if (mappedHandler == null) {
 					noHandlerFound(processedRequest, response);
@@ -1057,6 +1078,7 @@ public class DispatcherServlet extends FrameworkServlet {
 				// making them available for @ExceptionHandler methods and other scenarios.
 				dispatchException = new NestedServletException("Handler dispatch failed", err);
 			}
+			// 处理dispatch的结果
 			processDispatchResult(processedRequest, response, mappedHandler, mv, dispatchException);
 		}
 		catch (Exception ex) {
@@ -1104,21 +1126,30 @@ public class DispatcherServlet extends FrameworkServlet {
 
 		boolean errorView = false;
 
+		// 如果存在异常
 		if (exception != null) {
+			// 判断是否是ModelAndViewDefiningException，如果是的话，从中获取到ModelAndView并且赋值给mv
 			if (exception instanceof ModelAndViewDefiningException) {
 				logger.debug("ModelAndViewDefiningException encountered", exception);
 				mv = ((ModelAndViewDefiningException) exception).getModelAndView();
 			}
+			// 如果不是的话
 			else {
+				// 从handlerChain中拿到handler
 				Object handler = (mappedHandler != null ? mappedHandler.getHandler() : null);
+				// 调用processHandlerException方法返回一个ModelAndView，并且赋值给mv
 				mv = processHandlerException(request, response, handler, exception);
+				// 如果mv不为null的话，将errorView设置为true，否则设置为false
 				errorView = (mv != null);
 			}
 		}
 
 		// Did the handler return a view to render?
+		// 如果mv不为null，且mv没有被clear掉
 		if (mv != null && !mv.wasCleared()) {
+			// 调用render方法进行渲染
 			render(mv, request, response);
+			// 如果errorView为ture的话，说明渲染的是错误处理页面，将request的attribute中与error相关的属性清理掉
 			if (errorView) {
 				WebUtils.clearErrorRequestAttributes(request);
 			}
@@ -1136,6 +1167,7 @@ public class DispatcherServlet extends FrameworkServlet {
 
 		if (mappedHandler != null) {
 			// Exception (if any) is already handled..
+			// 如果handler不为null的话，调用拦截器的afterCompletion，此时异常肯定已经被处理掉，因此exception传null
 			mappedHandler.triggerAfterCompletion(request, response, null);
 		}
 	}
@@ -1166,18 +1198,23 @@ public class DispatcherServlet extends FrameworkServlet {
 	 * @see MultipartResolver#resolveMultipart
 	 */
 	protected HttpServletRequest checkMultipart(HttpServletRequest request) throws MultipartException {
+		// 如果multipartResolver不为null且请求是multipart类型的
 		if (this.multipartResolver != null && this.multipartResolver.isMultipart(request)) {
+			// 判断request是否是MultipartHttpServletRequest类型的，如果request是wrapper类型的，递归判断其原始类型
 			if (WebUtils.getNativeRequest(request, MultipartHttpServletRequest.class) != null) {
+				// 如果请求的dispatcherType是REQUEST类型的，那么不做任何解析
 				if (request.getDispatcherType().equals(DispatcherType.REQUEST)) {
 					logger.trace("Request already resolved to MultipartHttpServletRequest, e.g. by MultipartFilter");
 				}
 			}
+			// 如果请求中有multipart类型的异常的话，也不进行解析
 			else if (hasMultipartException(request)) {
 				logger.debug("Multipart resolution previously failed for current request - " +
 						"skipping re-resolution for undisturbed error rendering");
 			}
 			else {
 				try {
+					// 使用multipartResolver对request进行解析
 					return this.multipartResolver.resolveMultipart(request);
 				}
 				catch (MultipartException ex) {
@@ -1199,6 +1236,7 @@ public class DispatcherServlet extends FrameworkServlet {
 	 * Check "javax.servlet.error.exception" attribute for a multipart exception.
 	 */
 	private boolean hasMultipartException(HttpServletRequest request) {
+		// 在request的attribute中获取异常，循环判断异常链中是否有MultipartException类型的异常
 		Throwable error = (Throwable) request.getAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE);
 		while (error != null) {
 			if (error instanceof MultipartException) {
@@ -1294,20 +1332,27 @@ public class DispatcherServlet extends FrameworkServlet {
 			@Nullable Object handler, Exception ex) throws Exception {
 
 		// Success and error responses may use different content types
+		// 将request的attribute中的producibleMediaTypes属性删除，该属性是用来说明可以产生哪些mediaType的
+		// 但是成功和错误的返回可能会用不同的contentTypes
 		request.removeAttribute(HandlerMapping.PRODUCIBLE_MEDIA_TYPES_ATTRIBUTE);
 
 		// Check registered HandlerExceptionResolvers...
 		ModelAndView exMv = null;
+		// 如果注册过的handlerExceptionResolvers不为null的话，进行遍历，依次调用resolveException方法
 		if (this.handlerExceptionResolvers != null) {
 			for (HandlerExceptionResolver resolver : this.handlerExceptionResolvers) {
 				exMv = resolver.resolveException(request, response, handler, ex);
+				// 一旦出现某个解析器方法返回的modelAndView不为null的话，跳出循环
 				if (exMv != null) {
 					break;
 				}
 			}
 		}
+		// 如果exMv不为null的话
 		if (exMv != null) {
+			// 判断exMv是否为empty，即model和view都为null
 			if (exMv.isEmpty()) {
+				// 将异常设置进request的attribute中，然后直接返回null
 				request.setAttribute(EXCEPTION_ATTRIBUTE, ex);
 				return null;
 			}
@@ -1328,6 +1373,7 @@ public class DispatcherServlet extends FrameworkServlet {
 			return exMv;
 		}
 
+		// 如果上面的步骤都没有处理完异常，将异常抛出，外层可以由拦截器进行处理
 		throw ex;
 	}
 

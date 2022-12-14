@@ -136,9 +136,11 @@ public abstract class AbstractHandlerExceptionResolver implements HandlerExcepti
 	@Nullable
 	public ModelAndView resolveException(
 			HttpServletRequest request, HttpServletResponse response, @Nullable Object handler, Exception ex) {
-
+		// 判断该异常解析器能否解析这个handler的异常
 		if (shouldApplyTo(request, handler)) {
+			// 准备response，根据参数配置决定是否在返回头中添加Cache-Control=no-store这个参数
 			prepareResponse(ex, response);
+			// 执行具体的解析逻辑
 			ModelAndView result = doResolveException(request, response, handler, ex);
 			if (result != null) {
 				// Print debug message when warn logger is not enabled.
@@ -150,6 +152,7 @@ public abstract class AbstractHandlerExceptionResolver implements HandlerExcepti
 			}
 			return result;
 		}
+		// 如果不能，直接返回null
 		else {
 			return null;
 		}
@@ -169,10 +172,13 @@ public abstract class AbstractHandlerExceptionResolver implements HandlerExcepti
 	 * @see #setMappedHandlerClasses
 	 */
 	protected boolean shouldApplyTo(HttpServletRequest request, @Nullable Object handler) {
+		// 如果handler不为null
 		if (handler != null) {
+			// 判断handlerExceptionResolver持有的mappedHandlers中是否包含这个handler
 			if (this.mappedHandlers != null && this.mappedHandlers.contains(handler)) {
 				return true;
 			}
+			// 判断持有的mappedHandlerClasses中是否包含这个handler的class对象
 			if (this.mappedHandlerClasses != null) {
 				for (Class<?> handlerClass : this.mappedHandlerClasses) {
 					if (handlerClass.isInstance(handler)) {
@@ -182,6 +188,8 @@ public abstract class AbstractHandlerExceptionResolver implements HandlerExcepti
 			}
 		}
 		// Else only apply if there are no explicit handler mappings.
+		// 如果上面条件都不满足，那么只有当持有的mappedHandlers和mappedHandlerClasses都为null的情况下，
+		// 返回true，表示该resolver能够处理
 		return (this.mappedHandlers == null && this.mappedHandlerClasses == null);
 	}
 
@@ -221,7 +229,9 @@ public abstract class AbstractHandlerExceptionResolver implements HandlerExcepti
 	 * @see #preventCaching
 	 */
 	protected void prepareResponse(Exception ex, HttpServletResponse response) {
+		// 如果preventResponseCaching参数为true的话，调用preventCacching方法，防止返回被缓存
 		if (this.preventResponseCaching) {
+			// 具体实现是在返回头中添加一个属性Cacche-Control，设置值为no-store
 			preventCaching(response);
 		}
 	}

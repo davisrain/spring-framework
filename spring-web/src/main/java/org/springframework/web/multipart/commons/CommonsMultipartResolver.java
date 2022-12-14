@@ -122,24 +122,34 @@ public class CommonsMultipartResolver extends CommonsFileUploadSupport
 
 	@Override
 	public boolean isMultipart(HttpServletRequest request) {
+		// 判断是否是multipart类型请求的方法是查看请求头中的Content-Type是否是以multipart/开头的
 		return ServletFileUpload.isMultipartContent(request);
 	}
 
 	@Override
 	public MultipartHttpServletRequest resolveMultipart(final HttpServletRequest request) throws MultipartException {
 		Assert.notNull(request, "Request must not be null");
+		// 如果懒解析参数为true的话，返回一个DefaultMultipartHttpServletRequest类型的匿名类
 		if (this.resolveLazily) {
 			return new DefaultMultipartHttpServletRequest(request) {
 				@Override
+				// 在调用这个request的getMultipartFiles方法的时候，就会调用initializeMultipart方法进行延迟初始化
 				protected void initializeMultipart() {
+					// 调用parseRequest进行解析，得到result
 					MultipartParsingResult parsingResult = parseRequest(request);
+					// 根据解析的结果设置multipartFiles字段，保存的是表单上传的文件，
+					// key为表单字段名，value为持有FileItem对象的CommonsMultipartFile对象
 					setMultipartFiles(parsingResult.getMultipartFiles());
+					// 设置multipartParameters字段，保存的是表单上传的普通字段
+					// key为表单字段名，value为字段值的数组，因为可能存在多个字段重名的情况
 					setMultipartParameters(parsingResult.getMultipartParameters());
+					// 设置multipartParameterContentTypes字段，保存的是普通字段的ContentType
 					setMultipartParameterContentTypes(parsingResult.getMultipartParameterContentTypes());
 				}
 			};
 		}
 		else {
+			// 即时解析request，并将结果作为构造器参数传入
 			MultipartParsingResult parsingResult = parseRequest(request);
 			return new DefaultMultipartHttpServletRequest(request, parsingResult.getMultipartFiles(),
 					parsingResult.getMultipartParameters(), parsingResult.getMultipartParameterContentTypes());
@@ -153,10 +163,14 @@ public class CommonsMultipartResolver extends CommonsFileUploadSupport
 	 * @throws MultipartException if multipart resolution failed.
 	 */
 	protected MultipartParsingResult parseRequest(HttpServletRequest request) throws MultipartException {
+		// 根据request确定编码格式
 		String encoding = determineEncoding(request);
+		// 根据获取到的encoding准备fileUpload
 		FileUpload fileUpload = prepareFileUpload(encoding);
 		try {
+			// 使用fileUpload对request进行解析，得到FileItem的list对象
 			List<FileItem> fileItems = ((ServletFileUpload) fileUpload).parseRequest(request);
+			// 调用解析fileItems的方法
 			return parseFileItems(fileItems, encoding);
 		}
 		catch (FileUploadBase.SizeLimitExceededException ex) {
@@ -181,6 +195,7 @@ public class CommonsMultipartResolver extends CommonsFileUploadSupport
 	 * @see #setDefaultEncoding
 	 */
 	protected String determineEncoding(HttpServletRequest request) {
+		// 从request中获取characterEncoding属性，如果为null的话，获取默认的encoding
 		String encoding = request.getCharacterEncoding();
 		if (encoding == null) {
 			encoding = getDefaultEncoding();

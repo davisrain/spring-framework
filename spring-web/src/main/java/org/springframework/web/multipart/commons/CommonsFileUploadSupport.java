@@ -74,7 +74,9 @@ public abstract class CommonsFileUploadSupport {
 	 * @see #newFileUpload
 	 */
 	public CommonsFileUploadSupport() {
+		// 创建DiskFileItemFactory复制给fileItemFactory字段
 		this.fileItemFactory = newFileItemFactory();
+		// 根据DiskFileItemFactory创建一个ServletFileUpload复制给fileUpload字段
 		this.fileUpload = newFileUpload(getFileItemFactory());
 	}
 
@@ -152,6 +154,7 @@ public abstract class CommonsFileUploadSupport {
 	 * @see #setDefaultEncoding
 	 */
 	protected String getDefaultEncoding() {
+		// 从fileUpload中获取headerEncoding，如果仍然为null的话，使用默认的ISO-8859-1
 		String encoding = getFileUpload().getHeaderEncoding();
 		if (encoding == null) {
 			encoding = WebUtils.DEFAULT_CHARACTER_ENCODING;
@@ -202,6 +205,10 @@ public abstract class CommonsFileUploadSupport {
 	 * @return the new DiskFileItemFactory instance
 	 */
 	protected DiskFileItemFactory newFileItemFactory() {
+		// DiskFileItemFactory有两个参数可以设置，一个是sizeThreshold，一个是repository，
+		// sizeThreshold代表的是一个文件能够在内存中保存的大小，如果超过这个大小，就要将其临时保存在硬盘上
+		// repository就是指定临时文件存储的位置
+		// sizeThreshold默认是10240字节，也就是10KB的大小
 		return new DiskFileItemFactory();
 	}
 
@@ -228,9 +235,13 @@ public abstract class CommonsFileUploadSupport {
 
 		// Use new temporary FileUpload instance if the request specifies
 		// its own encoding that does not match the default encoding.
+		// 如果encoding不为null并且fileUpload的headerEncoding同encoding不同，那么创建一个新的fileUpload，
+		// 并且将其headerEncoding设置为encoding参数
 		if (encoding != null && !encoding.equals(fileUpload.getHeaderEncoding())) {
 			actualFileUpload = newFileUpload(getFileItemFactory());
+			// sizeMax是上传的总大小限制
 			actualFileUpload.setSizeMax(fileUpload.getSizeMax());
+			// fileSizeMax是上传的单个文件的大小限制
 			actualFileUpload.setFileSizeMax(fileUpload.getFileSizeMax());
 			actualFileUpload.setHeaderEncoding(encoding);
 		}
@@ -253,10 +264,13 @@ public abstract class CommonsFileUploadSupport {
 
 		// Extract multipart files and multipart parameters.
 		for (FileItem fileItem : fileItems) {
+			// 判断fileItem是不是普通表单字段
 			if (fileItem.isFormField()) {
 				String value;
+				// 根据contentType确定编码格式
 				String partEncoding = determineEncoding(fileItem.getContentType(), encoding);
 				try {
+					// 获取到字段的值
 					value = fileItem.getString(partEncoding);
 				}
 				catch (UnsupportedEncodingException ex) {
@@ -266,20 +280,26 @@ public abstract class CommonsFileUploadSupport {
 					}
 					value = fileItem.getString();
 				}
+				// 从multipartParameters中根据字段名获取该表单字段的值
 				String[] curParam = multipartParameters.get(fileItem.getFieldName());
 				if (curParam == null) {
 					// simple form field
+					// 如果没有的话，将值放入
 					multipartParameters.put(fileItem.getFieldName(), new String[] {value});
 				}
 				else {
 					// array of simple form fields
+					// 否则，将字段加入到数组中，重新放入multipartParameters中
 					String[] newParam = StringUtils.addStringToArray(curParam, value);
 					multipartParameters.put(fileItem.getFieldName(), newParam);
 				}
+				// 在multipartParamterContentTypes中以字段名为key，字段的contentType为value，放入元素
 				multipartParameterContentTypes.put(fileItem.getFieldName(), fileItem.getContentType());
 			}
+			// 如果FileItem不是普通的表单字段而是文件
 			else {
 				// multipart file field
+				// 根据fileItem创建CommonsMultipartFile对象，放入到multipartFiles的map中
 				CommonsMultipartFile file = createMultipartFile(fileItem);
 				multipartFiles.add(file.getName(), file);
 				LogFormatUtils.traceDebug(logger, traceOn ->
@@ -289,6 +309,7 @@ public abstract class CommonsFileUploadSupport {
 				);
 			}
 		}
+		// 将三个map整合为一个result返回
 		return new MultipartParsingResult(multipartFiles, multipartParameters, multipartParameterContentTypes);
 	}
 
