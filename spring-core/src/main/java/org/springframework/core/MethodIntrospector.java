@@ -60,10 +60,13 @@ public final class MethodIntrospector {
 		Set<Class<?>> handlerTypes = new LinkedHashSet<>();
 		Class<?> specificHandlerType = null;
 
+		// 如果不是JDK代理
 		if (!Proxy.isProxyClass(targetType)) {
+			// 判断是否是CGLIB代理，如果是，获取其父类，赋值给specificHandlerType
 			specificHandlerType = ClassUtils.getUserClass(targetType);
 			handlerTypes.add(specificHandlerType);
 		}
+		// 获取targetType的所有的接口
 		handlerTypes.addAll(ClassUtils.getAllInterfacesForClassAsSet(targetType));
 
 		for (Class<?> currentHandlerType : handlerTypes) {

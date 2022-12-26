@@ -229,9 +229,9 @@ public abstract class AbstractHandlerExceptionResolver implements HandlerExcepti
 	 * @see #preventCaching
 	 */
 	protected void prepareResponse(Exception ex, HttpServletResponse response) {
-		// 如果preventResponseCaching参数为true的话，调用preventCacching方法，防止返回被缓存
+		// 如果preventResponseCaching参数为true的话，调用preventCaching方法，防止返回被缓存
 		if (this.preventResponseCaching) {
-			// 具体实现是在返回头中添加一个属性Cacche-Control，设置值为no-store
+			// 具体实现是在返回头中添加一个属性Cache-Control，设置值为no-store
 			preventCaching(response);
 		}
 	}

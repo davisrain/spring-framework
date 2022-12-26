@@ -73,14 +73,18 @@ public final class BridgeMethodResolver {
 		if (bridgedMethod == null) {
 			// Gather all methods with matching name and parameter size.
 			List<Method> candidateMethods = new ArrayList<>();
+			// 创建一个methodFilter用于过滤方法
 			MethodFilter filter = candidateMethod ->
 					isBridgedCandidateFor(candidateMethod, bridgeMethod);
 			ReflectionUtils.doWithMethods(bridgeMethod.getDeclaringClass(), candidateMethods::add, filter);
+			// 如果筛选出来的候选方法不为空
 			if (!candidateMethods.isEmpty()) {
+				// 如果个数为1的话，直接返回第一个，否则调用searchCandidates方法进行查找
 				bridgedMethod = candidateMethods.size() == 1 ?
 						candidateMethods.get(0) :
 						searchCandidates(candidateMethods, bridgeMethod);
 			}
+			// 如果被桥接的方法为null的话，那么将bridgeMethod赋值给bridgedMethod
 			if (bridgedMethod == null) {
 				// A bridge method was passed in but we couldn't find the bridged method.
 				// Let's proceed with the passed-in method and hope for the best...
@@ -98,6 +102,7 @@ public final class BridgeMethodResolver {
 	 * checks and can be used quickly filter for a set of possible matches.
 	 */
 	private static boolean isBridgedCandidateFor(Method candidateMethod, Method bridgeMethod) {
+		// 当候选方法不是桥接方法，且候选方法不等于提供的桥接方法，且方法名和参数名都相等的时候，返回true，加入候选
 		return (!candidateMethod.isBridge() && !candidateMethod.equals(bridgeMethod) &&
 				candidateMethod.getName().equals(bridgeMethod.getName()) &&
 				candidateMethod.getParameterCount() == bridgeMethod.getParameterCount());
