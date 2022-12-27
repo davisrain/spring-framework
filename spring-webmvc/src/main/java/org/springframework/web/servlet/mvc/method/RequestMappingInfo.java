@@ -202,7 +202,9 @@ public final class RequestMappingInfo implements RequestCondition<RequestMapping
 	 */
 	@Override
 	public RequestMappingInfo combine(RequestMappingInfo other) {
+		// 整合名字，如果两个info对象都有name，那么中间用#连接起来
 		String name = combineNames(other);
+		// 将pattern、method、param、header、consume、produce、custom等requestCondition整合起来，形成一个新的requestMappingInfo
 		PatternsRequestCondition patterns = this.patternsCondition.combine(other.patternsCondition);
 		RequestMethodsRequestCondition methods = this.methodsCondition.combine(other.methodsCondition);
 		ParamsRequestCondition params = this.paramsCondition.combine(other.paramsCondition);

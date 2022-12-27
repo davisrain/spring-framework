@@ -393,19 +393,24 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 	@Override
 	@Nullable
 	public final HandlerExecutionChain getHandler(HttpServletRequest request) throws Exception {
+		// 调用getHandlerInternal方法获取handler
 		Object handler = getHandlerInternal(request);
+		// 如果没有获取到handler，尝试获取默认的handler
 		if (handler == null) {
 			handler = getDefaultHandler();
 		}
+		// 如果handler仍为null，返回null
 		if (handler == null) {
 			return null;
 		}
 		// Bean name or resolved handler?
+		// 如果handler是String类型的beanName，从ioc容器中获取
 		if (handler instanceof String) {
 			String handlerName = (String) handler;
 			handler = obtainApplicationContext().getBean(handlerName);
 		}
 
+		// 为handler添加拦截器，生成handler执行链
 		HandlerExecutionChain executionChain = getHandlerExecutionChain(handler, request);
 
 		if (logger.isTraceEnabled()) {

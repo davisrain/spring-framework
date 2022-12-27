@@ -114,10 +114,12 @@ public final class MethodIntrospector {
 	 * target type (typically due to a proxy mismatch)
 	 */
 	public static Method selectInvocableMethod(Method method, Class<?> targetType) {
+		// 如果方法的声明类就是targetType，那么直接返回
 		if (method.getDeclaringClass().isAssignableFrom(targetType)) {
 			return method;
 		}
 		try {
+			// 根据方法名和参数在targetType的接口中去寻找对应方法
 			String methodName = method.getName();
 			Class<?>[] parameterTypes = method.getParameterTypes();
 			for (Class<?> ifc : targetType.getInterfaces()) {
@@ -129,6 +131,7 @@ public final class MethodIntrospector {
 				}
 			}
 			// A final desperate attempt on the proxy class itself...
+			// 在自身类中去寻找方法
 			return targetType.getMethod(methodName, parameterTypes);
 		}
 		catch (NoSuchMethodException ex) {

@@ -252,14 +252,19 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 	@Override
 	@Nullable
 	protected RequestMappingInfo getMappingForMethod(Method method, Class<?> handlerType) {
+		// 根据方法创建出requestMappingInfo对象
 		RequestMappingInfo info = createRequestMappingInfo(method);
 		if (info != null) {
+			// 如果方法上的requestMappingInfo不为null的话，根据类上的@RequestMapping注解生成requestMappingInfo对象
 			RequestMappingInfo typeInfo = createRequestMappingInfo(handlerType);
 			if (typeInfo != null) {
+				// 如果类上的requestMappingInfo也不为null的话，将两个info对象整合起来
 				info = typeInfo.combine(info);
 			}
+			// 判断这个类是否配置了路径前缀
 			String prefix = getPathPrefix(handlerType);
 			if (prefix != null) {
+				// 如果有的话，将路径前缀整合到上面得到requestMappingInfo对象中
 				info = RequestMappingInfo.paths(prefix).options(this.config).build().combine(info);
 			}
 		}
@@ -289,9 +294,12 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 	 */
 	@Nullable
 	private RequestMappingInfo createRequestMappingInfo(AnnotatedElement element) {
+		// 在element上查找@RequestMappind注解
 		RequestMapping requestMapping = AnnotatedElementUtils.findMergedAnnotation(element, RequestMapping.class);
+		// 根据element是class还是method，分别调用不同的方法生成RequestCondition
 		RequestCondition<?> condition = (element instanceof Class ?
 				getCustomTypeCondition((Class<?>) element) : getCustomMethodCondition((Method) element));
+		// 如果注解存在，根据注解和condition生成RequestMappingInfo返回，否则返回null
 		return (requestMapping != null ? createRequestMappingInfo(requestMapping, condition) : null);
 	}
 
@@ -336,6 +344,7 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 	protected RequestMappingInfo createRequestMappingInfo(
 			RequestMapping requestMapping, @Nullable RequestCondition<?> customCondition) {
 
+		// 将注解中的属性全部添加到RequestMappingInfo的Builder中
 		RequestMappingInfo.Builder builder = RequestMappingInfo
 				.paths(resolveEmbeddedValuesInPatterns(requestMapping.path()))
 				.methods(requestMapping.method())
@@ -358,6 +367,7 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 		if (this.embeddedValueResolver == null) {
 			return patterns;
 		}
+		// 如果embeddedValueResolver不为null的话，对路径进行解析
 		else {
 			String[] resolvedPatterns = new String[patterns.length];
 			for (int i = 0; i < patterns.length; i++) {
@@ -408,22 +418,27 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 	protected CorsConfiguration initCorsConfiguration(Object handler, Method method, RequestMappingInfo mappingInfo) {
 		HandlerMethod handlerMethod = createHandlerMethod(handler, method);
 		Class<?> beanType = handlerMethod.getBeanType();
+		// 获取方法上和类上的@CrossOrigin注解
 		CrossOrigin typeAnnotation = AnnotatedElementUtils.findMergedAnnotation(beanType, CrossOrigin.class);
 		CrossOrigin methodAnnotation = AnnotatedElementUtils.findMergedAnnotation(method, CrossOrigin.class);
 
+		// 如果都没有，直接返回null
 		if (typeAnnotation == null && methodAnnotation == null) {
 			return null;
 		}
 
+		// 否则创建一个跨域配置，将注解里的属性更新进去
 		CorsConfiguration config = new CorsConfiguration();
 		updateCorsConfig(config, typeAnnotation);
 		updateCorsConfig(config, methodAnnotation);
 
+		// 然后将requestMappingInfo的方法更新到跨域配置的allowedMethods中
 		if (CollectionUtils.isEmpty(config.getAllowedMethods())) {
 			for (RequestMethod allowedMethod : mappingInfo.getMethodsCondition().getMethods()) {
 				config.addAllowedMethod(allowedMethod.name());
 			}
 		}
+		// 设置跨域配置的默认属性
 		return config.applyPermitDefaultValues();
 	}
 

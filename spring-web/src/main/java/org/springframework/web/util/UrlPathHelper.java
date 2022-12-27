@@ -293,8 +293,11 @@ public class UrlPathHelper {
 	 * @see #getLookupPathForRequest
 	 */
 	public String getPathWithinApplication(HttpServletRequest request) {
+		// 获取contextPath
 		String contextPath = getContextPath(request);
+		// 获取requestUri
 		String requestUri = getRequestUri(request);
+		// 获取剩余的path
 		String path = getRemainingPath(requestUri, contextPath, true);
 		if (path != null) {
 			// Normal case: URI contains context path.
@@ -374,10 +377,13 @@ public class UrlPathHelper {
 	 * @return the request URI
 	 */
 	public String getRequestUri(HttpServletRequest request) {
+		// 从request的attribute中查找
 		String uri = (String) request.getAttribute(WebUtils.INCLUDE_REQUEST_URI_ATTRIBUTE);
 		if (uri == null) {
+			// 调用getRequestURI方法
 			uri = request.getRequestURI();
 		}
+		// 解码并且清理uri
 		return decodeAndCleanUriString(request, uri);
 	}
 
@@ -390,14 +396,17 @@ public class UrlPathHelper {
 	 * @return the context path
 	 */
 	public String getContextPath(HttpServletRequest request) {
+		// 尝试从request的attribute中获取
 		String contextPath = (String) request.getAttribute(WebUtils.INCLUDE_CONTEXT_PATH_ATTRIBUTE);
 		if (contextPath == null) {
+			// 调用request的getContextPath方法
 			contextPath = request.getContextPath();
 		}
 		if (StringUtils.matchesCharacter(contextPath, '/')) {
 			// Invalid case, but happens for includes on Jetty: silently adapt it.
 			contextPath = "";
 		}
+		// 进行解码
 		return decodeRequestString(request, contextPath);
 	}
 
@@ -489,8 +498,11 @@ public class UrlPathHelper {
 	 * Decode the supplied URI string and strips any extraneous portion after a ';'.
 	 */
 	private String decodeAndCleanUriString(HttpServletRequest request, String uri) {
+		// 删除分号后面的内容
 		uri = removeSemicolonContent(uri);
+		// 根据编码方式进行URL解码
 		uri = decodeRequestString(request, uri);
+		// 对路径进行消毒，将//替换成/
 		uri = getSanitizedPath(uri);
 		return uri;
 	}
@@ -516,8 +528,10 @@ public class UrlPathHelper {
 
 	@SuppressWarnings("deprecation")
 	private String decodeInternal(HttpServletRequest request, String source) {
+		// 查找编码方式
 		String enc = determineEncoding(request);
 		try {
+			// 进行解码
 			return UriUtils.decode(source, enc);
 		}
 		catch (UnsupportedCharsetException ex) {
@@ -540,6 +554,7 @@ public class UrlPathHelper {
 	 * @see #setDefaultEncoding
 	 */
 	protected String determineEncoding(HttpServletRequest request) {
+		// 调用request的getCharacterEncoding方法，如果为null的话，用默认的ISO-8859-1
 		String enc = request.getCharacterEncoding();
 		if (enc == null) {
 			enc = getDefaultEncoding();
@@ -555,6 +570,7 @@ public class UrlPathHelper {
 	 * @return the updated URI string
 	 */
 	public String removeSemicolonContent(String requestUri) {
+		// 如果removeSemicolonContent为true的话，将分号后面的内容删除，否则删除jsessionid
 		return (this.removeSemicolonContent ?
 				removeSemicolonContentInternal(requestUri) : removeJsessionid(requestUri));
 	}

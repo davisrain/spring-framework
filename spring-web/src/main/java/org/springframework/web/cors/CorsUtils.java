@@ -70,6 +70,8 @@ public abstract class CorsUtils {
 	 * {@code Origin} and {@code Access-Control-Request-Method} headers presence.
 	 */
 	public static boolean isPreFlightRequest(HttpServletRequest request) {
+		// 判断是否是预检请求，
+		// 即方法是OPTIONS，请求头中带有Origin和Access-Control-Request-Method这两个属性
 		return (HttpMethod.OPTIONS.matches(request.getMethod()) &&
 				request.getHeader(HttpHeaders.ORIGIN) != null &&
 				request.getHeader(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD) != null);

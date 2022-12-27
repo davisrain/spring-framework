@@ -133,6 +133,7 @@ public abstract class AopUtils {
 			return method;
 		}
 		Method methodToUse = MethodIntrospector.selectInvocableMethod(method, targetType);
+		// 如果方法是私有的且不是static的并且targetType是属于SpringProxy类型的，报错
 		if (Modifier.isPrivate(methodToUse.getModifiers()) && !Modifier.isStatic(methodToUse.getModifiers()) &&
 				SpringProxy.class.isAssignableFrom(targetType)) {
 			throw new IllegalStateException(String.format(
