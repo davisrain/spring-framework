@@ -97,29 +97,39 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	public ProducesRequestCondition(String[] produces, @Nullable String[] headers,
 			@Nullable ContentNegotiationManager manager) {
 
+		// 根据produces和headers解析出expressions
 		this.expressions = parseExpressions(produces, headers);
+		// 如果数量大于1，按权重排序
 		if (this.expressions.size() > 1) {
 			Collections.sort(this.expressions);
 		}
+		// 如果manager为null的话，使用默认的内容协商管理器
 		this.contentNegotiationManager = manager != null ? manager : DEFAULT_CONTENT_NEGOTIATION_MANAGER;
 	}
 
 	private List<ProduceMediaTypeExpression> parseExpressions(String[] produces, @Nullable String[] headers) {
 		Set<ProduceMediaTypeExpression> result = null;
+		// 如果headers不为空
 		if (!ObjectUtils.isEmpty(headers)) {
 			for (String header : headers) {
+				// 遍历headers将其解析为headerExpression
 				HeaderExpression expr = new HeaderExpression(header);
+				// 当headerExpression的name属性为accept且value不为null时
 				if ("Accept".equalsIgnoreCase(expr.name) && expr.value != null) {
+					// 将其value解析为mediaType
 					for (MediaType mediaType : MediaType.parseMediaTypes(expr.value)) {
 						result = (result != null ? result : new LinkedHashSet<>());
+						// 并初始化一个produceMediaTypeExpression放入result中
 						result.add(new ProduceMediaTypeExpression(mediaType, expr.isNegated));
 					}
 				}
 			}
 		}
+		// 当produces不为空时
 		if (!ObjectUtils.isEmpty(produces)) {
 			for (String produce : produces) {
 				result = (result != null ? result : new LinkedHashSet<>());
+				// 遍历produces，将每个produce解析为ProduceMediaTypeExpression放入result中
 				result.add(new ProduceMediaTypeExpression(produce));
 			}
 		}
@@ -197,26 +207,33 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	@Override
 	@Nullable
 	public ProducesRequestCondition getMatchingCondition(HttpServletRequest request) {
+		// 如果是预检请求，返回一个空的ProducesRequestCondition
 		if (CorsUtils.isPreFlightRequest(request)) {
 			return EMPTY_CONDITION;
 		}
+		// 如果expressions为空，返回自身
 		if (isEmpty()) {
 			return this;
 		}
 		List<MediaType> acceptedMediaTypes;
 		try {
+			// 从请求中获取能接受的MediaType
 			acceptedMediaTypes = getAcceptedMediaTypes(request);
 		}
 		catch (HttpMediaTypeException ex) {
 			return null;
 		}
+		// 根据请求能接受的MediaType和expressions获取到匹配成功的MediaType
 		List<ProduceMediaTypeExpression> result = getMatchingExpressions(acceptedMediaTypes);
+		// 如果匹配到的结果不为空的话，根据匹配结果创建一个ProduceRequestCondition返回
 		if (!CollectionUtils.isEmpty(result)) {
 			return new ProducesRequestCondition(result, this);
 		}
+		// 否则判断请求能接受的mediaType中是否包含*/*，如果是，那么返回空的condition即可
 		else if (MediaType.ALL.isPresentIn(acceptedMediaTypes)) {
 			return EMPTY_CONDITION;
 		}
+		// 否则返回null
 		else {
 			return null;
 		}
@@ -225,9 +242,12 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	@Nullable
 	private List<ProduceMediaTypeExpression> getMatchingExpressions(List<MediaType> acceptedMediaTypes) {
 		List<ProduceMediaTypeExpression> result = null;
+		// 对expressions进行遍历
 		for (ProduceMediaTypeExpression expression : this.expressions) {
+			// 判断每个expression是否能够匹配可接受的mediaTypes
 			if (expression.match(acceptedMediaTypes)) {
 				result = result != null ? result : new ArrayList<>();
+				// 如果匹配成功，将其加入结果准备返回
 				result.add(expression);
 			}
 		}
@@ -281,9 +301,12 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 	private List<MediaType> getAcceptedMediaTypes(HttpServletRequest request)
 			throws HttpMediaTypeNotAcceptableException {
 
+		// 先从request的attribute中尝试获取mediaType
 		List<MediaType> result = (List<MediaType>) request.getAttribute(MEDIA_TYPES_ATTRIBUTE);
 		if (result == null) {
+			// 如果为null的话，使用内容协商管理器对request进行解析
 			result = this.contentNegotiationManager.resolveMediaTypes(new ServletWebRequest(request));
+			// 再将结果存入request的attribute中
 			request.setAttribute(MEDIA_TYPES_ATTRIBUTE, result);
 		}
 		return result;
@@ -365,6 +388,7 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 
 		private boolean matchMediaType(List<MediaType> acceptedMediaTypes) {
 			for (MediaType acceptedMediaType : acceptedMediaTypes) {
+				// 循环可接受的mediaType，判断自身的mediaType和acceptedMediaType是否是适配的，并且判断其参数是否匹配
 				if (getMediaType().isCompatibleWith(acceptedMediaType) && matchParameters(acceptedMediaType)) {
 					return true;
 				}
@@ -373,13 +397,18 @@ public final class ProducesRequestCondition extends AbstractRequestCondition<Pro
 		}
 
 		private boolean matchParameters(MediaType acceptedMediaType) {
+			// 循环自身mediaType的参数name
 			for (String name : getMediaType().getParameters().keySet()) {
+				// 根据name取得自身的value
 				String s1 = getMediaType().getParameter(name);
+				// 根据name取得acceptedMediaType的value
 				String s2 = acceptedMediaType.getParameter(name);
+				// 如果两个参数都存在且值不等的话，返回false
 				if (StringUtils.hasText(s1) && StringUtils.hasText(s2) && !s1.equalsIgnoreCase(s2)) {
 					return false;
 				}
 			}
+			// 否则其他情况返回true
 			return true;
 		}
 	}

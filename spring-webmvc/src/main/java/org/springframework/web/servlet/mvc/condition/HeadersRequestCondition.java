@@ -62,11 +62,15 @@ public final class HeadersRequestCondition extends AbstractRequestCondition<Head
 	private static Set<HeaderExpression> parseExpressions(String... headers) {
 		Set<HeaderExpression> result = null;
 		if (!ObjectUtils.isEmpty(headers)) {
+			// 循环传入headers参数
 			for (String header : headers) {
+				// 每个header都初始化一个HeaderExpression
 				HeaderExpression expr = new HeaderExpression(header);
+				// 当header的name是Accept或Content-Type的时候跳过，不加入到set中，因为这两个header有专属的RequestCondition去判断
 				if ("Accept".equalsIgnoreCase(expr.name) || "Content-Type".equalsIgnoreCase(expr.name)) {
 					continue;
 				}
+				// 并且将expression加入到set中
 				result = (result != null ? result : new LinkedHashSet<>(headers.length));
 				result.add(expr);
 			}
@@ -123,9 +127,11 @@ public final class HeadersRequestCondition extends AbstractRequestCondition<Head
 	@Override
 	@Nullable
 	public HeadersRequestCondition getMatchingCondition(HttpServletRequest request) {
+		// 如果是预检请求，直接返回一个HeadersRequestCondition
 		if (CorsUtils.isPreFlightRequest(request)) {
 			return PRE_FLIGHT_MATCH;
 		}
+		// 否则循环表达式进行匹配
 		for (HeaderExpression expression : this.expressions) {
 			if (!expression.match(request)) {
 				return null;
@@ -186,11 +192,13 @@ public final class HeadersRequestCondition extends AbstractRequestCondition<Head
 
 		@Override
 		protected boolean matchName(HttpServletRequest request) {
+			// 返回请求的header中是否有该name的属性
 			return (request.getHeader(this.name) != null);
 		}
 
 		@Override
 		protected boolean matchValue(HttpServletRequest request) {
+			// 返回请求的header中是否有value和name匹配的属性
 			return ObjectUtils.nullSafeEquals(this.value, request.getHeader(this.name));
 		}
 	}

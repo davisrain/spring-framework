@@ -52,11 +52,13 @@ public final class ParamsRequestCondition extends AbstractRequestCondition<Param
 	}
 
 	private static Set<ParamExpression> parseExpressions(String... params) {
+		// 如果params为空的话，返回一个空集合
 		if (ObjectUtils.isEmpty(params)) {
 			return Collections.emptySet();
 		}
 		Set<ParamExpression> expressions = new LinkedHashSet<>(params.length);
 		for (String param : params) {
+			// 否则循环每个param，new一个ParamExpression放入set
 			expressions.add(new ParamExpression(param));
 		}
 		return expressions;
@@ -111,6 +113,7 @@ public final class ParamsRequestCondition extends AbstractRequestCondition<Param
 	@Override
 	@Nullable
 	public ParamsRequestCondition getMatchingCondition(HttpServletRequest request) {
+		// 循环遍历参数表达式，一旦有一个表达式不匹配就返回null，否则返回自身
 		for (ParamExpression expression : this.expressions) {
 			if (!expression.match(request)) {
 				return null;
@@ -160,7 +163,9 @@ public final class ParamsRequestCondition extends AbstractRequestCondition<Param
 
 		ParamExpression(String expression) {
 			super(expression);
+			// 将name放入set中
 			this.namesToMatch.add(getName());
+			// 并且在name后分别拼接.x .y放入set中
 			for (String suffix : WebUtils.SUBMIT_IMAGE_SUFFIXES) {
 				this.namesToMatch.add(getName() + suffix);
 			}
@@ -178,6 +183,7 @@ public final class ParamsRequestCondition extends AbstractRequestCondition<Param
 
 		@Override
 		protected boolean matchName(HttpServletRequest request) {
+			// 判断request中有nameToMatch的里面的任一参数
 			for (String current : this.namesToMatch) {
 				if (request.getParameterMap().get(current) != null) {
 					return true;
@@ -188,6 +194,7 @@ public final class ParamsRequestCondition extends AbstractRequestCondition<Param
 
 		@Override
 		protected boolean matchValue(HttpServletRequest request) {
+			// 判断request中有name和value都匹配的参数
 			return ObjectUtils.nullSafeEquals(this.value, request.getParameter(this.name));
 		}
 	}

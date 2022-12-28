@@ -42,16 +42,21 @@ public class HeaderContentNegotiationStrategy implements ContentNegotiationStrat
 	@Override
 	public List<MediaType> resolveMediaTypes(NativeWebRequest request)
 			throws HttpMediaTypeNotAcceptableException {
-
+		// 获取请求头中Accept属性的值
 		String[] headerValueArray = request.getHeaderValues(HttpHeaders.ACCEPT);
+		// 如果值为null的话，返回MEDIA_TYPE_ALL_LIST
 		if (headerValueArray == null) {
 			return MEDIA_TYPE_ALL_LIST;
 		}
 
+		// 将accept的值转换为list
 		List<String> headerValues = Arrays.asList(headerValueArray);
 		try {
+			// 将其从String类型解析为MediaType类型
 			List<MediaType> mediaTypes = MediaType.parseMediaTypes(headerValues);
+			// 根据明确度和权重排序
 			MediaType.sortBySpecificityAndQuality(mediaTypes);
+			// 将结果返回
 			return !CollectionUtils.isEmpty(mediaTypes) ? mediaTypes : MEDIA_TYPE_ALL_LIST;
 		}
 		catch (InvalidMediaTypeException ex) {

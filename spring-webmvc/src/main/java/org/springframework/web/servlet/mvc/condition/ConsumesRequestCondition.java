@@ -77,7 +77,9 @@ public final class ConsumesRequestCondition extends AbstractRequestCondition<Con
 	 * @param headers as described in {@link RequestMapping#headers()}
 	 */
 	public ConsumesRequestCondition(String[] consumes, @Nullable String[] headers) {
+		// 根据传入的consumes和headers参数生成expressions
 		this.expressions = parseExpressions(consumes, headers);
+		// 如果expressions的长度大于1，进行排序(根据权重)
 		if (this.expressions.size() > 1) {
 			Collections.sort(this.expressions);
 		}
@@ -85,20 +87,26 @@ public final class ConsumesRequestCondition extends AbstractRequestCondition<Con
 
 	private static List<ConsumeMediaTypeExpression> parseExpressions(String[] consumes, @Nullable String[] headers) {
 		Set<ConsumeMediaTypeExpression> result = null;
+		// 如果headers不为空
 		if (!ObjectUtils.isEmpty(headers)) {
 			for (String header : headers) {
+				// 遍历循环每个header，生成一个headerExpression
 				HeaderExpression expr = new HeaderExpression(header);
+				// 如果headerExpression的name是Content-Type的话
 				if ("Content-Type".equalsIgnoreCase(expr.name) && expr.value != null) {
 					result = (result != null ? result : new LinkedHashSet<>());
+					// 将headerExpression的value解析成MediaType，并且初始化为ConsumeMediaTypeExpression加入到result中
 					for (MediaType mediaType : MediaType.parseMediaTypes(expr.value)) {
 						result.add(new ConsumeMediaTypeExpression(mediaType, expr.isNegated));
 					}
 				}
 			}
 		}
+		// 如果consumes不为空
 		if (!ObjectUtils.isEmpty(consumes)) {
 			result = (result != null ? result : new LinkedHashSet<>());
 			for (String consume : consumes) {
+				// 遍历循环consumes 用每个consume初始化一个ConsumeMediaTypeExpression放入到result中
 				result.add(new ConsumeMediaTypeExpression(consume));
 			}
 		}
@@ -198,12 +206,15 @@ public final class ConsumesRequestCondition extends AbstractRequestCondition<Con
 	@Override
 	@Nullable
 	public ConsumesRequestCondition getMatchingCondition(HttpServletRequest request) {
+		// 如果是预检请求，返回一个空的ConsumesRequestCondition
 		if (CorsUtils.isPreFlightRequest(request)) {
 			return EMPTY_CONDITION;
 		}
+		// 如果要求的MediaType集合为空的话，返回自身
 		if (isEmpty()) {
 			return this;
 		}
+		// 如果请求不含请求体且自身的属性bodyRequired也为false的话，返回一个空的条件
 		if (!hasBody(request) && !this.bodyRequired) {
 			return EMPTY_CONDITION;
 		}
@@ -212,6 +223,7 @@ public final class ConsumesRequestCondition extends AbstractRequestCondition<Con
 
 		MediaType contentType;
 		try {
+			// 如果请求有ContentType的话，将其解析，否则用application/octet-stream
 			contentType = StringUtils.hasLength(request.getContentType()) ?
 					MediaType.parseMediaType(request.getContentType()) :
 					MediaType.APPLICATION_OCTET_STREAM;
@@ -219,7 +231,7 @@ public final class ConsumesRequestCondition extends AbstractRequestCondition<Con
 		catch (InvalidMediaTypeException ex) {
 			return null;
 		}
-
+		// 获取匹配的mediaTypeExpression，如果存在，用匹配的类型创建一个新的ConsumesRequestCondition返回，否则返回null
 		List<ConsumeMediaTypeExpression> result = getMatchingExpressions(contentType);
 		return !CollectionUtils.isEmpty(result) ? new ConsumesRequestCondition(result) : null;
 	}
@@ -234,6 +246,7 @@ public final class ConsumesRequestCondition extends AbstractRequestCondition<Con
 	@Nullable
 	private List<ConsumeMediaTypeExpression> getMatchingExpressions(MediaType contentType) {
 		List<ConsumeMediaTypeExpression> result = null;
+		// 遍历自身持有的mediaType表达式，如果存在匹配的，就加入result返回
 		for (ConsumeMediaTypeExpression expression : this.expressions) {
 			if (expression.match(contentType)) {
 				result = result != null ? result : new ArrayList<>();
@@ -285,7 +298,9 @@ public final class ConsumesRequestCondition extends AbstractRequestCondition<Con
 		}
 
 		public final boolean match(MediaType contentType) {
+			// 判断MediaType是否包含传入的contentType参数
 			boolean match = getMediaType().includes(contentType);
+			// 如果isNegated为true，将结果取反
 			return !isNegated() == match;
 		}
 	}

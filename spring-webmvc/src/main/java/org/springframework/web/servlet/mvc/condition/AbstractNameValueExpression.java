@@ -42,6 +42,11 @@ abstract class AbstractNameValueExpression<T> implements NameValueExpression<T> 
 
 
 	AbstractNameValueExpression(String expression) {
+		// 将String类型的expression解析
+		// 1.param代表参数中有param参数则满足条件
+		// 2.!param代表参数中没有param参数则满足条件
+		// 3.param=value代表参数中有param且值为value则满足条件
+		// 4.param!=value 代表参数中有param且值不为value则满足条件
 		int separator = expression.indexOf('=');
 		if (separator == -1) {
 			this.isNegated = expression.startsWith("!");
@@ -74,12 +79,15 @@ abstract class AbstractNameValueExpression<T> implements NameValueExpression<T> 
 
 	public final boolean match(HttpServletRequest request) {
 		boolean isMatch;
+		// 如果参数的value不为null的话，针对value进行match
 		if (this.value != null) {
 			isMatch = matchValue(request);
 		}
+		// 如果参数为null的话，针对name进行match
 		else {
 			isMatch = matchName(request);
 		}
+		// 如果isNegated是true的话，将匹配结果取反
 		return this.isNegated != isMatch;
 	}
 

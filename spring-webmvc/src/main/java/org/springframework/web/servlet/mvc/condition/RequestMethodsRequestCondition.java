@@ -125,19 +125,25 @@ public final class RequestMethodsRequestCondition extends AbstractRequestConditi
 	@Override
 	@Nullable
 	public RequestMethodsRequestCondition getMatchingCondition(HttpServletRequest request) {
+		// 如果请求是跨域预检请求
 		if (CorsUtils.isPreFlightRequest(request)) {
+			// 走预检请求的方法
 			return matchPreFlight(request);
 		}
 
+		// 如果自身的方法为空
 		if (getMethods().isEmpty()) {
+			// 如果请求方法为OPTIONS并且dispatcherType不是error的话，直接返回null
 			if (RequestMethod.OPTIONS.name().equals(request.getMethod()) &&
 					!DispatcherType.ERROR.equals(request.getDispatcherType())) {
 
 				return null; // We handle OPTIONS transparently, so don't match if no explicit declarations
 			}
+			// 否则返回自身
 			return this;
 		}
 
+		// 当方法不为空时，根据请求的方法返回对应的只包含匹配方法的condition
 		return matchRequestMethod(request.getMethod());
 	}
 
@@ -148,10 +154,13 @@ public final class RequestMethodsRequestCondition extends AbstractRequestConditi
 	 */
 	@Nullable
 	private RequestMethodsRequestCondition matchPreFlight(HttpServletRequest request) {
+		// 如果自身的方法集合为空，直接返回自身
 		if (getMethods().isEmpty()) {
 			return this;
 		}
+		// 如果自身方法集合不为空，查询预检请求的请求头中Access-Control-Request-Method属性，查看申请的是什么方法
 		String expectedMethod = request.getHeader(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD);
+		// 然后判断申请的方法在不在自身的方法集合中
 		return matchRequestMethod(expectedMethod);
 	}
 
@@ -159,10 +168,15 @@ public final class RequestMethodsRequestCondition extends AbstractRequestConditi
 	private RequestMethodsRequestCondition matchRequestMethod(String httpMethodValue) {
 		RequestMethod requestMethod;
 		try {
+			// 将方法转换为枚举
 			requestMethod = RequestMethod.valueOf(httpMethodValue);
+			// 如果自身的方法集合里面包含请求的方法
 			if (getMethods().contains(requestMethod)) {
+				// 返回一个只包含请求方法的RequestCondition
 				return requestMethodConditionCache.get(httpMethodValue);
 			}
+			// 如果自身的方法集合里不包含请求的方法，判断请求方法是否是HEAD，并且自身方法集合里有GET，
+			// 如果是的话，返回一个只包含GET方法的RequestCondition
 			if (requestMethod.equals(RequestMethod.HEAD) && getMethods().contains(RequestMethod.GET)) {
 				return requestMethodConditionCache.get(HttpMethod.GET.name());
 			}
@@ -170,6 +184,7 @@ public final class RequestMethodsRequestCondition extends AbstractRequestConditi
 		catch (IllegalArgumentException ex) {
 			// Custom request method
 		}
+		// 否则返回null
 		return null;
 	}
 

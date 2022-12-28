@@ -184,10 +184,13 @@ public class UrlPathHelper {
 	public String getLookupPathForRequest(HttpServletRequest request) {
 		String pathWithinApp = getPathWithinApplication(request);
 		// Always use full path within current servlet context?
+		// 如果alwaysUseFullPath参数为true的话，直接返回，表示用全量路径作为lookup的path
+		// 这个参数默认为false，但是在mvcAutoConfiguration自动配置中会被设置为true
 		if (this.alwaysUseFullPath) {
 			return pathWithinApp;
 		}
 		// Else, use path within current servlet mapping if applicable
+		// 否则使用最后一个剔除了servletPath之后的内容作为lookup的路径，即请求路径为/myServlet/path 最后只使用/path
 		String rest = getPathWithinServletMapping(request, pathWithinApp);
 		if (StringUtils.hasLength(rest)) {
 			return rest;
@@ -209,11 +212,13 @@ public class UrlPathHelper {
 	 */
 	public String getLookupPathForRequest(HttpServletRequest request, @Nullable String lookupPathAttributeName) {
 		if (lookupPathAttributeName != null) {
+			// 先去request的attribute中判断是否存在，如果存在，直接返回
 			String result = (String) request.getAttribute(lookupPathAttributeName);
 			if (result != null) {
 				return result;
 			}
 		}
+		// 否则调用方法从request中进行解析
 		return getLookupPathForRequest(request);
 	}
 
@@ -297,7 +302,7 @@ public class UrlPathHelper {
 		String contextPath = getContextPath(request);
 		// 获取requestUri
 		String requestUri = getRequestUri(request);
-		// 获取剩余的path
+		// 获取requestUri剔除掉contextPath的路径
 		String path = getRemainingPath(requestUri, contextPath, true);
 		if (path != null) {
 			// Normal case: URI contains context path.
@@ -576,29 +581,40 @@ public class UrlPathHelper {
 	}
 
 	private String removeSemicolonContentInternal(String requestUri) {
+		// 查找到;的下标
 		int semicolonIndex = requestUri.indexOf(';');
 		while (semicolonIndex != -1) {
+			// 查找到;后面/的下标
 			int slashIndex = requestUri.indexOf('/', semicolonIndex);
+			// 将分号后面的内容截取掉
 			String start = requestUri.substring(0, semicolonIndex);
+			// 如果分号后面还存在/符号，那么将/后面的内容继续添加到上一步截取出来的字符串后面
 			requestUri = (slashIndex != -1) ? start + requestUri.substring(slashIndex) : start;
+			// 然后再次判断是否还有;存在，如果有的话，循环进行上述步骤
 			semicolonIndex = requestUri.indexOf(';', semicolonIndex);
 		}
+		// 达到的效果就是删除路径中所有存在的;后面的内容 比如/path1;xxx/path2;yyy/path3, 删除之后就是/path1/path2/path3
 		return requestUri;
 	}
 
 	private String removeJsessionid(String requestUri) {
 		String key = ";jsessionid=";
+		// 查找;jsessionid=存在的下标
 		int index = requestUri.toLowerCase().indexOf(key);
 		if (index == -1) {
 			return requestUri;
 		}
+		// 将;jsessionid=以及之后的内容截取掉
 		String start = requestUri.substring(0, index);
 		for (int i = index + key.length(); i < requestUri.length(); i++) {
+			// 从;jsessionid=之后的位置开始循环判断每一个字符
 			char c = requestUri.charAt(i);
+			// 如果发现有;或者/ 那么将这个字符开始的后面内容添加到上一步截取出的字符串后面
 			if (c == ';' || c == '/') {
 				return start + requestUri.substring(i);
 			}
 		}
+		// 例如存在路径/path1;jsessionid=xxx/path2 删除之后得到/path1/path2
 		return start;
 	}
 

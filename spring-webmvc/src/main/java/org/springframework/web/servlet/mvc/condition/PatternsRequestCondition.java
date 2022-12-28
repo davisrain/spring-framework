@@ -120,6 +120,7 @@ public class PatternsRequestCondition extends AbstractRequestCondition<PatternsR
 			@Nullable PathMatcher pathMatcher, boolean useSuffixPatternMatch,
 			boolean useTrailingSlashMatch, @Nullable List<String> fileExtensions) {
 
+		// 初始化patterns
 		this.patterns = initPatterns(patterns);
 		this.pathHelper = urlPathHelper != null ? urlPathHelper : UrlPathHelper.defaultInstance;
 		this.pathMatcher = pathMatcher != null ? pathMatcher : new AntPathMatcher();
@@ -137,14 +138,19 @@ public class PatternsRequestCondition extends AbstractRequestCondition<PatternsR
 	}
 
 	private static Set<String> initPatterns(String[] patterns) {
+		// 如果patterns里都是空字符串，那么返回EMPTY_PATH_PATTERN
 		if (!hasPattern(patterns)) {
 			return EMPTY_PATH_PATTERN;
 		}
+		// 否则的话创建一个set用于储存结果并返回
 		Set<String> result = new LinkedHashSet<>(patterns.length);
+		// 遍历patterns
 		for (String pattern : patterns) {
+			// 如果pattern有值且不是以/开头的，在前面加上/
 			if (StringUtils.hasLength(pattern) && !pattern.startsWith("/")) {
 				pattern = "/" + pattern;
 			}
+			// 将pattern放入result中
 			result.add(pattern);
 		}
 		return result;
@@ -243,6 +249,7 @@ public class PatternsRequestCondition extends AbstractRequestCondition<PatternsR
 	@Override
 	@Nullable
 	public PatternsRequestCondition getMatchingCondition(HttpServletRequest request) {
+		// 根据request获取lookupPath
 		String lookupPath = this.pathHelper.getLookupPathForRequest(request, HandlerMapping.LOOKUP_PATH);
 		List<String> matches = getMatchingPatterns(lookupPath);
 		return !matches.isEmpty() ? new PatternsRequestCondition(new LinkedHashSet<>(matches), this) : null;
@@ -258,16 +265,20 @@ public class PatternsRequestCondition extends AbstractRequestCondition<PatternsR
 	 */
 	public List<String> getMatchingPatterns(String lookupPath) {
 		List<String> matches = null;
+		// 遍历patterns
 		for (String pattern : this.patterns) {
+			// 判断pattern是否能和lookupPath匹配
 			String match = getMatchingPattern(pattern, lookupPath);
 			if (match != null) {
 				matches = (matches != null ? matches : new ArrayList<>());
+				// 如果能的话，将结果加入matches中
 				matches.add(match);
 			}
 		}
 		if (matches == null) {
 			return Collections.emptyList();
 		}
+		// 如果匹配结果数量大于1，使用pathMatcher进行排序
 		if (matches.size() > 1) {
 			matches.sort(this.pathMatcher.getPatternComparator(lookupPath));
 		}
@@ -276,9 +287,11 @@ public class PatternsRequestCondition extends AbstractRequestCondition<PatternsR
 
 	@Nullable
 	private String getMatchingPattern(String pattern, String lookupPath) {
+		// 如果pattern和lookupPath完全相等，匹配成功，直接返回pattern
 		if (pattern.equals(lookupPath)) {
 			return pattern;
 		}
+		// 如果参数useSuffixPatternMatch为true的话，表示使用后缀匹配
 		if (this.useSuffixPatternMatch) {
 			if (!this.fileExtensions.isEmpty() && lookupPath.indexOf('.') != -1) {
 				for (String extension : this.fileExtensions) {

@@ -458,7 +458,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 
 	private void addMatchingMappings(Collection<T> mappings, List<Match> matches, HttpServletRequest request) {
 		for (T mapping : mappings) {
-			// 获取对应的mapping对象
+			// 根据mapping和request获取一个新的匹配的mapping对象
 			T match = getMatchingMapping(mapping, request);
 			if (match != null) {
 				// 根据mapping对象以及mapping对应的handlerMethod初始化一个match对象放入list

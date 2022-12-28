@@ -36,6 +36,7 @@ abstract class AbstractMediaTypeExpression implements MediaTypeExpression, Compa
 
 
 	AbstractMediaTypeExpression(String expression) {
+		// 如果表达式以!开头，isNegated设置为true，否则为false
 		if (expression.startsWith("!")) {
 			this.isNegated = true;
 			expression = expression.substring(1);
@@ -43,6 +44,7 @@ abstract class AbstractMediaTypeExpression implements MediaTypeExpression, Compa
 		else {
 			this.isNegated = false;
 		}
+		// 将String的表达式解析为MediaType
 		this.mediaType = MediaType.parseMediaType(expression);
 	}
 
