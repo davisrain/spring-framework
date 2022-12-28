@@ -283,33 +283,40 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 
 		RequestMappingHandlerMapping mapping = createRequestMappingHandlerMapping();
 		mapping.setOrder(0);
+		// 像requestMappingHandlerMapping中添加拦截器
 		mapping.setInterceptors(getInterceptors(conversionService, resourceUrlProvider));
 		mapping.setContentNegotiationManager(contentNegotiationManager);
 		mapping.setCorsConfigurations(getCorsConfigurations());
 
+		// 获取pathMatchConfigurer对象
 		PathMatchConfigurer configurer = getPathMatchConfigurer();
 
+		// 将useSuffixPatternMatch参数设置进requestMappingHandlerMapping中
 		Boolean useSuffixPatternMatch = configurer.isUseSuffixPatternMatch();
 		if (useSuffixPatternMatch != null) {
 			mapping.setUseSuffixPatternMatch(useSuffixPatternMatch);
 		}
+		// 设置useRegisteredSuffixPatternMatch
 		Boolean useRegisteredSuffixPatternMatch = configurer.isUseRegisteredSuffixPatternMatch();
 		if (useRegisteredSuffixPatternMatch != null) {
 			mapping.setUseRegisteredSuffixPatternMatch(useRegisteredSuffixPatternMatch);
 		}
+		// 设置useTrailingSlashMatch
 		Boolean useTrailingSlashMatch = configurer.isUseTrailingSlashMatch();
 		if (useTrailingSlashMatch != null) {
 			mapping.setUseTrailingSlashMatch(useTrailingSlashMatch);
 		}
-
+		// 设置urlPathHelper
 		UrlPathHelper pathHelper = configurer.getUrlPathHelper();
 		if (pathHelper != null) {
 			mapping.setUrlPathHelper(pathHelper);
 		}
+		// 设置pathMatcher
 		PathMatcher pathMatcher = configurer.getPathMatcher();
 		if (pathMatcher != null) {
 			mapping.setPathMatcher(pathMatcher);
 		}
+		// 设置pathPrefixes
 		Map<String, Predicate<Class<?>>> pathPrefixes = configurer.getPathPrefixes();
 		if (pathPrefixes != null) {
 			mapping.setPathPrefixes(pathPrefixes);
@@ -335,13 +342,20 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	protected final Object[] getInterceptors(
 			FormattingConversionService mvcConversionService,
 			ResourceUrlProvider mvcResourceUrlProvider) {
+		// 如果interceptors为null，说明还没有初始化，进行初始化
 		if (this.interceptors == null) {
+			// 初始化一个拦截器注册器
 			InterceptorRegistry registry = new InterceptorRegistry();
+			// 调用addInterceptors方法，向注册器中注册拦截器
+			// 该方法的子类实现会调用IOC中所有实现了WebMvcConfigurer接口的bean的addInterceptors方法，对拦截器注册器进行配置
 			addInterceptors(registry);
+			// 添加两个特定的拦截器
 			registry.addInterceptor(new ConversionServiceExposingInterceptor(mvcConversionService));
 			registry.addInterceptor(new ResourceUrlProviderExposingInterceptor(mvcResourceUrlProvider));
+			// 然后调用注册器的getInterceptors方法将返回值赋值给interceptors属性
 			this.interceptors = registry.getInterceptors();
 		}
+		// 将interceptors属性转换成数组返回
 		return this.interceptors.toArray();
 	}
 
@@ -360,7 +374,11 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	 */
 	protected PathMatchConfigurer getPathMatchConfigurer() {
 		if (this.pathMatchConfigurer == null) {
+			// 如果pathMatchConfigurer为null的话，就new一个
 			this.pathMatchConfigurer = new PathMatchConfigurer();
+			// 并且调用configurePathMatch方法，
+			// 该方法会调用其子类DelegatingWebMvcConfiguration的方法，该子类会持有所有IOC容器中实现了WebMvcConfigurer接口的bean
+			// 然后循环调用其configurePathMatch方法对pathMatchConfigurer进行设置
 			configurePathMatch(this.pathMatchConfigurer);
 		}
 		return this.pathMatchConfigurer;

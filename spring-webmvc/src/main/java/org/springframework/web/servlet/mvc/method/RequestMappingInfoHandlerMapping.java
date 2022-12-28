@@ -130,28 +130,39 @@ public abstract class RequestMappingInfoHandlerMapping extends AbstractHandlerMe
 		String bestPattern;
 		Map<String, String> uriVariables;
 
+		// 拿到requestMappingInfo中patternsRequestCondition中的patterns
 		Set<String> patterns = info.getPatternsCondition().getPatterns();
 		if (patterns.isEmpty()) {
 			bestPattern = lookupPath;
 			uriVariables = Collections.emptyMap();
 		}
 		else {
+			// 取patterns中第一个作为最好的匹配
 			bestPattern = patterns.iterator().next();
+			// 从最优匹配中通过pathMatcher提取出路径变量
 			uriVariables = getPathMatcher().extractUriTemplateVariables(bestPattern, lookupPath);
 		}
 
+		// 将bestPattern存入到request的attribute中
 		request.setAttribute(BEST_MATCHING_PATTERN_ATTRIBUTE, bestPattern);
 
+		// 查看矩阵变量是否可用，即urlPathHelper中的removeSemicolonContent参数有没有置为false，
+		// 默认是true，在解析lookupPath的时候会删除;后面的内容，因此该配置下矩阵变量不可用
 		if (isMatrixVariableContentAvailable()) {
+			// 如果矩阵变量可用，进行提取，并且也放入到request的attribute中
 			Map<String, MultiValueMap<String, String>> matrixVars = extractMatrixVariables(request, uriVariables);
 			request.setAttribute(HandlerMapping.MATRIX_VARIABLES_ATTRIBUTE, matrixVars);
 		}
 
+		// 通过urlPathHelper对路径变量进行url解码
 		Map<String, String> decodedUriVariables = getUrlPathHelper().decodePathVariables(request, uriVariables);
+		// 将路径变量存入到request的attribute中
 		request.setAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, decodedUriVariables);
 
+		// 如果requestMappingInfo中的producesRequestCondition中的producibleMediaType有值的话
 		if (!info.getProducesCondition().getProducibleMediaTypes().isEmpty()) {
 			Set<MediaType> mediaTypes = info.getProducesCondition().getProducibleMediaTypes();
+			// 也将其值存入到request的attribute中，可供后续内容协商使用
 			request.setAttribute(PRODUCIBLE_MEDIA_TYPES_ATTRIBUTE, mediaTypes);
 		}
 	}

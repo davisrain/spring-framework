@@ -175,9 +175,11 @@ public class AntPathMatcher implements PathMatcher {
 		boolean uriVar = false;
 		for (int i = 0; i < path.length(); i++) {
 			char c = path.charAt(i);
+			// 当path里面含有*或者?符号时，返回true
 			if (c == '*' || c == '?') {
 				return true;
 			}
+			// 或者path里面含有一对{}符号时，返回true
 			if (c == '{') {
 				uriVar = true;
 				continue;
@@ -186,6 +188,7 @@ public class AntPathMatcher implements PathMatcher {
 				return true;
 			}
 		}
+		// 否则返回false
 		return false;
 	}
 
@@ -210,15 +213,19 @@ public class AntPathMatcher implements PathMatcher {
 	protected boolean doMatch(String pattern, @Nullable String path, boolean fullMatch,
 			@Nullable Map<String, String> uriTemplateVariables) {
 
+		// 如果path为null，或者path和pattern是否以/开头的情况不一致的情况，返回false
 		if (path == null || path.startsWith(this.pathSeparator) != pattern.startsWith(this.pathSeparator)) {
 			return false;
 		}
 
+		// 将pattern按/分隔成数组
 		String[] pattDirs = tokenizePattern(pattern);
+		// 如果fullMatch是true并且是大小写敏感的并且没有潜在匹配的可能，返回false
 		if (fullMatch && this.caseSensitive && !isPotentialMatch(path, pattDirs)) {
 			return false;
 		}
 
+		// 将path按/分隔成数组
 		String[] pathDirs = tokenizePath(path);
 		int pattIdxStart = 0;
 		int pattIdxEnd = pattDirs.length - 1;
@@ -228,12 +235,15 @@ public class AntPathMatcher implements PathMatcher {
 		// Match all elements up to the first **
 		while (pattIdxStart <= pattIdxEnd && pathIdxStart <= pathIdxEnd) {
 			String pattDir = pattDirs[pattIdxStart];
+			// 当pattern的目录内容是**时，跳出循环
 			if ("**".equals(pattDir)) {
 				break;
 			}
+			// 调用matchStrings方法来匹配pattern和path的目录内容，如果匹配失败，返回false
 			if (!matchStrings(pattDir, pathDirs[pathIdxStart], uriTemplateVariables)) {
 				return false;
 			}
+			// 否则将数组下表都加1，匹配下一层目录的内容
 			pattIdxStart++;
 			pathIdxStart++;
 		}
@@ -397,11 +407,15 @@ public class AntPathMatcher implements PathMatcher {
 	protected String[] tokenizePattern(String pattern) {
 		String[] tokenized = null;
 		Boolean cachePatterns = this.cachePatterns;
+		// 如果cachePatterns参数为null或者是true，尝试从缓存中获取tokenized
 		if (cachePatterns == null || cachePatterns.booleanValue()) {
 			tokenized = this.tokenizedPatternCache.get(pattern);
 		}
+		// 如果tokenized仍然为null
 		if (tokenized == null) {
+			// 调用tokenizePath方法
 			tokenized = tokenizePath(pattern);
+			// 如果cachePatterns参数为null，并且缓存的数量大于65535了，那么需要将缓存失效
 			if (cachePatterns == null && this.tokenizedPatternCache.size() >= CACHE_TURNOFF_THRESHOLD) {
 				// Try to adapt to the runtime situation that we're encountering:
 				// There are obviously too many different patterns coming in here...
@@ -409,6 +423,7 @@ public class AntPathMatcher implements PathMatcher {
 				deactivatePatternCache();
 				return tokenized;
 			}
+			// 如果cachePatterns为null或者为true，将得到的结果放入缓存中
 			if (cachePatterns == null || cachePatterns.booleanValue()) {
 				this.tokenizedPatternCache.put(pattern, tokenized);
 			}
@@ -422,6 +437,7 @@ public class AntPathMatcher implements PathMatcher {
 	 * @return the tokenized path parts
 	 */
 	protected String[] tokenizePath(String path) {
+		// 根据/符号将path分隔成数组，并且忽略到空的元素，且不对每个分隔出来的元素调用trim方法
 		return StringUtils.tokenizeToStringArray(path, this.pathSeparator, this.trimTokens, true);
 	}
 
@@ -453,11 +469,14 @@ public class AntPathMatcher implements PathMatcher {
 	protected AntPathStringMatcher getStringMatcher(String pattern) {
 		AntPathStringMatcher matcher = null;
 		Boolean cachePatterns = this.cachePatterns;
+		// 先尝试从缓存中取stringMatcher
 		if (cachePatterns == null || cachePatterns.booleanValue()) {
 			matcher = this.stringMatcherCache.get(pattern);
 		}
 		if (matcher == null) {
+			// 如果没有取到，则根据pattern和caseSensitive自己new一个
 			matcher = new AntPathStringMatcher(pattern, this.caseSensitive);
+			// 判断缓存是否已经超出阈值，如果超出需要禁用缓存
 			if (cachePatterns == null && this.stringMatcherCache.size() >= CACHE_TURNOFF_THRESHOLD) {
 				// Try to adapt to the runtime situation that we're encountering:
 				// There are obviously too many different patterns coming in here...
@@ -465,6 +484,7 @@ public class AntPathMatcher implements PathMatcher {
 				deactivatePatternCache();
 				return matcher;
 			}
+			// 将stringMatcher放入缓存中
 			if (cachePatterns == null || cachePatterns.booleanValue()) {
 				this.stringMatcherCache.put(pattern, matcher);
 			}

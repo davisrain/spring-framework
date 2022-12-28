@@ -251,7 +251,9 @@ public class PatternsRequestCondition extends AbstractRequestCondition<PatternsR
 	public PatternsRequestCondition getMatchingCondition(HttpServletRequest request) {
 		// 根据request获取lookupPath
 		String lookupPath = this.pathHelper.getLookupPathForRequest(request, HandlerMapping.LOOKUP_PATH);
+		// 根据lookupPath查找匹配的patterns
 		List<String> matches = getMatchingPatterns(lookupPath);
+		// 如果匹配的patterns不为空的话，新建一个patterns为匹配的结果的PatternsRequestCondition并返回，否则返回null
 		return !matches.isEmpty() ? new PatternsRequestCondition(new LinkedHashSet<>(matches), this) : null;
 	}
 
@@ -293,8 +295,11 @@ public class PatternsRequestCondition extends AbstractRequestCondition<PatternsR
 		}
 		// 如果参数useSuffixPatternMatch为true的话，表示使用后缀匹配
 		if (this.useSuffixPatternMatch) {
+			// 如果fileExtensions不为空的且lookupPath里面有.符号的话
 			if (!this.fileExtensions.isEmpty() && lookupPath.indexOf('.') != -1) {
+				// 遍历文件扩展名
 				for (String extension : this.fileExtensions) {
+					// 将其添加到pattern的后面再同lookupPath进行匹配，如果成功，返回pattern+extension
 					if (this.pathMatcher.match(pattern + extension, lookupPath)) {
 						return pattern + extension;
 					}
@@ -302,15 +307,19 @@ public class PatternsRequestCondition extends AbstractRequestCondition<PatternsR
 			}
 			else {
 				boolean hasSuffix = pattern.indexOf('.') != -1;
+				// 如果pattern里面没有.符号，但是pattern.*和lookupPath匹配成功的情况下，返回pattern.*
 				if (!hasSuffix && this.pathMatcher.match(pattern + ".*", lookupPath)) {
 					return pattern + ".*";
 				}
 			}
 		}
+		// 使用pathMatcher匹配pattern和lookupPath，如果匹配成功，直接返回pattern
 		if (this.pathMatcher.match(pattern, lookupPath)) {
 			return pattern;
 		}
+		// 如果useTrailingSlashMatch为true
 		if (this.useTrailingSlashMatch) {
+			// 如果pattern不是以/结尾，但是pattern+/ 和lookupPath匹配成功，那么返回pattern+/
 			if (!pattern.endsWith("/") && this.pathMatcher.match(pattern + "/", lookupPath)) {
 				return pattern + "/";
 			}

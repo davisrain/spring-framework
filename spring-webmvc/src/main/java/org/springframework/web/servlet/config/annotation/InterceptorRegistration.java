@@ -121,13 +121,16 @@ public class InterceptorRegistration {
 	 * type is {@link MappedInterceptor}; otherwise {@link HandlerInterceptor}.
 	 */
 	protected Object getInterceptor() {
+		// 如果没有没有匹配路径和排除路径的话，直接返回原拦截器即可
 		if (this.includePatterns.isEmpty() && this.excludePatterns.isEmpty()) {
 			return this.interceptor;
 		}
 
 		String[] include = StringUtils.toStringArray(this.includePatterns);
 		String[] exclude = StringUtils.toStringArray(this.excludePatterns);
+		// 如果有设置匹配路径等信息，那么返回一个MappedInterceptor类型的包装器，该包装器提供了matches方法对请求路径进行匹配
 		MappedInterceptor mappedInterceptor = new MappedInterceptor(include, exclude, this.interceptor);
+		// 如果pathMatcher不为null的话，将其设置到包装器中
 		if (this.pathMatcher != null) {
 			mappedInterceptor.setPathMatcher(this.pathMatcher);
 		}

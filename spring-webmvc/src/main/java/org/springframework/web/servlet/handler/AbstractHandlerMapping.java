@@ -420,6 +420,7 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 			logger.debug("Mapped to " + executionChain.getHandler());
 		}
 
+		// TODO 处理跨域的情况
 		if (hasCorsConfigurationSource(handler) || CorsUtils.isPreFlightRequest(request)) {
 			CorsConfiguration config = (this.corsConfigurationSource != null ? this.corsConfigurationSource.getCorsConfiguration(request) : null);
 			CorsConfiguration handlerConfig = getCorsConfiguration(handler, request);
@@ -473,14 +474,21 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 		HandlerExecutionChain chain = (handler instanceof HandlerExecutionChain ?
 				(HandlerExecutionChain) handler : new HandlerExecutionChain(handler));
 
+		// 拿到请求的lookupPath
 		String lookupPath = this.urlPathHelper.getLookupPathForRequest(request, LOOKUP_PATH);
+		// 循环遍历存在的拦截器
 		for (HandlerInterceptor interceptor : this.adaptedInterceptors) {
+			// 如果拦截器的类型是MappedInterceptor类型的
 			if (interceptor instanceof MappedInterceptor) {
 				MappedInterceptor mappedInterceptor = (MappedInterceptor) interceptor;
+				// 调用matches方法判断拦截器是否符合条件，MappedInterceptor类型的拦截器会有includePatterns和excludePatterns，
+				// 根据这两个数组以及lookupPath以及pathMatcher就能判断出该拦截器是否能够拦截该请求
 				if (mappedInterceptor.matches(lookupPath, this.pathMatcher)) {
+					// 如果路径匹配成功，将持有的真正的拦截器加入执行链
 					chain.addInterceptor(mappedInterceptor.getInterceptor());
 				}
 			}
+			// 如果是普通类型的拦截器，直接加入执行链
 			else {
 				chain.addInterceptor(interceptor);
 			}

@@ -46,6 +46,8 @@ public class InterceptorRegistry {
 	 * registered interceptor further for example adding URL patterns it should apply to.
 	 */
 	public InterceptorRegistration addInterceptor(HandlerInterceptor interceptor) {
+		// 将传入的拦截器包装成InterceptorRegistration对象并添加到注册器的registrations集合中
+		// InterceptorRegistration对拦截器进行了增强，可以添加includePattern以及excludePattern
 		InterceptorRegistration registration = new InterceptorRegistration(interceptor);
 		this.registrations.add(registration);
 		return registration;
@@ -69,7 +71,9 @@ public class InterceptorRegistry {
 	 */
 	protected List<Object> getInterceptors() {
 		return this.registrations.stream()
+				// 按order进行排序
 				.sorted(INTERCEPTOR_ORDER_COMPARATOR)
+				// 调用InterceptorRegistration的getInterceptor方法返回拦截器
 				.map(InterceptorRegistration::getInterceptor)
 				.collect(Collectors.toList());
 	}
