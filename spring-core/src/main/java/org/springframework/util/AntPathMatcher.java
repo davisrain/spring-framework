@@ -17,6 +17,7 @@
 package org.springframework.util;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -248,17 +249,26 @@ public class AntPathMatcher implements PathMatcher {
 			pathIdxStart++;
 		}
 
+		// 如果path已经耗尽了
 		if (pathIdxStart > pathIdxEnd) {
 			// Path is exhausted, only match if rest of pattern is * or **'s
+			// 如果pattern也已经耗尽了
 			if (pattIdxStart > pattIdxEnd) {
+				// 那么比较path和pattern以/结尾的情况是否一样，如果一样，返回true，否则返回false
 				return (pattern.endsWith(this.pathSeparator) == path.endsWith(this.pathSeparator));
 			}
+			// 如果不需要完整匹配，直接返回true
+			// 比如pattern是/path1/path2/path3，path是/path1/path2
 			if (!fullMatch) {
 				return true;
 			}
+			// 如果此时pattern正好还剩最后一个目录，并且最后一个目录里面的内容是*，并且path以/结尾，那么返回true
+			// 比如pattern是/path1/path2/*,path是/path1/path2/
 			if (pattIdxStart == pattIdxEnd && pattDirs[pattIdxStart].equals("*") && path.endsWith(this.pathSeparator)) {
 				return true;
 			}
+			// 如果pattern剩下的目录内容全部是**的话，返回true，否则返回false
+			// 比如pattern是/path1/path2/**,path是/path1/path2
 			for (int i = pattIdxStart; i <= pattIdxEnd; i++) {
 				if (!pattDirs[i].equals("**")) {
 					return false;
@@ -266,29 +276,38 @@ public class AntPathMatcher implements PathMatcher {
 			}
 			return true;
 		}
+		// 如果pattern先耗尽的话，直接返回false
 		else if (pattIdxStart > pattIdxEnd) {
 			// String not exhausted, but pattern is. Failure.
 			return false;
 		}
+		// 如果不是完整匹配且pattern下一个目录的内容是**，直接返回true。
+		// 比如pattern是/path1/path2/**/path3, path是/path1/path2/path4
 		else if (!fullMatch && "**".equals(pattDirs[pattIdxStart])) {
 			// Path start definitely matches due to "**" part in pattern.
 			return true;
 		}
 
 		// up to last '**'
+		// 从后往前遍历，找到pattern最后一个**
 		while (pattIdxStart <= pattIdxEnd && pathIdxStart <= pathIdxEnd) {
 			String pattDir = pattDirs[pattIdxEnd];
+			// 如果pattern的目录内容是**，跳出循环
 			if (pattDir.equals("**")) {
 				break;
 			}
+			// 否则将pattern和path的目录内容进行比较，如果不匹配，返回false
 			if (!matchStrings(pattDir, pathDirs[pathIdxEnd], uriTemplateVariables)) {
 				return false;
 			}
 			pattIdxEnd--;
 			pathIdxEnd--;
 		}
+		// 如果path耗尽了
+		// 比如pattern是/path1/path2/**/path3，path是/path1/path2/path3
 		if (pathIdxStart > pathIdxEnd) {
 			// String is exhausted
+			// 那么需要判断剩下的pattern是否都是**的内容，如果是的话，返回true，否则返回false
 			for (int i = pattIdxStart; i <= pattIdxEnd; i++) {
 				if (!pattDirs[i].equals("**")) {
 					return false;
@@ -297,14 +316,19 @@ public class AntPathMatcher implements PathMatcher {
 			return true;
 		}
 
+		// 当pattern的开始指针不等于结束指针，并且path也还没有耗尽时
+		// 比如pattern是/1/**/2/3/**/4/**/5, path是/1/x/2/3/y/4/z/a/5
 		while (pattIdxStart != pattIdxEnd && pathIdxStart <= pathIdxEnd) {
 			int patIdxTmp = -1;
+			// 从开始指针+1开始循环
 			for (int i = pattIdxStart + 1; i <= pattIdxEnd; i++) {
+				// 如果遇到内容等于**,就将临时指针指向这个位置，并跳出循环
 				if (pattDirs[i].equals("**")) {
 					patIdxTmp = i;
 					break;
 				}
 			}
+			// 如果临时指针就指向开始指针+1，说明有两个连续的**，跳过一个
 			if (patIdxTmp == pattIdxStart + 1) {
 				// '**/**' situation, so skip one
 				pattIdxStart++;
@@ -312,31 +336,45 @@ public class AntPathMatcher implements PathMatcher {
 			}
 			// Find the pattern between padIdxStart & padIdxTmp in str between
 			// strIdxStart & strIdxEnd
+			// 获取到需要比较的pattern的目录长度
 			int patLength = (patIdxTmp - pattIdxStart - 1);
+			// 需要比较的path的目录长度
 			int strLength = (pathIdxEnd - pathIdxStart + 1);
 			int foundIdx = -1;
 
 			strLoop:
+			// 外层循环是最多需要比较多少次，如果需要比较的path长度为5，需要比较的pattern长度为2的话，那么最多需要比较4次
+			// 比如需要比较的pattern是/3/4 需要比较的path是/1/2/3/4/5，那么最多需要比较四次
 			for (int i = 0; i <= strLength - patLength; i++) {
+				// 内层循环是每次比较 pattern需要比较的目录个数，如果需要比较的pattern是/3/4，那么要比较的目录个数就是2
 				for (int j = 0; j < patLength; j++) {
+					// 取出比较的pattern，示例中取出的为3
 					String subPat = pattDirs[pattIdxStart + j + 1];
+					// 取出比较的path，示例中取出的为1
 					String subStr = pathDirs[pathIdxStart + i + j];
+					// 当path和pattern不相等的时候，将需要比较的path向前进一位，即从2开始
 					if (!matchStrings(subPat, subStr, uriTemplateVariables)) {
 						continue strLoop;
 					}
 				}
+				// 直到path前进到从3开始，内层循环能够走完一次，即/3/4和path的目录匹配成功了，记录此时的下标，跳出循环
 				foundIdx = pathIdxStart + i;
 				break;
 			}
 
+			// 如果不能匹配存成功，即没有找到对应的指针，如pattern为/3/4，path为/1/2/3/5，则返回false
 			if (foundIdx == -1) {
 				return false;
 			}
 
+			// 将pattern的开始指针指向临时指针，即之前找到的为**的目录
 			pattIdxStart = patIdxTmp;
+			// 将path的开始指针指向找到的成功匹配的开始下标加上匹配了pattern的长度，换句话说也就是指向还未匹配的位置
 			pathIdxStart = foundIdx + patLength;
+			// 然后继续循环，查看pattern中还有没有需要匹配的目录
 		}
 
+		// 判断pattern剩下的目录是否都是**，如果是，返回true，否则返回false
 		for (int i = pattIdxStart; i <= pattIdxEnd; i++) {
 			if (!pattDirs[i].equals("**")) {
 				return false;
@@ -675,35 +713,54 @@ public class AntPathMatcher implements PathMatcher {
 
 		public AntPathStringMatcher(String pattern, boolean caseSensitive) {
 			StringBuilder patternBuilder = new StringBuilder();
+			// 根据pattern生成matcher
 			Matcher matcher = GLOB_PATTERN.matcher(pattern);
 			int end = 0;
+			// 循环调用matcher的find方法，找到pattern中满足正则表达式的部分
 			while (matcher.find()) {
+				// 将pattern不满足正则的前置部分用引号包裹添加到StringBuilder中
 				patternBuilder.append(quote(pattern, end, matcher.start()));
+				// 返回正则匹配的部分
 				String match = matcher.group();
+				// 如果匹配的是?，那么转换为正则表达式就是. 添加进sb中
 				if ("?".equals(match)) {
 					patternBuilder.append('.');
 				}
+				// 如果匹配的是*，转换为正则表达式是.*
 				else if ("*".equals(match)) {
 					patternBuilder.append(".*");
 				}
+				// 如果匹配到的是{xxx}格式
 				else if (match.startsWith("{") && match.endsWith("}")) {
+					// 判断内容中是否含有冒号
 					int colonIdx = match.indexOf(':');
+					// 如果不含冒号的话
 					if (colonIdx == -1) {
+						// 向正则中添加默认的变量正则(.*)
 						patternBuilder.append(DEFAULT_VARIABLE_PATTERN);
+						// 并且通过group(1)获取到变量名并保存起来
 						this.variableNames.add(matcher.group(1));
 					}
+					// 如果含有冒号的话，说明自定义了正则表达式的格式
+					// 例如{xxx:\\d{10}}这种格式
 					else {
+						// 获取到自定义的正则表达式
 						String variablePattern = match.substring(colonIdx + 1, match.length() - 1);
+						// 将其添加进sb中
 						patternBuilder.append('(');
 						patternBuilder.append(variablePattern);
 						patternBuilder.append(')');
+						// 然后将变量名截取出来，保存进list中
 						String variableName = match.substring(1, colonIdx);
 						this.variableNames.add(variableName);
 					}
 				}
+				// 将end赋值为匹配的end，进行循环匹配，继续解析pattern
 				end = matcher.end();
 			}
+			// 最后将剩余的没有匹配的内容用引号包裹添加进sb中
 			patternBuilder.append(quote(pattern, end, pattern.length()));
+			// 根据是否大小写敏感创建出对应的正则的pattern
 			this.pattern = (caseSensitive ? Pattern.compile(patternBuilder.toString()) :
 					Pattern.compile(patternBuilder.toString(), Pattern.CASE_INSENSITIVE));
 		}
@@ -720,16 +777,21 @@ public class AntPathMatcher implements PathMatcher {
 		 * @return {@code true} if the string matches against the pattern, or {@code false} otherwise.
 		 */
 		public boolean matchStrings(String str, @Nullable Map<String, String> uriTemplateVariables) {
+			// 根据自身的pattern和输入的字符串构建一个matcher
 			Matcher matcher = this.pattern.matcher(str);
+			// 如果matches成功，返回true
 			if (matcher.matches()) {
+				// 如果用于存储路径变量的map不为空的话，将路径变量解析并存入
 				if (uriTemplateVariables != null) {
 					// SPR-8455
+					// 首先判断路径变量的数量和match的group数量是否一致，因此在构造pattern时，每有一个{}类型的路径变量就会有一个()的正则组
 					if (this.variableNames.size() != matcher.groupCount()) {
 						throw new IllegalArgumentException("The number of capturing groups in the pattern segment " +
 								this.pattern + " does not match the number of URI template variables it defines, " +
 								"which can occur if capturing groups are used in a URI template regex. " +
 								"Use non-capturing groups instead.");
 					}
+					// 遍历路径变量参数名，分别调用group(i)取出路径变量的值，放入map中
 					for (int i = 1; i <= matcher.groupCount(); i++) {
 						String name = this.variableNames.get(i - 1);
 						String value = matcher.group(i);
@@ -738,10 +800,21 @@ public class AntPathMatcher implements PathMatcher {
 				}
 				return true;
 			}
+			// 否则返回false
 			else {
 				return false;
 			}
 		}
+	}
+
+	public static void main(String[] args) {
+		AntPathStringMatcher stringMatcher = new AntPathStringMatcher("t?st{param:\\w{5}}m*ch", true);
+		System.out.println("resolved pattern is :" + stringMatcher.pattern);
+		System.out.println("resolved uri variables is : " + stringMatcher.variableNames);
+		Map<String, String> map = new HashMap<>();
+		boolean match = stringMatcher.matchStrings("testvaluematch", map);
+		System.out.println("match result: " + match);
+
 	}
 
 
