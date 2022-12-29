@@ -144,22 +144,29 @@ public final class MappedInterceptor implements HandlerInterceptor {
 	 * @return {@code true} if the interceptor applies to the given request path
 	 */
 	public boolean matches(String lookupPath, PathMatcher pathMatcher) {
+		// 如果自身的pathMatch不为null的话，用自己的，否则用传入的参数
 		PathMatcher pathMatcherToUse = (this.pathMatcher != null ? this.pathMatcher : pathMatcher);
+		// 如果excludePatterns不为空
 		if (!ObjectUtils.isEmpty(this.excludePatterns)) {
 			for (String pattern : this.excludePatterns) {
+				// 用pathMatcher循环判断pattern是否和lookupPath匹配，如果匹配的话，返回false，不会添加该拦截器进执行链
 				if (pathMatcherToUse.match(pattern, lookupPath)) {
 					return false;
 				}
 			}
 		}
+		// 如果includePatterns为空的话，返回true，会将该拦截器添加进执行链
 		if (ObjectUtils.isEmpty(this.includePatterns)) {
 			return true;
 		}
+		// 如果includePatterns不为空的话
 		for (String pattern : this.includePatterns) {
+			// 用pathMatcher来判断pattern和lookupPath是否匹配，如果匹配的话，返回true
 			if (pathMatcherToUse.match(pattern, lookupPath)) {
 				return true;
 			}
 		}
+		// 如果所有的includePatterns都不匹配，返回false
 		return false;
 	}
 

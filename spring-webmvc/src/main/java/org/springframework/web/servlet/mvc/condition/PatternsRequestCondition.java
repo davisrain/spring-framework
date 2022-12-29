@@ -280,7 +280,7 @@ public class PatternsRequestCondition extends AbstractRequestCondition<PatternsR
 		if (matches == null) {
 			return Collections.emptyList();
 		}
-		// 如果匹配结果数量大于1，使用pathMatcher进行排序
+		// 如果匹配结果数量大于1，根据lookupPath使用pathMatcher获取到比较器进行排序
 		if (matches.size() > 1) {
 			matches.sort(this.pathMatcher.getPatternComparator(lookupPath));
 		}
@@ -340,22 +340,30 @@ public class PatternsRequestCondition extends AbstractRequestCondition<PatternsR
 	 */
 	@Override
 	public int compareTo(PatternsRequestCondition other, HttpServletRequest request) {
+		// 获取到lookupPath
 		String lookupPath = this.pathHelper.getLookupPathForRequest(request, HandlerMapping.LOOKUP_PATH);
+		// 根据lookupPath从pathMatcher中获取到patternComparator
 		Comparator<String> patternComparator = this.pathMatcher.getPatternComparator(lookupPath);
+		// 分别获取自身和other的patterns的迭代器
 		Iterator<String> iterator = this.patterns.iterator();
 		Iterator<String> iteratorOther = other.patterns.iterator();
 		while (iterator.hasNext() && iteratorOther.hasNext()) {
+			// 依次比较迭代出来的pattern
 			int result = patternComparator.compare(iterator.next(), iteratorOther.next());
+			// 一旦出现优先级，直接返回
 			if (result != 0) {
 				return result;
 			}
 		}
+		// 如果自身还有pattern而other的pattern已经耗尽，那么自身的优先级高于other
 		if (iterator.hasNext()) {
 			return -1;
 		}
+		// 反之，自身的优先级低于other
 		else if (iteratorOther.hasNext()) {
 			return 1;
 		}
+		// 如果两边都耗尽了，那么优先级相同
 		else {
 			return 0;
 		}

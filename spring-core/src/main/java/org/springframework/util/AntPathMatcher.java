@@ -16,12 +16,7 @@
 
 package org.springframework.util;
 
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -385,8 +380,10 @@ public class AntPathMatcher implements PathMatcher {
 	}
 
 	private boolean isPotentialMatch(String path, String[] pattDirs) {
+		// 如果trimTokens为false的话
 		if (!this.trimTokens) {
 			int pos = 0;
+			// 遍历pattern的目录
 			for (String pattDir : pattDirs) {
 				int skipped = skipSeparator(path, pos, this.pathSeparator);
 				pos += skipped;
@@ -568,11 +565,15 @@ public class AntPathMatcher implements PathMatcher {
 
 	@Override
 	public Map<String, String> extractUriTemplateVariables(String pattern, String path) {
+		// 创建一个map用于保存uriTemplateVariables
 		Map<String, String> variables = new LinkedHashMap<>();
+		// 调用doMatch方法进行匹配，因为有之前的缓存存在，AntPathStringMatcher能够快速的获得，因此速度会快很多
 		boolean result = doMatch(pattern, path, true, variables);
+		// 如果不匹配，报错
 		if (!result) {
 			throw new IllegalStateException("Pattern \"" + pattern + "\" is not a match for \"" + path + "\"");
 		}
+		// 返回map，里面key是pattern中路径变量参数，value是path中具体路径变量的值
 		return variables;
 	}
 
@@ -718,7 +719,7 @@ public class AntPathMatcher implements PathMatcher {
 			int end = 0;
 			// 循环调用matcher的find方法，找到pattern中满足正则表达式的部分
 			while (matcher.find()) {
-				// 将pattern不满足正则的前置部分用引号包裹添加到StringBuilder中
+				// 将pattern不满足正则的前置部分\Q\E包裹添加到StringBuilder中
 				patternBuilder.append(quote(pattern, end, matcher.start()));
 				// 返回正则匹配的部分
 				String match = matcher.group();
@@ -758,7 +759,7 @@ public class AntPathMatcher implements PathMatcher {
 				// 将end赋值为匹配的end，进行循环匹配，继续解析pattern
 				end = matcher.end();
 			}
-			// 最后将剩余的没有匹配的内容用引号包裹添加进sb中
+			// 最后将剩余的没有匹配的内容用\Q\E包裹添加进sb中
 			patternBuilder.append(quote(pattern, end, pattern.length()));
 			// 根据是否大小写敏感创建出对应的正则的pattern
 			this.pattern = (caseSensitive ? Pattern.compile(patternBuilder.toString()) :
@@ -808,11 +809,11 @@ public class AntPathMatcher implements PathMatcher {
 	}
 
 	public static void main(String[] args) {
-		AntPathStringMatcher stringMatcher = new AntPathStringMatcher("t?st{param:\\w{5}}m*ch", true);
+		AntPathStringMatcher stringMatcher = new AntPathStringMatcher("t?st{param1:\\w{5}}t*t{param2}test", true);
 		System.out.println("resolved pattern is :" + stringMatcher.pattern);
-		System.out.println("resolved uri variables is : " + stringMatcher.variableNames);
+		System.out.println("resolved uri variables is : " + Arrays.toString(stringMatcher.variableNames.toArray()));
 		Map<String, String> map = new HashMap<>();
-		boolean match = stringMatcher.matchStrings("testvaluematch", map);
+		boolean match = stringMatcher.matchStrings("testvaluetestvalue2test", map);
 		System.out.println("match result: " + match);
 
 	}
@@ -847,19 +848,24 @@ public class AntPathMatcher implements PathMatcher {
 		 */
 		@Override
 		public int compare(String pattern1, String pattern2) {
+			// 根据pattern1和pattern2分别初始化出PatternInfo
 			PatternInfo info1 = new PatternInfo(pattern1);
 			PatternInfo info2 = new PatternInfo(pattern2);
 
+			// 如果info中的pattern为null 或者是pattern等于/**的话，那么两个pattern的优先级一样
 			if (info1.isLeastSpecific() && info2.isLeastSpecific()) {
 				return 0;
 			}
+			// 如果info1中pattern是null或/**，那么pattern1的优先级低于pattern2
 			else if (info1.isLeastSpecific()) {
 				return 1;
 			}
+			// 如果info2中的pattern是null或/**，那么pattern1的优先级高于pattern2
 			else if (info2.isLeastSpecific()) {
 				return -1;
 			}
 
+			// 判断两个pattern是否和path相等，来决定优先级
 			boolean pattern1EqualsPath = pattern1.equals(this.path);
 			boolean pattern2EqualsPath = pattern2.equals(this.path);
 			if (pattern1EqualsPath && pattern2EqualsPath) {
@@ -872,24 +878,32 @@ public class AntPathMatcher implements PathMatcher {
 				return 1;
 			}
 
+
+			// 如果两个pattern是否是以/**结尾的
 			if (info1.isPrefixPattern() && info2.isPrefixPattern()) {
+				// 那么长度更长的那个优先级更低
 				return info2.getLength() - info1.getLength();
 			}
+			// 如果pattern1以/**结尾而pattern2拥有**的数量为0，那么pattern2的优先级更高
 			else if (info1.isPrefixPattern() && info2.getDoubleWildcards() == 0) {
 				return 1;
 			}
+			// 反之，pattern1的优先级更高
 			else if (info2.isPrefixPattern() && info1.getDoubleWildcards() == 0) {
 				return -1;
 			}
 
+			// 比较两个pattern中{ * **的数量 **算两个* 更少的那个优先级更高
 			if (info1.getTotalCount() != info2.getTotalCount()) {
 				return info1.getTotalCount() - info2.getTotalCount();
 			}
 
+			// 如果两个pattern的长度不一样，那么长度越长的优先级越高
 			if (info1.getLength() != info2.getLength()) {
 				return info2.getLength() - info1.getLength();
 			}
 
+			// 比较*的数量
 			if (info1.getSingleWildcards() < info2.getSingleWildcards()) {
 				return -1;
 			}
@@ -897,6 +911,7 @@ public class AntPathMatcher implements PathMatcher {
 				return 1;
 			}
 
+			// 比较路径变量的数量
 			if (info1.getUriVars() < info2.getUriVars()) {
 				return -1;
 			}
@@ -904,6 +919,7 @@ public class AntPathMatcher implements PathMatcher {
 				return 1;
 			}
 
+			// 如果上述比较都没返回，那么二者优先级一样
 			return 0;
 		}
 
@@ -931,12 +947,17 @@ public class AntPathMatcher implements PathMatcher {
 			private Integer length;
 
 			public PatternInfo(@Nullable String pattern) {
+				// 将pattern赋值给pattern属性
 				this.pattern = pattern;
 				if (this.pattern != null) {
+					// 如果pattern不为null的话，调用initCounters方法计算它的路径变量的数量 以及 * 和 **存在的数量
 					initCounters();
+					// 判断pattern是否等于/**
 					this.catchAllPattern = this.pattern.equals("/**");
+					// 如果catchAllPattern是false，判断pattern是否是以/**结尾的
 					this.prefixPattern = !this.catchAllPattern && this.pattern.endsWith("/**");
 				}
+				// 如果不存在路径变量的话，将length赋值为pattern的长度
 				if (this.uriVars == 0) {
 					this.length = (this.pattern != null ? this.pattern.length() : 0);
 				}
@@ -945,24 +966,34 @@ public class AntPathMatcher implements PathMatcher {
 			protected void initCounters() {
 				int pos = 0;
 				if (this.pattern != null) {
+					// 从0这个下标开始循环
 					while (pos < this.pattern.length()) {
+						// 如果该位置的字符等于{，那么uriVars参数+1，表示有路径变量
 						if (this.pattern.charAt(pos) == '{') {
 							this.uriVars++;
 							pos++;
 						}
+						// 如果该位置的字符等于*
 						else if (this.pattern.charAt(pos) == '*') {
+							// 并且它的下一个位置的字符仍然是*
 							if (pos + 1 < this.pattern.length() && this.pattern.charAt(pos + 1) == '*') {
+								// 那么doubleWildcard参数+1
 								this.doubleWildcards++;
+								// 并且将位置往后移两个位置
 								pos += 2;
 							}
+							// 如果pos>0 并且从它的上一个位置往后截取出的字符串不是.*，说明不是文件后缀的通配
 							else if (pos > 0 && !this.pattern.substring(pos - 1).equals(".*")) {
+								// 将singleWildcard参数+1
 								this.singleWildcards++;
 								pos++;
 							}
+							// 其余情况，pos向后移
 							else {
 								pos++;
 							}
 						}
+						// 其余情况pos向后移
 						else {
 							pos++;
 						}
