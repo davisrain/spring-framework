@@ -39,14 +39,19 @@ public abstract class CorsUtils {
 	 * header presence and ensuring that origins are different.
 	 */
 	public static boolean isCorsRequest(HttpServletRequest request) {
+		// 从请求头中获取Origin属性
 		String origin = request.getHeader(HttpHeaders.ORIGIN);
+		// 如果不存在Origin，那么肯定不是跨域请求，直接返回false
 		if (origin == null) {
 			return false;
 		}
+		// 根据Origin生成uriComponents
 		UriComponents originUrl = UriComponentsBuilder.fromOriginHeader(origin).build();
+		// 获取到请求的协议类型、服务器名称、以及服务器端口
 		String scheme = request.getScheme();
 		String host = request.getServerName();
 		int port = request.getServerPort();
+		// 如果来源的协议类型或主机名或者端口有任意一个和请求的服务器不相等，那么说明是跨域请求
 		return !(ObjectUtils.nullSafeEquals(scheme, originUrl.getScheme()) &&
 				ObjectUtils.nullSafeEquals(host, originUrl.getHost()) &&
 				getPort(scheme, port) == getPort(originUrl.getScheme(), originUrl.getPort()));
@@ -54,6 +59,7 @@ public abstract class CorsUtils {
 	}
 
 	private static int getPort(@Nullable String scheme, int port) {
+		// 如果传入的端口是-1，那么根据协议类型生成端口，http默认80端口 https默认443端口
 		if (port == -1) {
 			if ("http".equals(scheme) || "ws".equals(scheme)) {
 				port = 80;

@@ -56,7 +56,9 @@ public class CorsRegistry {
 	 * keyed by path pattern.
 	 */
 	protected Map<String, CorsConfiguration> getCorsConfigurations() {
+		// 根据注册的CorsRegistration的数量初始化一个map
 		Map<String, CorsConfiguration> configs = new LinkedHashMap<>(this.registrations.size());
+		// 循环调用registrations，将其pathPattern作为key，调用其getCorsConfiguration方法获取跨域配置作为value存入map中
 		for (CorsRegistration registration : this.registrations) {
 			configs.put(registration.getPathPattern(), registration.getCorsConfiguration());
 		}

@@ -432,7 +432,7 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 		updateCorsConfig(config, typeAnnotation);
 		updateCorsConfig(config, methodAnnotation);
 
-		// 然后将requestMappingInfo的方法更新到跨域配置的allowedMethods中
+		// 如果config的allowMethods为空的话，将requestMappingInfo的方法更新到跨域配置的allowedMethods中
 		if (CollectionUtils.isEmpty(config.getAllowedMethods())) {
 			for (RequestMethod allowedMethod : mappingInfo.getMethodsCondition().getMethods()) {
 				config.addAllowedMethod(allowedMethod.name());

@@ -431,6 +431,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 				if (logger.isTraceEnabled()) {
 					logger.trace(matches.size() + " matching mappings: " + matches);
 				}
+				// 如果请求是预检请求且匹配了多个match的话，返回PREFLIGHT_AMBIGUOUS_MATCH
 				if (CorsUtils.isPreFlightRequest(request)) {
 					return PREFLIGHT_AMBIGUOUS_MATCH;
 				}
@@ -493,20 +494,29 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 
 	@Override
 	protected boolean hasCorsConfigurationSource(Object handler) {
+		// 首先调用父类的hasCorsConfigurationSource方法，如果返回false的话
+		// 再判断handler是否是HandlerMethod类型的，如果是，那么尝试去mappingRegistry的corsLookup中获取CorsConfiguration
+		// 如果获取到的CorsConfiguration不为null的话，返回true
 		return super.hasCorsConfigurationSource(handler) ||
 				(handler instanceof HandlerMethod && this.mappingRegistry.getCorsConfiguration((HandlerMethod) handler) != null);
 	}
 
 	@Override
 	protected CorsConfiguration getCorsConfiguration(Object handler, HttpServletRequest request) {
+		// 首先调用父类的getCorsConfiguration方法
 		CorsConfiguration corsConfig = super.getCorsConfiguration(handler, request);
+		// 如果handler是HandlerMethod类型的
 		if (handler instanceof HandlerMethod) {
 			HandlerMethod handlerMethod = (HandlerMethod) handler;
+			// 如果handler是PREFLIGHT_AMBIGUOUS_MATCH
 			if (handlerMethod.equals(PREFLIGHT_AMBIGUOUS_MATCH)) {
+				// 返回允许所有method origin header credentials的跨域配置
 				return AbstractHandlerMethodMapping.ALLOW_CORS_CONFIG;
 			}
+			// 如果不是预检请求，那么从mappingRegistry中根据handlerMethod获取对应的CorsConfiguration
 			else {
 				CorsConfiguration corsConfigFromMethod = this.mappingRegistry.getCorsConfiguration(handlerMethod);
+				// 如果父类方法返回的corsConfig不为null的话，将两个配置进行合并，否则直接返回根据handlerMethod获取到的跨域配置
 				corsConfig = (corsConfig != null ? corsConfig.combine(corsConfigFromMethod) : corsConfigFromMethod);
 			}
 		}
@@ -606,7 +616,10 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 		 */
 		@Nullable
 		public CorsConfiguration getCorsConfiguration(HandlerMethod handlerMethod) {
+			// 如果handlerMethod调用了createWithResolvedBean方法，将beanName转换成了实际的bean，生成了一个包装类型
+			// 那么通过getResolvedFromHandlerMethod方法获取到其原始的HandlerMethod，因为corsLookup中的key使用的是原本的handlerMethod
 			HandlerMethod original = handlerMethod.getResolvedFromHandlerMethod();
+			// 从corsLookup中根据handlerMethod获取对应的CorsConfiguration
 			return this.corsLookup.get(original != null ? original : handlerMethod);
 		}
 

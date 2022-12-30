@@ -158,13 +158,16 @@ public class CorsConfiguration {
 		if (!CollectionUtils.isEmpty(allowedMethods)) {
 			this.resolvedMethods = new ArrayList<>(allowedMethods.size());
 			for (String method : allowedMethods) {
+				// 如果允许的方法有*,那么将resolvedMethods置为null，直接跳出循环
 				if (ALL.equals(method)) {
 					this.resolvedMethods = null;
 					break;
 				}
+				// 否则的话，将method转换为HttpMethod存入resolvedMethods中
 				this.resolvedMethods.add(HttpMethod.resolve(method));
 			}
 		}
+		// 如果allowedMethods为空的话，resolvedMethods使用默认的方法，只包含HEAD和GET
 		else {
 			this.resolvedMethods = DEFAULT_METHODS;
 		}
@@ -431,27 +434,36 @@ public class CorsConfiguration {
 	 */
 	@Nullable
 	public String checkOrigin(@Nullable String requestOrigin) {
+		// 如果请求的origin为空的话，返回null
 		if (!StringUtils.hasText(requestOrigin)) {
 			return null;
 		}
+		// 如果跨域配置中allowedOrigins为空的话，返回null
 		if (ObjectUtils.isEmpty(this.allowedOrigins)) {
 			return null;
 		}
 
+		// 如果允许的origin中包含*
 		if (this.allowedOrigins.contains(ALL)) {
+			// 并且allowCredentials不是true的话
 			if (this.allowCredentials != Boolean.TRUE) {
+				// 返回*，允许所有
 				return ALL;
 			}
+			// 否则，只返回请求的origin
 			else {
 				return requestOrigin;
 			}
 		}
+		// 如果允许的origin不包含*，那么遍历allowedOrigins
 		for (String allowedOrigin : this.allowedOrigins) {
+			// 判断是否有和请求的Origin相等的，如果有，返回请求的Origin
 			if (requestOrigin.equalsIgnoreCase(allowedOrigin)) {
 				return requestOrigin;
 			}
 		}
 
+		// 否则，返回null
 		return null;
 	}
 
@@ -465,12 +477,15 @@ public class CorsConfiguration {
 	 */
 	@Nullable
 	public List<HttpMethod> checkHttpMethod(@Nullable HttpMethod requestMethod) {
+		// 如果请求的method为null的话，返回null
 		if (requestMethod == null) {
 			return null;
 		}
+		// 如果resolvedMethods为null的话，代表允许的方法里面存在*，直接返回请求的方法
 		if (this.resolvedMethods == null) {
 			return Collections.singletonList(requestMethod);
 		}
+		// 如果resolvedMethod包含了请求的方法，返回resolvedMethods
 		return (this.resolvedMethods.contains(requestMethod) ? this.resolvedMethods : null);
 	}
 
@@ -484,25 +499,35 @@ public class CorsConfiguration {
 	 */
 	@Nullable
 	public List<String> checkHeaders(@Nullable List<String> requestHeaders) {
+		// 如果请求的headers为null的话，返回null
 		if (requestHeaders == null) {
 			return null;
 		}
+		// 如果请求的headers为空的话，返回空集合
 		if (requestHeaders.isEmpty()) {
 			return Collections.emptyList();
 		}
+		// 如果跨越配置允许的headers为空的话，返回null
 		if (ObjectUtils.isEmpty(this.allowedHeaders)) {
 			return null;
 		}
 
+		// 判断跨域配置中允许的headers是否包含*
 		boolean allowAnyHeader = this.allowedHeaders.contains(ALL);
 		List<String> result = new ArrayList<>(requestHeaders.size());
+		// 遍历循环请求的headers
 		for (String requestHeader : requestHeaders) {
+			// 如果请求的header有值
 			if (StringUtils.hasText(requestHeader)) {
+				// 调用trim方法
 				requestHeader = requestHeader.trim();
+				// 如果跨域配置允许所有的header的话，那么直接在将请求的header添加进结果中
 				if (allowAnyHeader) {
 					result.add(requestHeader);
 				}
+				// 否则的话
 				else {
+					// 需要循环允许的headers，比较是否相等，如果相等，才能加入到结果中
 					for (String allowedHeader : this.allowedHeaders) {
 						if (requestHeader.equalsIgnoreCase(allowedHeader)) {
 							result.add(requestHeader);
@@ -512,6 +537,7 @@ public class CorsConfiguration {
 				}
 			}
 		}
+		// 如果结果不为空的话，返回，否则返回null
 		return (result.isEmpty() ? null : result);
 	}
 

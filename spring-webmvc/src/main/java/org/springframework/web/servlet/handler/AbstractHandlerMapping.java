@@ -210,12 +210,16 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 	 */
 	public void setCorsConfigurations(Map<String, CorsConfiguration> corsConfigurations) {
 		Assert.notNull(corsConfigurations, "corsConfigurations must not be null");
+		// 如果传入的跨域配置不为空的话
 		if (!corsConfigurations.isEmpty()) {
+			// 初始化一个UrlBasedCorsConfigurationSource
 			UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+			// 将跨域配置、pathMatcher、urlPathHelper、以及查询lookupPath的attributeName传入source
 			source.setCorsConfigurations(corsConfigurations);
 			source.setPathMatcher(this.pathMatcher);
 			source.setUrlPathHelper(this.urlPathHelper);
 			source.setLookupPathAttributeName(LOOKUP_PATH);
+			// 将source赋值给handlerMapping自身的corsConfigurationSource
 			this.corsConfigurationSource = source;
 		}
 		else {
@@ -420,11 +424,15 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 			logger.debug("Mapped to " + executionChain.getHandler());
 		}
 
-		// TODO 处理跨域的情况
+		// 如果存在corsConfigurationSource或者request是预检请求的情况下
 		if (hasCorsConfigurationSource(handler) || CorsUtils.isPreFlightRequest(request)) {
+			// 根据handlerMapping自身的corsConfigurationSource获取对应的CorsConfiguration，结果可能为null
 			CorsConfiguration config = (this.corsConfigurationSource != null ? this.corsConfigurationSource.getCorsConfiguration(request) : null);
+			// 根据handler获取handler对应的CorsConfiguration
 			CorsConfiguration handlerConfig = getCorsConfiguration(handler, request);
+			// 如果从自身获取的config不为null的话，将其和从handler获取的corsConfig合并，否则，只使用从handler获取的corsConfig
 			config = (config != null ? config.combine(handlerConfig) : handlerConfig);
+			// 调用getCorsHandlerExecutionChain方法获取带跨域配置的执行链
 			executionChain = getCorsHandlerExecutionChain(request, executionChain, config);
 		}
 
@@ -501,9 +509,11 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 	 * @since 5.2
 	 */
 	protected boolean hasCorsConfigurationSource(Object handler) {
+		// 如果handler是执行链的话，从中取出真正的handler
 		if (handler instanceof HandlerExecutionChain) {
 			handler = ((HandlerExecutionChain) handler).getHandler();
 		}
+		// 如果handler是CorsConfigurationSource类型的 或者handlerMapping的corsConfigurationSource不为null的情况下返回true
 		return (handler instanceof CorsConfigurationSource || this.corsConfigurationSource != null);
 	}
 
@@ -517,9 +527,11 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 	@Nullable
 	protected CorsConfiguration getCorsConfiguration(Object handler, HttpServletRequest request) {
 		Object resolvedHandler = handler;
+		// 如果是执行链，获取真正的handler
 		if (handler instanceof HandlerExecutionChain) {
 			resolvedHandler = ((HandlerExecutionChain) handler).getHandler();
 		}
+		// 如果handler是CorsConfigurationSource类型的，调用getCorsConfiguration方法
 		if (resolvedHandler instanceof CorsConfigurationSource) {
 			return ((CorsConfigurationSource) resolvedHandler).getCorsConfiguration(request);
 		}
@@ -541,11 +553,15 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 	protected HandlerExecutionChain getCorsHandlerExecutionChain(HttpServletRequest request,
 			HandlerExecutionChain chain, @Nullable CorsConfiguration config) {
 
+		// 如果是预检请求的话
 		if (CorsUtils.isPreFlightRequest(request)) {
 			HandlerInterceptor[] interceptors = chain.getInterceptors();
+			// 将跨域配置包装成一个PreFlightHandler，然后将拦截器转移过来，生成一个新的执行链
 			return new HandlerExecutionChain(new PreFlightHandler(config), interceptors);
 		}
+		// 如果不是预检请求的话
 		else {
+			// 在执行链拦截器的第一个位置添加一个跨域拦截器，初始化跨域拦截器的时候将查找到的跨域配置传入
 			chain.addInterceptor(0, new CorsInterceptor(config));
 			return chain;
 		}
@@ -592,7 +608,7 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 			if (asyncManager.hasConcurrentResult()) {
 				return true;
 			}
-
+			// 前置拦截方法中调用handlerMapping中的corsProcessor的processRequest方法，将跨域配置和请求返回都传入
 			return corsProcessor.processRequest(this.config, request, response);
 		}
 

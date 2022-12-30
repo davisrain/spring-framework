@@ -283,9 +283,10 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 
 		RequestMappingHandlerMapping mapping = createRequestMappingHandlerMapping();
 		mapping.setOrder(0);
-		// 像requestMappingHandlerMapping中添加拦截器
+		// 向requestMappingHandlerMapping中添加拦截器
 		mapping.setInterceptors(getInterceptors(conversionService, resourceUrlProvider));
 		mapping.setContentNegotiationManager(contentNegotiationManager);
+		// 向requestMappingHandlerMapping中添加跨域配置
 		mapping.setCorsConfigurations(getCorsConfigurations());
 
 		// 获取pathMatchConfigurer对象
@@ -1093,9 +1094,15 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	 * @since 4.2
 	 */
 	protected final Map<String, CorsConfiguration> getCorsConfigurations() {
+		// 如果corsConfigurations为null的话
 		if (this.corsConfigurations == null) {
+			// 创建一个CorsRegistry注册器
 			CorsRegistry registry = new CorsRegistry();
+			// 调用addCorsMappings方法，
+			// 其子类实现DelegatingWebMvcConfiguration会调用自身持有的所有实现了WebMvcConfigurer接口的bean的
+			// addCorsMappings方法，对CorsRegistry进行配置
 			addCorsMappings(registry);
+			// 调用registry的getCorsConfigurations方法获取到所有的跨域配置
 			this.corsConfigurations = registry.getCorsConfigurations();
 		}
 		return this.corsConfigurations;
