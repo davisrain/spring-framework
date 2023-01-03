@@ -73,6 +73,7 @@ public abstract class RequestMappingInfoHandlerMapping extends AbstractHandlerMe
 
 
 	protected RequestMappingInfoHandlerMapping() {
+		// 设置handlerMapping的命名策略
 		setHandlerMethodMappingNamingStrategy(new RequestMappingInfoHandlerMethodMappingNamingStrategy());
 	}
 
@@ -149,8 +150,9 @@ public abstract class RequestMappingInfoHandlerMapping extends AbstractHandlerMe
 		// 查看矩阵变量是否可用，即urlPathHelper中的removeSemicolonContent参数有没有置为false，
 		// 默认是true，在解析lookupPath的时候会删除;后面的内容，因此该配置下矩阵变量不可用
 		if (isMatrixVariableContentAvailable()) {
-			// 如果矩阵变量可用，进行提取，并且也放入到request的attribute中
+			// 如果矩阵变量可用，进行提取，并且也放入到request的attribute中，提取矩阵变量的前提是 存在路径变量
 			Map<String, MultiValueMap<String, String>> matrixVars = extractMatrixVariables(request, uriVariables);
+			// 将矩阵变量存入到request的attribute中
 			request.setAttribute(HandlerMapping.MATRIX_VARIABLES_ATTRIBUTE, matrixVars);
 		}
 
@@ -174,28 +176,41 @@ public abstract class RequestMappingInfoHandlerMapping extends AbstractHandlerMe
 	private Map<String, MultiValueMap<String, String>> extractMatrixVariables(
 			HttpServletRequest request, Map<String, String> uriVariables) {
 
+		// 初始化一个map来储存结果
 		Map<String, MultiValueMap<String, String>> result = new LinkedHashMap<>();
+		// 遍历路径变量
 		uriVariables.forEach((uriVarKey, uriVarValue) -> {
 
+			// 判断路径变量的值中是否存在=
 			int equalsIndex = uriVarValue.indexOf('=');
+			// 如果不存在的话，直接结束循环
 			if (equalsIndex == -1) {
 				return;
 			}
 
+			// 判断路径变量的值中是否存在;
 			int semicolonIndex = uriVarValue.indexOf(';');
+			// 如果存在且不在第一个位置
 			if (semicolonIndex != -1 && semicolonIndex != 0) {
+				// 将路径变量key对应的value改为截取掉分号之后的内容
 				uriVariables.put(uriVarKey, uriVarValue.substring(0, semicolonIndex));
 			}
 
 			String matrixVariables;
+			// 如果分号不存在 或者 分号在第一个位置 或者 等号在分号前面
 			if (semicolonIndex == -1 || semicolonIndex == 0 || equalsIndex < semicolonIndex) {
+				// 将矩阵变量直接赋值为路径变量
 				matrixVariables = uriVarValue;
 			}
+			// 否则的话
 			else {
+				// 矩阵变量为路径变量分号后面的内容
 				matrixVariables = uriVarValue.substring(semicolonIndex + 1);
 			}
 
+			// 解析矩阵变量的值将其转换为一个MultiValueMap
 			MultiValueMap<String, String> vars = WebUtils.parseMatrixVariables(matrixVariables);
+			// 然后将结果进行urlDecode，再根据路径变量的key放入结果map中
 			result.put(uriVarKey, getUrlPathHelper().decodeMatrixVariables(request, vars));
 		});
 		return result;

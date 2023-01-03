@@ -1044,6 +1044,7 @@ public class DispatcherServlet extends FrameworkServlet {
 				}
 
 				// Determine handler adapter for the current request.
+				// 为请求确定一个handlerAdapter
 				HandlerAdapter ha = getHandlerAdapter(mappedHandler.getHandler());
 
 				// Process last-modified header, if supported by the handler.
@@ -1056,13 +1057,16 @@ public class DispatcherServlet extends FrameworkServlet {
 					}
 				}
 
+				// 调用执行链中拦截器的前置处理方法，一旦返回false，直接返回，请求被拦截
 				if (!mappedHandler.applyPreHandle(processedRequest, response)) {
 					return;
 				}
 
 				// Actually invoke the handler.
+				// 实际调用处理器进行处理，返回一个ModelAndView类型
 				mv = ha.handle(processedRequest, response, mappedHandler.getHandler());
 
+				// 如果是异步处理，到这一步直接返回
 				if (asyncManager.isConcurrentHandlingStarted()) {
 					return;
 				}
@@ -1308,7 +1312,9 @@ public class DispatcherServlet extends FrameworkServlet {
 	 */
 	protected HandlerAdapter getHandlerAdapter(Object handler) throws ServletException {
 		if (this.handlerAdapters != null) {
+			// 循环遍历自身持有的handlerAdapter
 			for (HandlerAdapter adapter : this.handlerAdapters) {
+				// 一旦有adapter支持这种类型的handler，将其返回
 				if (adapter.supports(handler)) {
 					return adapter;
 				}

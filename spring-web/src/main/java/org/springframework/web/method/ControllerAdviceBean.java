@@ -119,7 +119,9 @@ public class ControllerAdviceBean implements Ordered {
 
 		this.beanOrName = beanName;
 		this.isSingleton = beanFactory.isSingleton(beanName);
+		// 从ioc容器中根据beanName获取到beanType
 		this.beanType = getBeanType(beanName, beanFactory);
+		// 根据注解或者bean类型生成一个beanTypePredicate
 		this.beanTypePredicate = (controllerAdvice != null ? createBeanTypePredicate(controllerAdvice) :
 				createBeanTypePredicate(this.beanType));
 		this.beanFactory = beanFactory;
@@ -222,6 +224,8 @@ public class ControllerAdviceBean implements Ordered {
 	 * @see ControllerAdvice
 	 */
 	public boolean isApplicableToBeanType(@Nullable Class<?> beanType) {
+		// 根据beanTypePredicate来判断beanType是否满足条件，即@ControllerAdvice注解可以指定自己对什么条件的@Controller进行增强，
+		// 可以根据basePackages assignableTypes annotations进行判断，只要符合其中任何一个条件，直接返回true，否则返回false
 		return this.beanTypePredicate.test(beanType);
 	}
 
@@ -261,16 +265,21 @@ public class ControllerAdviceBean implements Ordered {
 	 */
 	public static List<ControllerAdviceBean> findAnnotatedBeans(ApplicationContext context) {
 		List<ControllerAdviceBean> adviceBeans = new ArrayList<>();
+		// 查找IOC容器中的所有bean
 		for (String name : BeanFactoryUtils.beanNamesForTypeIncludingAncestors(context, Object.class)) {
+			// 如果beanName不是以scopedTarget开头的
 			if (!ScopedProxyUtils.isScopedTarget(name)) {
+				// 查找其类型上有没有标注@ControllerAdvice注解
 				ControllerAdvice controllerAdvice = context.findAnnotationOnBean(name, ControllerAdvice.class);
 				if (controllerAdvice != null) {
 					// Use the @ControllerAdvice annotation found by findAnnotationOnBean()
 					// in order to avoid a subsequent lookup of the same annotation.
+					// 根据name和applicationContext和ControllerAdvice注解初始化一个ControllerAdviceBean添加到list中
 					adviceBeans.add(new ControllerAdviceBean(name, context, controllerAdvice));
 				}
 			}
 		}
+		// 根据Order排序并返回
 		OrderComparator.sort(adviceBeans);
 		return adviceBeans;
 	}
@@ -289,6 +298,7 @@ public class ControllerAdviceBean implements Ordered {
 
 	private static HandlerTypePredicate createBeanTypePredicate(@Nullable ControllerAdvice controllerAdvice) {
 		if (controllerAdvice != null) {
+			// 根据注解的basePackages basePackageClasses assignableTypes annotations等参数创建一个HandlerTypePredicate
 			return HandlerTypePredicate.builder()
 					.basePackage(controllerAdvice.basePackages())
 					.basePackageClass(controllerAdvice.basePackageClasses())

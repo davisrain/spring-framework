@@ -763,6 +763,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 	 */
 	@Override
 	protected boolean supportsInternal(HandlerMethod handlerMethod) {
+		// 直接返回true，支持所有handlerMethod，因为其参数和返回值会有特定的解析器和处理器来解析
 		return true;
 	}
 
@@ -771,22 +772,29 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 			HttpServletResponse response, HandlerMethod handlerMethod) throws Exception {
 
 		ModelAndView mav;
+		// 对请求进行检查
 		checkRequest(request);
 
 		// Execute invokeHandlerMethod in synchronized block if required.
+		// 如果需要根据session同步来执行invokeHandlerMethod方法的话
 		if (this.synchronizeOnSession) {
+			// 从request中获取session
 			HttpSession session = request.getSession(false);
+			// 如果session不为null，根据session获取到互斥锁
 			if (session != null) {
 				Object mutex = WebUtils.getSessionMutex(session);
+				// 使用同步块进行同步，然后调用invokeHandlerMethod方法
 				synchronized (mutex) {
 					mav = invokeHandlerMethod(request, response, handlerMethod);
 				}
 			}
+			// 如果session为null，直接调用
 			else {
 				// No HttpSession available -> no mutex necessary
 				mav = invokeHandlerMethod(request, response, handlerMethod);
 			}
 		}
+		// 如果不需要根据session进行同步，直接调用invokeHandlerMethod
 		else {
 			// No synchronization on session demanded at all...
 			mav = invokeHandlerMethod(request, response, handlerMethod);

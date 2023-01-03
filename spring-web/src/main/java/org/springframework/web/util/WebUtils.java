@@ -724,27 +724,37 @@ public abstract class WebUtils {
 	 */
 	public static MultiValueMap<String, String> parseMatrixVariables(String matrixVariables) {
 		MultiValueMap<String, String> result = new LinkedMultiValueMap<>();
+		// 如果矩阵变量没有内容，直接返回一个空的MultiValueMap
 		if (!StringUtils.hasText(matrixVariables)) {
 			return result;
 		}
+		// 将字符串按照分号来分割
 		StringTokenizer pairs = new StringTokenizer(matrixVariables, ";");
 		while (pairs.hasMoreTokens()) {
 			String pair = pairs.nextToken();
+			// 判断分割出的字符串中是否包含等号
 			int index = pair.indexOf('=');
+			// 如果包含等号
 			if (index != -1) {
+				// 将等号前面的内容截取出来作为name
 				String name = pair.substring(0, index);
+				// 判断name是否是jsessionid，如果是的话，跳过
 				if (name.equalsIgnoreCase("jsessionid")) {
 					continue;
 				}
+				// 将等号后面的内容截取出来作为value
 				String rawValue = pair.substring(index + 1);
+				// 将value按照逗号分隔成数组，然后遍历加入到key为name的multiValueMap中
 				for (String value : StringUtils.commaDelimitedListToStringArray(rawValue)) {
 					result.add(name, value);
 				}
 			}
+			// 如果分割出的字符串不包含等号，将其直接作为key，value为空字符串放入multiValueMap中
 			else {
 				result.add(pair, "");
 			}
 		}
+		// 返回结果
 		return result;
 	}
 

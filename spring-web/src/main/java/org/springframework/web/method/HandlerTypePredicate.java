@@ -71,21 +71,26 @@ public final class HandlerTypePredicate implements Predicate<Class<?>> {
 
 	@Override
 	public boolean test(@Nullable Class<?> controllerType) {
+		// 如果选择器都为空，直接返回true
 		if (!hasSelectors()) {
 			return true;
 		}
+		// 否则当controllerType不为null时
 		else if (controllerType != null) {
 			for (String basePackage : this.basePackages) {
+				// 判断controllerType的全限定名是否是以对应包名开头的
 				if (controllerType.getName().startsWith(basePackage)) {
 					return true;
 				}
 			}
 			for (Class<?> clazz : this.assignableTypes) {
+				// 判断assignableType是否是isAssignableFrom controllerType
 				if (ClassUtils.isAssignable(clazz, controllerType)) {
 					return true;
 				}
 			}
 			for (Class<? extends Annotation> annotationClass : this.annotations) {
+				// 判断controllerType是否标注了对应的注解
 				if (AnnotationUtils.findAnnotation(controllerType, annotationClass) != null) {
 					return true;
 				}

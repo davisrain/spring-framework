@@ -962,12 +962,19 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	@Bean
 	public HandlerExceptionResolver handlerExceptionResolver(
 			@Qualifier("mvcContentNegotiationManager") ContentNegotiationManager contentNegotiationManager) {
+		// 初始化一个list用于存储exceptionResolvers
 		List<HandlerExceptionResolver> exceptionResolvers = new ArrayList<>();
+		// 调用configureHandlerExceptionResolver，对list进行配置，
+		// 该方法的子类实现会去调用所有实现了WebMvcConfigurer接口的bean的configureHandlerExceptionResolver方法
 		configureHandlerExceptionResolvers(exceptionResolvers);
+		// 如果list仍为空，添加默认的HandlerExceptionResolver进list
 		if (exceptionResolvers.isEmpty()) {
 			addDefaultHandlerExceptionResolvers(exceptionResolvers, contentNegotiationManager);
 		}
+		// 调用extendHandlerExceptionResolvers方法对list进行扩展
+		// 该方法的子类实现会去调用所有实现了WebMvcConfigurer接口的bean的extendHandlerExceptionResolver方法
 		extendHandlerExceptionResolvers(exceptionResolvers);
+		// 创建一个HandlerExceptionResolverComposite，将list整合起来并返回注入IOC容器中
 		HandlerExceptionResolverComposite composite = new HandlerExceptionResolverComposite();
 		composite.setOrder(0);
 		composite.setExceptionResolvers(exceptionResolvers);
@@ -1011,25 +1018,37 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	protected final void addDefaultHandlerExceptionResolvers(List<HandlerExceptionResolver> exceptionResolvers,
 			ContentNegotiationManager mvcContentNegotiationManager) {
 
+		// 创建ExceptionHandlerExceptionResolver
 		ExceptionHandlerExceptionResolver exceptionHandlerResolver = createExceptionHandlerExceptionResolver();
+		// 设置内容协商管理器、消息转换器、自定义的参数解析器、自定义的返回值处理器
 		exceptionHandlerResolver.setContentNegotiationManager(mvcContentNegotiationManager);
 		exceptionHandlerResolver.setMessageConverters(getMessageConverters());
 		exceptionHandlerResolver.setCustomArgumentResolvers(getArgumentResolvers());
 		exceptionHandlerResolver.setCustomReturnValueHandlers(getReturnValueHandlers());
+		// 如果jackson的包存在，添加responseBodyAdvice
 		if (jackson2Present) {
 			exceptionHandlerResolver.setResponseBodyAdvice(
 					Collections.singletonList(new JsonViewResponseBodyAdvice()));
 		}
+		// 如果applicationContext不为null，将其设置进HandlerExceptionResolver
 		if (this.applicationContext != null) {
 			exceptionHandlerResolver.setApplicationContext(this.applicationContext);
 		}
+		// 调用ExceptionHandlerExceptionResolver的afterPropertiesSet方法，
+		// 查找并缓存标注了@ControllerAdvice注解的类中的标注了@ExceptionHandler的异常处理方法，
+		// 以及添加默认的参数解析器和返回值处理器
 		exceptionHandlerResolver.afterPropertiesSet();
+		// 将exceptionHandlerExceptionResolver添加进list
 		exceptionResolvers.add(exceptionHandlerResolver);
 
+		// 初始化一个ResponseStatusExceptionResolver，用于解析标注了@ResponseStatus注解或者是ResponseStatusException类型的异常
 		ResponseStatusExceptionResolver responseStatusResolver = new ResponseStatusExceptionResolver();
+		// 将applicationContext作为messageSource设置进responseStatusExceptionResolver
 		responseStatusResolver.setMessageSource(this.applicationContext);
+		// 添加ResponseStatusExceptionResolver进list
 		exceptionResolvers.add(responseStatusResolver);
 
+		// 添加DefaultHandlerExceptionResolver进list，该resolver用于处理默认的一些异常类型
 		exceptionResolvers.add(new DefaultHandlerExceptionResolver());
 	}
 

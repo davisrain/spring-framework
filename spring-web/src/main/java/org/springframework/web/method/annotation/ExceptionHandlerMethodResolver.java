@@ -123,6 +123,7 @@ public class ExceptionHandlerMethodResolver {
 	 */
 	@Nullable
 	public Method resolveMethod(Exception exception) {
+		// 根据异常类型解析方法
 		return resolveMethodByThrowable(exception);
 	}
 
@@ -135,8 +136,10 @@ public class ExceptionHandlerMethodResolver {
 	 */
 	@Nullable
 	public Method resolveMethodByThrowable(Throwable exception) {
+		// 根据异常类型解析方法
 		Method method = resolveMethodByExceptionType(exception.getClass());
 		if (method == null) {
+			// 如果方法为null，判断异常是否有cause，如果有的话，继续根据异常类型去查找方法
 			Throwable cause = exception.getCause();
 			if (cause != null) {
 				method = resolveMethodByExceptionType(cause.getClass());
@@ -153,9 +156,12 @@ public class ExceptionHandlerMethodResolver {
 	 */
 	@Nullable
 	public Method resolveMethodByExceptionType(Class<? extends Throwable> exceptionType) {
+		// 从缓存中查找
 		Method method = this.exceptionLookupCache.get(exceptionType);
 		if (method == null) {
+			// 如果缓存没有命中，从mappedMethods中根据异常类型查找
 			method = getMappedMethod(exceptionType);
+			// 查找到之后放入缓存
 			this.exceptionLookupCache.put(exceptionType, method);
 		}
 		return method;
@@ -166,16 +172,25 @@ public class ExceptionHandlerMethodResolver {
 	 */
 	@Nullable
 	private Method getMappedMethod(Class<? extends Throwable> exceptionType) {
+		// 创建一个list用于存储匹配的异常类型
 		List<Class<? extends Throwable>> matches = new ArrayList<>();
+		// 遍历mappedMethods的key
 		for (Class<? extends Throwable> mappedException : this.mappedMethods.keySet()) {
+			// 一旦mappedException isAssignableFrom传入的参数异常类型
 			if (mappedException.isAssignableFrom(exceptionType)) {
+				// 将其加入匹配列表
 				matches.add(mappedException);
 			}
 		}
+		// 如果匹配列表不为空
 		if (!matches.isEmpty()) {
+			// 根据ExceptionDepthComparator排序，
+			// 该比较器的原理是判断传入的异常类型参数距离需要比较的异常类型中间有多少个父类，越接近异常类型参数的优先级越高
 			matches.sort(new ExceptionDepthComparator(exceptionType));
+			// 然后获取优先级最高的异常类型对应的方法
 			return this.mappedMethods.get(matches.get(0));
 		}
+		// 如果匹配列表为空，直接返回null
 		else {
 			return null;
 		}

@@ -144,14 +144,18 @@ public class HandlerExecutionChain {
 	 * that this interceptor has already dealt with the response itself.
 	 */
 	boolean applyPreHandle(HttpServletRequest request, HttpServletResponse response) throws Exception {
+		// 获取到执行链中的拦截器
 		HandlerInterceptor[] interceptors = getInterceptors();
+		// 如果拦截器不为空，遍历执行前置方法
 		if (!ObjectUtils.isEmpty(interceptors)) {
 			for (int i = 0; i < interceptors.length; i++) {
 				HandlerInterceptor interceptor = interceptors[i];
+				// 一旦有任何一个拦截器的前置方法返回false，调用这个拦截器的结束方法，并且返回false
 				if (!interceptor.preHandle(request, response, this.handler)) {
 					triggerAfterCompletion(request, response, null);
 					return false;
 				}
+				// 记录已经执行到的拦截器下标，为了后续反向执行这些已经执行过的拦截器的结束方法
 				this.interceptorIndex = i;
 			}
 		}
