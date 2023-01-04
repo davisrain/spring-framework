@@ -437,7 +437,9 @@ public abstract class WebUtils {
 	 */
 	public static Object getSessionMutex(HttpSession session) {
 		Assert.notNull(session, "Session must not be null");
+		// 从session的attribute中尝试获取mutex互斥锁
 		Object mutex = session.getAttribute(SESSION_MUTEX_ATTRIBUTE);
+		// 如果mutex为null的话，将session自身赋值给mutex并返回
 		if (mutex == null) {
 			mutex = session;
 		}

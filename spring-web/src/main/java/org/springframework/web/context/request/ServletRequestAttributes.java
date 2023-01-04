@@ -144,6 +144,7 @@ public class ServletRequestAttributes extends AbstractRequestAttributes {
 
 	@Override
 	public Object getAttribute(String name, int scope) {
+		// 如果查找范围是request，调用request.getAttribute
 		if (scope == SCOPE_REQUEST) {
 			if (!isRequestActive()) {
 				throw new IllegalStateException(
@@ -151,20 +152,26 @@ public class ServletRequestAttributes extends AbstractRequestAttributes {
 			}
 			return this.request.getAttribute(name);
 		}
+		// 如果查找范围是session
 		else {
+			// 获取request的session
 			HttpSession session = getSession(false);
+			// 如果session不为null，调用session.getAttribute
 			if (session != null) {
 				try {
 					Object value = session.getAttribute(name);
+					// 如果获取到的value不为null的话，将其name value存入sessionAttributesToUpdate中
 					if (value != null) {
 						this.sessionAttributesToUpdate.put(name, value);
 					}
+					// 返回value
 					return value;
 				}
 				catch (IllegalStateException ex) {
 					// Session invalidated - shouldn't usually happen.
 				}
 			}
+			// 否则返回null
 			return null;
 		}
 	}

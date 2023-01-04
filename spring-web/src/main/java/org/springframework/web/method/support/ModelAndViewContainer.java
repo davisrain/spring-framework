@@ -138,9 +138,11 @@ public class ModelAndViewContainer {
 	 * a method argument) and {@code ignoreDefaultModelOnRedirect=false}.
 	 */
 	public ModelMap getModel() {
+		// 判断是否使用默认的model，如果是，直接返回defaultModel
 		if (useDefaultModel()) {
 			return this.defaultModel;
 		}
+		// 如果不使用的话，判断redirectModel是否为null，如果为null，将其初始化并返回
 		else {
 			if (this.redirectModel == null) {
 				this.redirectModel = new ModelMap();
@@ -153,6 +155,7 @@ public class ModelAndViewContainer {
 	 * Whether to use the default model or the redirect model.
 	 */
 	private boolean useDefaultModel() {
+		// 当redirectModelScenario为false 或者 redirectModel为null并且ignoreDefaultModelOnRedirect为false的时候，使用默认的modelMap
 		return (!this.redirectModelScenario || (this.redirectModel == null && !this.ignoreDefaultModelOnRedirect));
 	}
 
@@ -290,6 +293,7 @@ public class ModelAndViewContainer {
 	 * A shortcut for {@code getModel().addAllAttributes(Map)}.
 	 */
 	public ModelAndViewContainer addAllAttributes(@Nullable Map<String, ?> attributes) {
+		// 获取ModelMap，调用ModelMap的addAllAttributes方法，最后调用的是map的putAll方法
 		getModel().addAllAttributes(attributes);
 		return this;
 	}

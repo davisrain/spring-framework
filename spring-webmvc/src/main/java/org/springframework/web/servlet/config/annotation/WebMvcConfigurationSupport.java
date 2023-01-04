@@ -629,26 +629,39 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 			@Qualifier("mvcConversionService") FormattingConversionService conversionService,
 			@Qualifier("mvcValidator") Validator validator) {
 
+		// 初始化一个RequestMappingHandlerAdapter
 		RequestMappingHandlerAdapter adapter = createRequestMappingHandlerAdapter();
+		// 设置内容协商管理器
 		adapter.setContentNegotiationManager(contentNegotiationManager);
+		// 设置消息转换器
 		adapter.setMessageConverters(getMessageConverters());
+		// 设置webBindingInitializer
 		adapter.setWebBindingInitializer(getConfigurableWebBindingInitializer(conversionService, validator));
+		// 设置自定义的参数解析器
 		adapter.setCustomArgumentResolvers(getArgumentResolvers());
+		// 设置自定义的返回值处理器
 		adapter.setCustomReturnValueHandlers(getReturnValueHandlers());
 
+		// 如果jackson的类存在，向adapter中添加RequestBodyAdvice和ResponseBodyAdvice
 		if (jackson2Present) {
 			adapter.setRequestBodyAdvice(Collections.singletonList(new JsonViewRequestBodyAdvice()));
 			adapter.setResponseBodyAdvice(Collections.singletonList(new JsonViewResponseBodyAdvice()));
 		}
 
+		// 创建一个AsyncSupportConfigurer
 		AsyncSupportConfigurer configurer = new AsyncSupportConfigurer();
+		// 调用configureAsyncSupport对configurer进行配置
+		// 该方法的子类实现会调用所有实现了WebMvcConfigurer接口的bean的configureAsyncSupport方法
 		configureAsyncSupport(configurer);
+		// 如果配置类中的任务执行器不为null的话，将其设置进去
 		if (configurer.getTaskExecutor() != null) {
 			adapter.setTaskExecutor(configurer.getTaskExecutor());
 		}
+		// 如果配置类中超时时间不为null的话，将其设置进去
 		if (configurer.getTimeout() != null) {
 			adapter.setAsyncRequestTimeout(configurer.getTimeout());
 		}
+		// 将配置类中的拦截器都设置进去
 		adapter.setCallableInterceptors(configurer.getCallableInterceptors());
 		adapter.setDeferredResultInterceptors(configurer.getDeferredResultInterceptors());
 
@@ -770,10 +783,16 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	 * @since 4.3
 	 */
 	protected final List<HandlerMethodArgumentResolver> getArgumentResolvers() {
+		// 如果参数解析器为null
 		if (this.argumentResolvers == null) {
+			// 初始化一个list赋值给参数解析器
 			this.argumentResolvers = new ArrayList<>();
+			// 调用addArgumentResolvers方法，
+			// 该方法的子类实现会去调用IOC容器中所有实现了WebMvcConfigurer接口的bean的addArgumentResolvers方法，
+			// 给list添加参数解析器
 			addArgumentResolvers(this.argumentResolvers);
 		}
+		// 返回参数解析器
 		return this.argumentResolvers;
 	}
 
@@ -796,8 +815,13 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	 * @since 4.3
 	 */
 	protected final List<HandlerMethodReturnValueHandler> getReturnValueHandlers() {
+		// 如果返回值处理器为null的话
 		if (this.returnValueHandlers == null) {
+			// 初始化一个list赋值给自身持有的返回值处理器集合字段
 			this.returnValueHandlers = new ArrayList<>();
+			// 调用addReturnValueHandlers方法，
+			// 该方法的子类实现会调用IOC容器中所有实现了WebMvcConfigurer接口的bean的addReturnValueHandlers方法，
+			// 向持有的返回值处理器集合字段中添加返回值处理器
 			addReturnValueHandlers(this.returnValueHandlers);
 		}
 		return this.returnValueHandlers;
@@ -823,14 +847,23 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	 * Also see {@link #addDefaultHttpMessageConverters} for adding default message converters.
 	 */
 	protected final List<HttpMessageConverter<?>> getMessageConverters() {
+		// 如果messageConverters为null的话
 		if (this.messageConverters == null) {
+			// 初始化一个list赋值给messageConverters
 			this.messageConverters = new ArrayList<>();
+			// 调用configure方法，
+			// 其子类实现会调用所有IOC容器中实现了WebMvcConfigurer接口的bean的configure方法，对list进行配置
 			configureMessageConverters(this.messageConverters);
+			// 如果messageConverters仍为空
 			if (this.messageConverters.isEmpty()) {
+				// 添加默认的消息转换器进list
 				addDefaultHttpMessageConverters(this.messageConverters);
 			}
+			// 调用extend方法，
+			// 其子类实现会调用所有IOC容器中实现了WebMvcConfigurer接口的bean的extend方法，对list进行扩展
 			extendMessageConverters(this.messageConverters);
 		}
+		// 返回this.messageConverters
 		return this.messageConverters;
 	}
 

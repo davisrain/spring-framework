@@ -74,12 +74,17 @@ public final class ModelFactory {
 	public ModelFactory(@Nullable List<InvocableHandlerMethod> handlerMethods,
 			WebDataBinderFactory binderFactory, SessionAttributesHandler attributeHandler) {
 
+		// 如果传入的handlerMethods不为null
 		if (handlerMethods != null) {
+			// 遍历这些handlerMethods
 			for (InvocableHandlerMethod handlerMethod : handlerMethods) {
+				// 将其包装成ModelMethod存入modelMethods这个list类型的属性中
 				this.modelMethods.add(new ModelMethod(handlerMethod));
 			}
 		}
+		// 设置dataBinderFactory
 		this.dataBinderFactory = binderFactory;
+		// 设置sessionAttributeHandler
 		this.sessionAttributesHandler = attributeHandler;
 	}
 
@@ -101,8 +106,11 @@ public final class ModelFactory {
 	public void initModel(NativeWebRequest request, ModelAndViewContainer container, HandlerMethod handlerMethod)
 			throws Exception {
 
+		// 使用sessionAttributeHandler遍历request中session的attributes
 		Map<String, ?> sessionAttributes = this.sessionAttributesHandler.retrieveAttributes(request);
+		// 将获取到的sessionAttributes合并到container的modelMap中
 		container.mergeAttributes(sessionAttributes);
+		// 调用标注了@ModelAttribute注解但没有标注@RequestMapping注解的那些方法来对container进行配置
 		invokeModelAttributeMethods(request, container);
 
 		for (String name : findSessionAttributeArguments(handlerMethod)) {
@@ -123,6 +131,7 @@ public final class ModelFactory {
 	private void invokeModelAttributeMethods(NativeWebRequest request, ModelAndViewContainer container)
 			throws Exception {
 
+		// 当modelMethods不为空时
 		while (!this.modelMethods.isEmpty()) {
 			InvocableHandlerMethod modelMethod = getNextModelMethod(container).getHandlerMethod();
 			ModelAttribute ann = modelMethod.getMethodAnnotation(ModelAttribute.class);
@@ -278,8 +287,11 @@ public final class ModelFactory {
 		private final Set<String> dependencies = new HashSet<>();
 
 		public ModelMethod(InvocableHandlerMethod handlerMethod) {
+			// 将handlerMethod赋值给自身属性
 			this.handlerMethod = handlerMethod;
+			// 解析handlerMethod中的methodParameter
 			for (MethodParameter parameter : handlerMethod.getMethodParameters()) {
+				//TODO 解析methodParameter
 				if (parameter.hasParameterAnnotation(ModelAttribute.class)) {
 					this.dependencies.add(getNameForParameter(parameter));
 				}

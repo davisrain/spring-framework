@@ -126,6 +126,7 @@ public class ModelMap extends LinkedHashMap<String, Object> {
 	 */
 	public ModelMap mergeAttributes(@Nullable Map<String, ?> attributes) {
 		if (attributes != null) {
+			// 如果attributes不为null，遍历key value，判断key是否存在，如果不存在，调用put方法将key value存入map
 			attributes.forEach((key, value) -> {
 				if (!containsKey(key)) {
 					put(key, value);

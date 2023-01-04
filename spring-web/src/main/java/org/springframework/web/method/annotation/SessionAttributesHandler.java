@@ -66,13 +66,17 @@ public class SessionAttributesHandler {
 	 */
 	public SessionAttributesHandler(Class<?> handlerType, SessionAttributeStore sessionAttributeStore) {
 		Assert.notNull(sessionAttributeStore, "SessionAttributeStore may not be null");
+		// 将sessionAttributeStore赋值给自己的属性
 		this.sessionAttributeStore = sessionAttributeStore;
 
+		// 查找handlerType类上是否有标注@SessionAttributes注解
 		SessionAttributes ann = AnnotatedElementUtils.findMergedAnnotation(handlerType, SessionAttributes.class);
+		// 如果有的话，将注解的names添加到attributeNames属性中，将注解的types添加到attributeTypes属性中
 		if (ann != null) {
 			Collections.addAll(this.attributeNames, ann.names());
 			Collections.addAll(this.attributeTypes, ann.types());
 		}
+		// 然后将attributeNames属性的值添加到knowAttributeNames属性中
 		this.knownAttributeNames.addAll(this.attributeNames);
 	}
 
@@ -128,8 +132,12 @@ public class SessionAttributesHandler {
 	 */
 	public Map<String, Object> retrieveAttributes(WebRequest request) {
 		Map<String, Object> attributes = new HashMap<>();
+		// 遍历knowAttributeNames，
+		// knowAttributeNames中的值是从handlerType类上标注的@SessionAttributes注解中的names属性来的
 		for (String name : this.knownAttributeNames) {
+			// 根据拿到的attributeName去获取对应的attributeValue
 			Object value = this.sessionAttributeStore.retrieveAttribute(request, name);
+			// 如果attributeValue不为null的话，放入map中返回
 			if (value != null) {
 				attributes.put(name, value);
 			}
