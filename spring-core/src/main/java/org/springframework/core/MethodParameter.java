@@ -644,22 +644,51 @@ public class MethodParameter {
 	 * Return the annotations associated with the specific method/constructor parameter.
 	 */
 	public Annotation[] getParameterAnnotations() {
+		// 获取自身持有的parameterAnnotations属性
 		Annotation[] paramAnns = this.parameterAnnotations;
+		// 如果数组为null
 		if (paramAnns == null) {
+			// 调用executable的getParameterAnnotations方法获取所有参数相关的注解
 			Annotation[][] annotationArray = this.executable.getParameterAnnotations();
+			// 获取到参数的位置 -1为方法的返回值
 			int index = this.parameterIndex;
+			// 如果executable是构造器 并且声明它的类是一个非static的内部类 并且注解数组的长度等于参数的长度-1
 			if (this.executable instanceof Constructor &&
 					ClassUtils.isInnerClass(this.executable.getDeclaringClass()) &&
 					annotationArray.length == this.executable.getParameterCount() - 1) {
 				// Bug in javac in JDK <9: annotation array excludes enclosing instance parameter
 				// for inner classes, so access it with the actual parameter index lowered by 1
+				// 将参数的下标-1才是实际的下标，这是JDK9以下的javac的bug，内部类构造器的参数会有一个隐藏的指向外部类对象的参数，
+				// 因此其他参数的下标都会比正常的大1，但是executable的getParameterAnnotations方法返回的注解数组的长度并没有包含
+				// 指向外部类对象的参数，因此数组长度会比参数长度小1，要从数组中获取对应的注解信息的话，需要将实际的参数下标-1才行
 				index = this.parameterIndex - 1;
 			}
+			// 如果参数下标大于等于0并且小于注解数组的长度，调用adaptAnnotationArray方法获取对应参数的注解数组，否则，返回一个空数组
 			paramAnns = (index >= 0 && index < annotationArray.length ?
 					adaptAnnotationArray(annotationArray[index]) : EMPTY_ANNOTATION_ARRAY);
+			// 将得到的结果赋值给parameterAnnotations属性
 			this.parameterAnnotations = paramAnns;
 		}
 		return paramAnns;
+	}
+
+	class InnerClass {
+		InnerClass(@Nullable String param1, @Nullable String param2) {
+
+		}
+	}
+
+	public static void main(String[] args) throws NoSuchMethodException {
+		Constructor<?>[] constructors = InnerClass.class.getDeclaredConstructors();
+		Constructor<?> constructor = constructors[0];
+		int parameterCount = constructor.getParameterCount();
+		System.out.println(parameterCount);
+		Annotation[][] annoArray = constructor.getParameterAnnotations();
+		System.out.println(annoArray.length);
+
+		MethodParameter methodParameter = new MethodParameter(constructor, 1);
+		Annotation[] annoArray1 = methodParameter.getParameterAnnotations();
+		System.out.println();
 	}
 
 	/**
@@ -679,12 +708,16 @@ public class MethodParameter {
 	@SuppressWarnings("unchecked")
 	@Nullable
 	public <A extends Annotation> A getParameterAnnotation(Class<A> annotationType) {
+		// 获取参数上的所有注解
 		Annotation[] anns = getParameterAnnotations();
+		// 遍历存在的注解
 		for (Annotation ann : anns) {
+			// 如果存在一个注解是传入的参数类型的，返回该注解
 			if (annotationType.isInstance(ann)) {
 				return (A) ann;
 			}
 		}
+		// 否则返回null
 		return null;
 	}
 

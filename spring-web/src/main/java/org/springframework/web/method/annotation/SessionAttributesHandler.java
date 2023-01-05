@@ -100,10 +100,13 @@ public class SessionAttributesHandler {
 	 */
 	public boolean isHandlerSessionAttribute(String attributeName, Class<?> attributeType) {
 		Assert.notNull(attributeName, "Attribute name must not be null");
+		// 如果attributeNames中包含传入的attributeName参数 或者attributeTypes中包含传入的attributeType参数
 		if (this.attributeNames.contains(attributeName) || this.attributeTypes.contains(attributeType)) {
+			// 像knowAttributesNames中添加该attributeName并返回true
 			this.knownAttributeNames.add(attributeName);
 			return true;
 		}
+		// 否则返回false
 		else {
 			return false;
 		}

@@ -894,6 +894,7 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 			mavContainer.addAllAttributes(RequestContextUtils.getInputFlashMap(request));
 			// 调用modelFactory的initModel方法
 			modelFactory.initModel(webRequest, mavContainer, invocableMethod);
+			// 将handlerAdapter的ignoreDefaultModelOnRedirect参数设置进mavContainer中
 			mavContainer.setIgnoreDefaultModelOnRedirect(this.ignoreDefaultModelOnRedirect);
 
 			AsyncWebRequest asyncWebRequest = WebAsyncUtils.createAsyncWebRequest(request, response);

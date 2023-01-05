@@ -113,12 +113,16 @@ public final class ModelFactory {
 		// 调用标注了@ModelAttribute注解但没有标注@RequestMapping注解的那些方法来对container进行配置
 		invokeModelAttributeMethods(request, container);
 
+		// 查找出handlerMethod的参数中标注了@ModelAttribute注解的 并且参数在@SessionAttributes注解中也存在的 参数的name集合
 		for (String name : findSessionAttributeArguments(handlerMethod)) {
+			// 如果container中的modelMap中不包含该name的话
 			if (!container.containsAttribute(name)) {
+				// 从session中根据name取获取
 				Object value = this.sessionAttributesHandler.retrieveAttribute(request, name);
 				if (value == null) {
 					throw new HttpSessionRequiredException("Expected session attribute '" + name + "'", name);
 				}
+				// 获取到了之后存入container的modelMap中
 				container.addAttribute(name, value);
 			}
 		}
@@ -133,22 +137,33 @@ public final class ModelFactory {
 
 		// 当modelMethods不为空时
 		while (!this.modelMethods.isEmpty()) {
+			// 通过container获取到对饮国得handlerMethod
 			InvocableHandlerMethod modelMethod = getNextModelMethod(container).getHandlerMethod();
+			// 查找到标注在方法上的@ModelAttribute注解
 			ModelAttribute ann = modelMethod.getMethodAnnotation(ModelAttribute.class);
 			Assert.state(ann != null, "No ModelAttribute annotation");
+			// 判断container中是否存在注解中的name
 			if (container.containsAttribute(ann.name())) {
+				// 如果存在，但是注解的binding属性是false
 				if (!ann.binding()) {
+					// 将name添加进container中的bindingDisabled列表中
 					container.setBindingDisabled(ann.name());
 				}
 				continue;
 			}
 
+			// 如果container中不存在注解的name的话，调用handlerMethod的invokeForRequest方法
 			Object returnValue = modelMethod.invokeForRequest(request, container);
+			// 如果方法的返回类型不是void的话
 			if (!modelMethod.isVoid()){
+				// 根据返回值获取返回值的name
 				String returnValueName = getNameForReturnValue(returnValue, modelMethod.getReturnType());
+				// 如果注解的binding属性是false的话
 				if (!ann.binding()) {
+					// 将returnValueName添加进bindingDisabled列表中
 					container.setBindingDisabled(returnValueName);
 				}
+				// 如果container不包含returnValueName的话，将returnValueName和returnValue添加进去
 				if (!container.containsAttribute(returnValueName)) {
 					container.addAttribute(returnValueName, returnValue);
 				}
@@ -157,12 +172,16 @@ public final class ModelFactory {
 	}
 
 	private ModelMethod getNextModelMethod(ModelAndViewContainer container) {
+		// 遍历modelMethods
 		for (ModelMethod modelMethod : this.modelMethods) {
+			// 检查modelMethod的dependencies，看container中是否包含modelMethod所有的dependencies
 			if (modelMethod.checkDependencies(container)) {
+				// 如果检查通过，将modelMethod从modelMethods中删除并返回
 				this.modelMethods.remove(modelMethod);
 				return modelMethod;
 			}
 		}
+		// 如果检查不通过，获取modelMethods中第一个元素，删除并返回
 		ModelMethod modelMethod = this.modelMethods.get(0);
 		this.modelMethods.remove(modelMethod);
 		return modelMethod;
@@ -173,11 +192,17 @@ public final class ModelFactory {
 	 */
 	private List<String> findSessionAttributeArguments(HandlerMethod handlerMethod) {
 		List<String> result = new ArrayList<>();
+		// 循环handlerMethod的方法参数
 		for (MethodParameter parameter : handlerMethod.getMethodParameters()) {
+			// 如果参数上标注了@ModelAttribute注解
 			if (parameter.hasParameterAnnotation(ModelAttribute.class)) {
+				// 根据参数获取attribute的name
 				String name = getNameForParameter(parameter);
+				// 获取参数的类型
 				Class<?> paramType = parameter.getParameterType();
+				// 调用sessionAttributesHandler的isHandlerSessionAttribute方法进行判断
 				if (this.sessionAttributesHandler.isHandlerSessionAttribute(name, paramType)) {
+					// 如果返回true，将name加入结果
 					result.add(name);
 				}
 			}
@@ -248,8 +273,11 @@ public final class ModelFactory {
 	 * @see Conventions#getVariableNameForParameter(MethodParameter)
 	 */
 	public static String getNameForParameter(MethodParameter parameter) {
+		// 获取方法参数上的@ModelAttribute注解
 		ModelAttribute ann = parameter.getParameterAnnotation(ModelAttribute.class);
+		// 如果注解不为null的话，取注解的value属性
 		String name = (ann != null ? ann.value() : null);
+		// 如果name不为空，直接返回name，否则根据参数类型获取name
 		return (StringUtils.hasText(name) ? name : Conventions.getVariableNameForParameter(parameter));
 	}
 
@@ -266,15 +294,22 @@ public final class ModelFactory {
 	 * @return the derived name (never {@code null} or empty String)
 	 */
 	public static String getNameForReturnValue(@Nullable Object returnValue, MethodParameter returnType) {
+		// 根据returnType获取方法上的@ModelAttribute注解
 		ModelAttribute ann = returnType.getMethodAnnotation(ModelAttribute.class);
+		// 如果注解不为null且注解的value属性不为空，返回注解的value值
 		if (ann != null && StringUtils.hasText(ann.value())) {
 			return ann.value();
 		}
+		// 否则
 		else {
+			// 获取到returnType对应的方法
 			Method method = returnType.getMethod();
 			Assert.state(method != null, "No handler method");
+			// 获取持有方法的类对象
 			Class<?> containingClass = returnType.getContainingClass();
+			// 获取到方法的返回值的类对象
 			Class<?> resolvedType = GenericTypeResolver.resolveReturnType(method, containingClass);
+			// 根据方法返回值的声明类型（如果返回值的声明类型不是Object.class的话）或者 方法返回值的实际类型 获取name
 			return Conventions.getVariableNameForReturnType(method, resolvedType, returnValue);
 		}
 	}
@@ -291,8 +326,9 @@ public final class ModelFactory {
 			this.handlerMethod = handlerMethod;
 			// 解析handlerMethod中的methodParameter
 			for (MethodParameter parameter : handlerMethod.getMethodParameters()) {
-				//TODO 解析methodParameter
+				// 判断方法参数上有没有标注@ModelAttribute注解
 				if (parameter.hasParameterAnnotation(ModelAttribute.class)) {
+					// 根据MethodParameter获取到name添加进dependencies的list中
 					this.dependencies.add(getNameForParameter(parameter));
 				}
 			}
@@ -303,11 +339,14 @@ public final class ModelFactory {
 		}
 
 		public boolean checkDependencies(ModelAndViewContainer mavContainer) {
+			// 遍历dependencies
 			for (String name : this.dependencies) {
+				// 一旦发现mavContainer中不包含name，返回false
 				if (!mavContainer.containsAttribute(name)) {
 					return false;
 				}
 			}
+			// 否则 返回true
 			return true;
 		}
 

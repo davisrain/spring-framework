@@ -131,6 +131,7 @@ public class InvocableHandlerMethod extends HandlerMethod {
 	public Object invokeForRequest(NativeWebRequest request, @Nullable ModelAndViewContainer mavContainer,
 			Object... providedArgs) throws Exception {
 
+		// 获取方法需要用到的所有参数
 		Object[] args = getMethodArgumentValues(request, mavContainer, providedArgs);
 		if (logger.isTraceEnabled()) {
 			logger.trace("Arguments: " + Arrays.toString(args));
@@ -185,8 +186,10 @@ public class InvocableHandlerMethod extends HandlerMethod {
 	 */
 	@Nullable
 	protected Object doInvoke(Object... args) throws Exception {
+		// 将被桥接方法的accessible设为true
 		ReflectionUtils.makeAccessible(getBridgedMethod());
 		try {
+			// 进行方法的反射调用
 			return getBridgedMethod().invoke(getBean(), args);
 		}
 		catch (IllegalArgumentException ex) {

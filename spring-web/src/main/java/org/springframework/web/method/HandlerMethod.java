@@ -100,11 +100,16 @@ public class HandlerMethod {
 		Assert.notNull(method, "Method is required");
 		this.bean = bean;
 		this.beanFactory = null;
+		// 获取到用户类，如果是cglib代理的话，会获取到它的父类
 		this.beanType = ClassUtils.getUserClass(bean);
 		this.method = method;
+		// 获取到被桥接的方法
 		this.bridgedMethod = BridgeMethodResolver.findBridgedMethod(method);
+		// 根据被桥接方法初始化methodParameters
 		this.parameters = initMethodParameters();
+		// 评估@ResponseStatus注解的情况
 		evaluateResponseStatus();
+		// 初始化description
 		this.description = initDescription(this.beanType, this.method);
 	}
 
@@ -184,19 +189,25 @@ public class HandlerMethod {
 	}
 
 	private MethodParameter[] initMethodParameters() {
+		// 获取被桥接方法的参数个数
 		int count = this.bridgedMethod.getParameterCount();
+		// 根据参数个数初始化一个MethodParameter数组
 		MethodParameter[] result = new MethodParameter[count];
 		for (int i = 0; i < count; i++) {
+			// 初始化HandlerMethodParameter填入数组中，会将bridgedMethod和index传入并保存
 			result[i] = new HandlerMethodParameter(i);
 		}
 		return result;
 	}
 
 	private void evaluateResponseStatus() {
+		// 查找方法上是否标注了@ResponseStatus注解
 		ResponseStatus annotation = getMethodAnnotation(ResponseStatus.class);
 		if (annotation == null) {
+			// 查找类上是否标注了@ResponseStatus注解
 			annotation = AnnotatedElementUtils.findMergedAnnotation(getBeanType(), ResponseStatus.class);
 		}
+		// 如果注解不为空，将注解的code和reason赋值给handlerMethod的属性
 		if (annotation != null) {
 			this.responseStatus = annotation.code();
 			this.responseStatusReason = annotation.reason();
@@ -205,9 +216,11 @@ public class HandlerMethod {
 
 	private static String initDescription(Class<?> beanType, Method method) {
 		StringJoiner joiner = new StringJoiner(", ", "(", ")");
+		// 将每个参数类型的简单名称添加进joiner
 		for (Class<?> paramType : method.getParameterTypes()) {
 			joiner.add(paramType.getSimpleName());
 		}
+		// 返回的格式是 simpleClassName#methodName(String,Integer)
 		return beanType.getName() + "#" + method.getName() + joiner.toString();
 	}
 
@@ -352,9 +365,13 @@ public class HandlerMethod {
 		List<Annotation[][]> parameterAnnotations = this.interfaceParameterAnnotations;
 		if (parameterAnnotations == null) {
 			parameterAnnotations = new ArrayList<>();
+			// 获取声明方法的类的所有接口，遍历接口
 			for (Class<?> ifc : ClassUtils.getAllInterfacesForClassAsSet(this.method.getDeclaringClass())) {
+				// 获取到接口里的方法
 				for (Method candidate : ifc.getMethods()) {
+					// 判断handlerMethod中的方法是否重写了接口中的方法
 					if (isOverrideFor(candidate)) {
+						// 如果是的话，将接口方法里的参数注解数组添加进list中
 						parameterAnnotations.add(candidate.getParameterAnnotations());
 					}
 				}
@@ -490,17 +507,29 @@ public class HandlerMethod {
 
 		@Override
 		public Annotation[] getParameterAnnotations() {
+			// 获取自身持有的combinedAnnotations属性
 			Annotation[] anns = this.combinedAnnotations;
+			// 如果数组为null
 			if (anns == null) {
+				// 调用父类方法去获取注解
 				anns = super.getParameterAnnotations();
+				// 获取参数的下标
 				int index = getParameterIndex();
+				// 如果参数的下标大于等于0
 				if (index >= 0) {
+					// 遍历存在的接口方法参数注解数组list
 					for (Annotation[][] ifcAnns : getInterfaceParameterAnnotations()) {
+						// 如果参数下标小于注解数组的长度
 						if (index < ifcAnns.length) {
+							// 获取到对应参数的注解数组
 							Annotation[] paramAnns = ifcAnns[index];
+							// 如果对应参数的注解数组长度大于0，将注解合并到一个list中
 							if (paramAnns.length > 0) {
+								// 创建一个list用于保存合并后的结果
 								List<Annotation> merged = new ArrayList<>(anns.length + paramAnns.length);
+								// 将原始方法上参数对应的注解添加进list中
 								merged.addAll(Arrays.asList(anns));
+								// 遍历循环接口方法上的参数注解
 								for (Annotation paramAnn : paramAnns) {
 									boolean existingType = false;
 									for (Annotation ann : anns) {
@@ -509,15 +538,18 @@ public class HandlerMethod {
 											break;
 										}
 									}
+									// 如果是原始方法上不存在的，将其转换为adapt注解添加进list中
 									if (!existingType) {
 										merged.add(adaptAnnotation(paramAnn));
 									}
 								}
+								// 将list转换成数组
 								anns = merged.toArray(new Annotation[0]);
 							}
 						}
 					}
 				}
+				// 赋值给combineAnnotations属性
 				this.combinedAnnotations = anns;
 			}
 			return anns;
