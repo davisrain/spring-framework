@@ -370,9 +370,11 @@ public abstract class ReflectionUtils {
 				throw new IllegalStateException("Not allowed to access method '" + method.getName() + "': " + ex);
 			}
 		}
+		// 如果clazz的父类不为null 并且 父类不是Object或者MethodFilter不是USER_DECLARED_METHODS，去clazz的父类中继续查找方法
 		if (clazz.getSuperclass() != null && (mf != USER_DECLARED_METHODS || clazz.getSuperclass() != Object.class)) {
 			doWithMethods(clazz.getSuperclass(), mc, mf);
 		}
+		// 如果clazz是接口的话，继续遍历它实现的接口中的方法
 		else if (clazz.isInterface()) {
 			for (Class<?> superIfc : clazz.getInterfaces()) {
 				doWithMethods(superIfc, mc, mf);
@@ -460,11 +462,15 @@ public abstract class ReflectionUtils {
 
 	private static Method[] getDeclaredMethods(Class<?> clazz, boolean defensive) {
 		Assert.notNull(clazz, "Class must not be null");
+		// 尝试从缓存中获取
 		Method[] result = declaredMethodsCache.get(clazz);
 		if (result == null) {
 			try {
+				// 获取class中声明的方法
 				Method[] declaredMethods = clazz.getDeclaredMethods();
+				// 获取class实现的接口中声明的默认方法
 				List<Method> defaultMethods = findConcreteMethodsOnInterfaces(clazz);
+				// 如果默认方法不为null，将两个方法集合合并成一个数组返回
 				if (defaultMethods != null) {
 					result = new Method[declaredMethods.length + defaultMethods.size()];
 					System.arraycopy(declaredMethods, 0, result, 0, declaredMethods.length);
@@ -474,6 +480,7 @@ public abstract class ReflectionUtils {
 						index++;
 					}
 				}
+				// 否则结果就等于class中声明的方法
 				else {
 					result = declaredMethods;
 				}

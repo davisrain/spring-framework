@@ -18,13 +18,7 @@ package org.springframework.core;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
 
@@ -50,6 +44,42 @@ class BridgeMethodResolverTests {
 			}
 		}
 		return null;
+	}
+
+	@Test
+	void retrieveMyFooMethods() {
+		Class<MyFoo> clazz = MyFoo.class;
+		Method[] declaredMethods = clazz.getDeclaredMethods();
+		for (Method declaredMethod : declaredMethods) {
+			System.out.println(getMethodInfo(declaredMethod));
+		}
+	}
+
+	private String getMethodInfo(Method method) {
+		StringJoiner joiner = new StringJoiner(",", "(", ")");
+		for (Class<?> parameterType : method.getParameterTypes()) {
+			joiner.add(parameterType.getSimpleName());
+		}
+		return method.getReturnType().getSimpleName() + " " + method.getName() + " " + joiner + " isBridge:" + method.isBridge();
+	}
+
+	@Test
+	void findMyFooBridgedMethod() throws Exception {
+		Method bridgeMethod = MyFoo.class.getDeclaredMethod("someMethod", Serializable.class, Object.class);
+		System.out.println(getMethodInfo(bridgeMethod));
+		Method bridgedMethod = BridgeMethodResolver.findBridgedMethod(bridgeMethod);
+		System.out.println(getMethodInfo(bridgedMethod));
+
+		Method bridgeMethod1 = null;
+		for (Method declaredMethod : MyFoo.class.getDeclaredMethods()) {
+			if (declaredMethod.getName().equals("someReturnValMethod") && declaredMethod.isBridge()) {
+				bridgeMethod1 = declaredMethod;
+				break;
+			}
+		}
+		System.out.println(getMethodInfo(bridgeMethod1));
+		Method bridgedMethod1 = BridgeMethodResolver.findBridgedMethod(bridgeMethod1);
+		System.out.println(getMethodInfo(bridgedMethod1));
 	}
 
 
@@ -328,6 +358,8 @@ class BridgeMethodResolverTests {
 		void someMethod(T theArg, Object otherArg);
 
 		void someVarargMethod(T theArg, Object... otherArg);
+
+		Serializable someReturnValMethod(Object otherArg);
 	}
 
 
@@ -342,6 +374,15 @@ class BridgeMethodResolverTests {
 
 		@Override
 		public void someVarargMethod(String theArg, Object... otherArgs) {
+		}
+
+		@Override
+		public String someReturnValMethod(Object otherArg) {
+			return "";
+		}
+
+		public void someReturnValMethod(String theArg) {
+
 		}
 	}
 
