@@ -1259,19 +1259,26 @@ public abstract class ClassUtils {
 	 * @see #getInterfaceMethodIfPossible
 	 */
 	public static Method getMostSpecificMethod(Method method, @Nullable Class<?> targetClass) {
+		// 如果targetClass不为null，并且targetClass不是method的声明类，并且targetClass可以重写method的情况下
 		if (targetClass != null && targetClass != method.getDeclaringClass() && isOverridable(method, targetClass)) {
 			try {
+				// 如果方法是public的
 				if (Modifier.isPublic(method.getModifiers())) {
 					try {
+						// 直接查找targetClass中方法名和参数类型相同的重写方法
 						return targetClass.getMethod(method.getName(), method.getParameterTypes());
 					}
+					// 如果没有找到对应方法，返回原method
 					catch (NoSuchMethodException ex) {
 						return method;
 					}
 				}
+				// 如果方法不是public的
 				else {
+					// 使用ReflectionUtils.findMethod进行查找
 					Method specificMethod =
 							ReflectionUtils.findMethod(targetClass, method.getName(), method.getParameterTypes());
+					// 如果查找到的明确方法不为null的话，返回specificMethod，否则返回原method
 					return (specificMethod != null ? specificMethod : method);
 				}
 			}
@@ -1339,12 +1346,15 @@ public abstract class ClassUtils {
 	 * @param targetClass the target class to check against
 	 */
 	private static boolean isOverridable(Method method, @Nullable Class<?> targetClass) {
+		// 如果方法是private的 不能被重写 直接返回false
 		if (Modifier.isPrivate(method.getModifiers())) {
 			return false;
 		}
+		// 如果方法是public或者protected的，能够被重写，返回true
 		if (Modifier.isPublic(method.getModifiers()) || Modifier.isProtected(method.getModifiers())) {
 			return true;
 		}
+		// 如果targetClass为null  或者 targetClass和方法的声明类在同一个包下，返回true
 		return (targetClass == null ||
 				getPackageName(method.getDeclaringClass()).equals(getPackageName(targetClass)));
 	}

@@ -21,8 +21,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.rmi.ConnectException;
 import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -368,6 +371,30 @@ class ReflectionUtilsTests {
 		assertThat(m1). isNotSameAs(m2);
 	}
 
+	@Test
+	void compareSpringAndJdkGetDeclaredMethod() {
+		Method[] fooDeclaredMethods = Foo.class.getDeclaredMethods();
+		Method[] myFooDeclaredMethods = MyFoo.class.getDeclaredMethods();
+		Method[] springFooDeclaredMethods = ReflectionUtils.getDeclaredMethods(Foo.class);
+		Method[] springMyFooDeclaredMethods = ReflectionUtils.getDeclaredMethods(MyFoo.class);
+		System.out.println();
+	}
+
+	@Test
+	void testDoWithMethods() {
+		Map<Class<?>, List<Method>> declaredMethodsMap = new HashMap<>();
+		Class<?>[] clazzArray = {Foo.class, MyFoo.class};
+		for (Class<?> clazz : clazzArray) {
+			ReflectionUtils.doWithMethods(clazz, method -> {
+				List<Method> methods = declaredMethodsMap.computeIfAbsent(clazz, k -> new ArrayList<>());
+				methods.add(method);
+			}, ReflectionUtils.USER_DECLARED_METHODS);
+		}
+		System.out.println();
+	}
+
+
+
 	private static class ListSavingMethodCallback implements ReflectionUtils.MethodCallback {
 
 		private List<String> methodNames = new LinkedList<>();
@@ -438,5 +465,36 @@ class ReflectionUtilsTests {
 			return sum;
 		}
 	}
+
+	private interface Foo extends Bar{
+
+		void fooMethod();
+
+		default void defaultFooMethod(){}
+
+	}
+
+	private interface Bar {
+		void barMethod();
+
+		default void defaultBarMethod() {}
+	}
+
+	private static class MyBar implements Bar {
+
+		@Override
+		public void barMethod() {
+
+		}
+	}
+
+	private static class MyFoo extends MyBar implements Foo {
+
+		@Override
+		public void fooMethod() {
+
+		}
+	}
+
 
 }
