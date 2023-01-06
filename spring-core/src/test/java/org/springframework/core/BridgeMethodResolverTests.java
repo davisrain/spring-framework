@@ -82,6 +82,14 @@ class BridgeMethodResolverTests {
 		System.out.println(getMethodInfo(bridgedMethod1));
 	}
 
+	@Test
+	void findMyBarBridgedMethod() throws Exception {
+		Method bridgeMethod = MyBar.class.getDeclaredMethod("someMethod", Object.class, Object.class);
+		System.out.println(getMethodInfo(bridgeMethod));
+		Method bridgedMethod = BridgeMethodResolver.findBridgedMethod(bridgeMethod);
+		System.out.println(getMethodInfo(bridgedMethod));
+	}
+
 
 	@Test
 	void findBridgedMethod() throws Exception {
@@ -395,7 +403,9 @@ class BridgeMethodResolverTests {
 		void someMethod(T theArg, Map<?, ?> m) {
 		}
 
-		abstract void someMethod(T theArg, Object otherArg);
+		void someMethod(T theArg, Object otherArg){
+
+		}
 	}
 
 
