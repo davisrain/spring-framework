@@ -84,7 +84,9 @@ public class AnnotatedBeanDefinitionReader {
 		Assert.notNull(registry, "BeanDefinitionRegistry must not be null");
 		Assert.notNull(environment, "Environment must not be null");
 		this.registry = registry;
+		// 根据环境对象和BeanDefinitionRegistry生成一个ConditionEvaluator
 		this.conditionEvaluator = new ConditionEvaluator(registry, environment, null);
+		// 然后调用AnnotationConfigUtils的方法将AnnotationConfig相关的处理器注册进BeanDefinitionRegistry中
 		AnnotationConfigUtils.registerAnnotationConfigProcessors(this.registry);
 	}
 
@@ -292,6 +294,7 @@ public class AnnotatedBeanDefinitionReader {
 	 */
 	private static Environment getOrCreateEnvironment(BeanDefinitionRegistry registry) {
 		Assert.notNull(registry, "BeanDefinitionRegistry must not be null");
+		// 判断BeanDefinitionRegistry是否实现了EnvironmentCapable接口，如果是的话，调用getEnvironment方法获取环境对象
 		if (registry instanceof EnvironmentCapable) {
 			return ((EnvironmentCapable) registry).getEnvironment();
 		}

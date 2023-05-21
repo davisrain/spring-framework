@@ -929,8 +929,10 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		Assert.hasText(beanName, "Bean name must not be empty");
 		Assert.notNull(beanDefinition, "BeanDefinition must not be null");
 
+		// 判断beanDefinition是否是AbstractBeanDefinition类型的
 		if (beanDefinition instanceof AbstractBeanDefinition) {
 			try {
+				// 调用validate方法进行激活
 				((AbstractBeanDefinition) beanDefinition).validate();
 			}
 			catch (BeanDefinitionValidationException ex) {
@@ -939,11 +941,15 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 		}
 
+		// 判断beanDefinitionMap中是否已经存在该beanName的BeanDefinition
 		BeanDefinition existingDefinition = this.beanDefinitionMap.get(beanName);
+		// 如果存在
 		if (existingDefinition != null) {
+			// 判断是否允许进行beanDefinition的重写，如果不允许，抛出异常
 			if (!isAllowBeanDefinitionOverriding()) {
 				throw new BeanDefinitionOverrideException(beanName, beanDefinition, existingDefinition);
 			}
+			// 如果允许的话，根据不同的情况打印不同的日志
 			else if (existingDefinition.getRole() < beanDefinition.getRole()) {
 				// e.g. was ROLE_APPLICATION, now overriding with ROLE_SUPPORT or ROLE_INFRASTRUCTURE
 				if (logger.isInfoEnabled()) {
@@ -966,33 +972,46 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 							"] with [" + beanDefinition + "]");
 				}
 			}
+			// 将beanDefinition放入map中
 			this.beanDefinitionMap.put(beanName, beanDefinition);
 		}
+		// 如果map中不存在该beanName的beanDefinition
 		else {
+			// 判断bean创建是否已经开始了，即alreadyCreated集合是否为空
 			if (hasBeanCreationStarted()) {
 				// Cannot modify startup-time collection elements anymore (for stable iteration)
+				// 如果bean创建已经开始的话，需要进行加锁，锁住beanDefinitionMap才能够添加
 				synchronized (this.beanDefinitionMap) {
 					this.beanDefinitionMap.put(beanName, beanDefinition);
 					List<String> updatedDefinitions = new ArrayList<>(this.beanDefinitionNames.size() + 1);
 					updatedDefinitions.addAll(this.beanDefinitionNames);
 					updatedDefinitions.add(beanName);
 					this.beanDefinitionNames = updatedDefinitions;
+					// manualSingletonNames集合中如果存在beanName的话，进行删除。
+					// 删除的时候也需要判断bean创建是否已经开始，然后进行加锁或不加锁删除
 					removeManualSingletonName(beanName);
 				}
 			}
+			// 如果bean创建还没开始，不用加锁，直接进行修改
 			else {
 				// Still in startup registration phase
 				this.beanDefinitionMap.put(beanName, beanDefinition);
 				this.beanDefinitionNames.add(beanName);
 				removeManualSingletonName(beanName);
 			}
+			// 将frozenBeanDefinitionNames置为null
 			this.frozenBeanDefinitionNames = null;
 		}
 
+		// 如果BeanDefinitionMap中存在对应beanName的beanDefinition
+		// 或者 singletonObjects(Ioc容器的第三级缓存，用于存放单例bean的map)存在beanName对应的bean
 		if (existingDefinition != null || containsSingleton(beanName)) {
+			// 调用resetBeanDefinition方法重新设置BeanDefinition或Bean
 			resetBeanDefinition(beanName);
 		}
+		// 否则，如果isConfigurationFrozen标志为true
 		else if (isConfigurationFrozen()) {
+			// 清除掉allBeanNamesByType和singletonBeanNamesByType缓存
 			clearByTypeCache();
 		}
 	}
@@ -1039,11 +1058,13 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 */
 	protected void resetBeanDefinition(String beanName) {
 		// Remove the merged bean definition for the given bean, if already created.
+		// 清除beanName对应的MergedBeanDefinition
 		clearMergedBeanDefinition(beanName);
 
 		// Remove corresponding bean from singleton cache, if any. Shouldn't usually
 		// be necessary, rather just meant for overriding a context's default beans
 		// (e.g. the default StaticMessageSource in a StaticApplicationContext).
+		// 销毁beanName对应的singleton单例bean
 		destroySingleton(beanName);
 
 		// Notify all post-processors that the specified bean definition has been reset.
@@ -1089,8 +1110,11 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 	@Override
 	public void destroySingleton(String beanName) {
+		// 调用父类的destroySingleton方法
 		super.destroySingleton(beanName);
+		// 从manualSingletonNames中删除beanName，如果存在的话
 		removeManualSingletonName(beanName);
+		// 清除allBeanNamesByType和singletonBeanNamesByType集合
 		clearByTypeCache();
 	}
 

@@ -147,25 +147,31 @@ public abstract class AnnotationConfigUtils {
 	 */
 	public static Set<BeanDefinitionHolder> registerAnnotationConfigProcessors(
 			BeanDefinitionRegistry registry, @Nullable Object source) {
-
 		DefaultListableBeanFactory beanFactory = unwrapDefaultListableBeanFactory(registry);
 		if (beanFactory != null) {
+			// 如果beanFactory中的DependencyComparator不是AnnotationAwareOrderComparator类型的话，将其设置为
+			// AnnotationAwareOrderComparator的单例
 			if (!(beanFactory.getDependencyComparator() instanceof AnnotationAwareOrderComparator)) {
 				beanFactory.setDependencyComparator(AnnotationAwareOrderComparator.INSTANCE);
 			}
+			// 设置beanFactory的AutowireCandidateResolver为ContextAnnotationAutowireCandidateResolver
 			if (!(beanFactory.getAutowireCandidateResolver() instanceof ContextAnnotationAutowireCandidateResolver)) {
 				beanFactory.setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver());
 			}
 		}
 
+		// 以下内容是初始化几个BeanDefinition
 		Set<BeanDefinitionHolder> beanDefs = new LinkedHashSet<>(8);
 
+		// 如果registry中不包含名为org.springframework.context.annotation.internalConfigurationAnnotationProcessor的BeanDefinition的话，添加进去
 		if (!registry.containsBeanDefinition(CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(ConfigurationClassPostProcessor.class);
 			def.setSource(source);
+			// 将BeanDefinition当作后置处理器注册进registry中
 			beanDefs.add(registerPostProcessor(registry, def, CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME));
 		}
 
+		// 如果registry中不包含名为org.springframework.context.annotation.internalAutowiredAnnotationProcessor的BeanDefinition的话，添加进去
 		if (!registry.containsBeanDefinition(AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(AutowiredAnnotationBeanPostProcessor.class);
 			def.setSource(source);
@@ -173,6 +179,8 @@ public abstract class AnnotationConfigUtils {
 		}
 
 		// Check for JSR-250 support, and if present add the CommonAnnotationBeanPostProcessor.
+		// 如果存在javax.annotation.Resource这个注解类的话(jsr-250) 并且
+		// 如果registry中不包含名为org.springframework.context.annotation.internalCommonAnnotationProcessor的BeanDefinition的话，添加进去
 		if (jsr250Present && !registry.containsBeanDefinition(COMMON_ANNOTATION_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(CommonAnnotationBeanPostProcessor.class);
 			def.setSource(source);
@@ -180,6 +188,7 @@ public abstract class AnnotationConfigUtils {
 		}
 
 		// Check for JPA support, and if present add the PersistenceAnnotationBeanPostProcessor.
+		// 如果存在jpa的类且registry中不包含对应的beanDefinition的时候，添加进去
 		if (jpaPresent && !registry.containsBeanDefinition(PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition();
 			try {
@@ -194,12 +203,14 @@ public abstract class AnnotationConfigUtils {
 			beanDefs.add(registerPostProcessor(registry, def, PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME));
 		}
 
+		// 如果registry中不包含名为org.springframework.context.event.internalEventListenerProcessor的BeanDefinition的话，添加进去
 		if (!registry.containsBeanDefinition(EVENT_LISTENER_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(EventListenerMethodProcessor.class);
 			def.setSource(source);
 			beanDefs.add(registerPostProcessor(registry, def, EVENT_LISTENER_PROCESSOR_BEAN_NAME));
 		}
 
+		// 如果registry中不包含名为org.springframework.context.event.internalEventListenerFactory的BeanDefinition的话，添加进去
 		if (!registry.containsBeanDefinition(EVENT_LISTENER_FACTORY_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(DefaultEventListenerFactory.class);
 			def.setSource(source);
@@ -212,19 +223,25 @@ public abstract class AnnotationConfigUtils {
 	private static BeanDefinitionHolder registerPostProcessor(
 			BeanDefinitionRegistry registry, RootBeanDefinition definition, String beanName) {
 
+		// 将BeanDefinition的role设置为infrastructure的，表示是基础类
 		definition.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
+		// 注册进registry中，并且指定beanName
 		registry.registerBeanDefinition(beanName, definition);
+		// 将beanName和definition封装成一个BeanDefinitionHolder返回
 		return new BeanDefinitionHolder(definition, beanName);
 	}
 
 	@Nullable
 	private static DefaultListableBeanFactory unwrapDefaultListableBeanFactory(BeanDefinitionRegistry registry) {
+		// 如果registry是DefaultListableBeanFactory类型的话，直接返回
 		if (registry instanceof DefaultListableBeanFactory) {
 			return (DefaultListableBeanFactory) registry;
 		}
+		// 否则如果registry是GenericApplicationContext类型的话，调用getDefaultListableBeanFactory方法返回
 		else if (registry instanceof GenericApplicationContext) {
 			return ((GenericApplicationContext) registry).getDefaultListableBeanFactory();
 		}
+		// 否则返回null
 		else {
 			return null;
 		}
