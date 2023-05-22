@@ -327,6 +327,7 @@ public interface MergedAnnotations extends Iterable<MergedAnnotation<Annotation>
 	static MergedAnnotations from(AnnotatedElement element, SearchStrategy searchStrategy,
 			RepeatableContainers repeatableContainers) {
 
+		// 添加一个AnnotationFilter，以包名为筛选条件，符合java.lang 和 org.springframework.lang的返回true
 		return from(element, searchStrategy, repeatableContainers, AnnotationFilter.PLAIN);
 	}
 
@@ -348,6 +349,7 @@ public interface MergedAnnotations extends Iterable<MergedAnnotation<Annotation>
 
 		Assert.notNull(repeatableContainers, "RepeatableContainers must not be null");
 		Assert.notNull(annotationFilter, "AnnotationFilter must not be null");
+		// 调用TypeMappedAnnotations的from方法
 		return TypeMappedAnnotations.from(element, searchStrategy, repeatableContainers, annotationFilter);
 	}
 

@@ -56,6 +56,7 @@ class ConditionEvaluator {
 	public ConditionEvaluator(@Nullable BeanDefinitionRegistry registry,
 			@Nullable Environment environment, @Nullable ResourceLoader resourceLoader) {
 
+		// 根据registry， environment，resourceLoader初始化一个ConditionContextImpl持有
 		this.context = new ConditionContextImpl(registry, environment, resourceLoader);
 	}
 
@@ -78,6 +79,7 @@ class ConditionEvaluator {
 	 * @return if the item should be skipped
 	 */
 	public boolean shouldSkip(@Nullable AnnotatedTypeMetadata metadata, @Nullable ConfigurationPhase phase) {
+		// 如果metadata为null或者metadata上没有标注@Conditional注解，返回false，表示不需要被跳过
 		if (metadata == null || !metadata.isAnnotated(Conditional.class.getName())) {
 			return false;
 		}
@@ -148,9 +150,13 @@ class ConditionEvaluator {
 				@Nullable Environment environment, @Nullable ResourceLoader resourceLoader) {
 
 			this.registry = registry;
+			// 根据registry推断beanFactory并赋值
 			this.beanFactory = deduceBeanFactory(registry);
+			// 如果environment不为null，根据registry推断environment并赋值
 			this.environment = (environment != null ? environment : deduceEnvironment(registry));
+			// 如果resourceLoader不为null，根据registry推断resourceLoader并赋值
 			this.resourceLoader = (resourceLoader != null ? resourceLoader : deduceResourceLoader(registry));
+			// 根据resourceLoader和beanFactory推断classLoader并赋值
 			this.classLoader = deduceClassLoader(resourceLoader, this.beanFactory);
 		}
 
@@ -183,15 +189,18 @@ class ConditionEvaluator {
 		private ClassLoader deduceClassLoader(@Nullable ResourceLoader resourceLoader,
 				@Nullable ConfigurableListableBeanFactory beanFactory) {
 
+			// 如果resourceLoader不为null的话，尝试获取resourceLoader中的classLoader，如果不为null，直接返回
 			if (resourceLoader != null) {
 				ClassLoader classLoader = resourceLoader.getClassLoader();
 				if (classLoader != null) {
 					return classLoader;
 				}
 			}
+			// 如果上述操作没有获取到classLoader，如果beanFactory不为null的话，获取其beanClassLoader返回
 			if (beanFactory != null) {
 				return beanFactory.getBeanClassLoader();
 			}
+			// 上述操作都没有获取到，调用ClassUtils.getDefaultClassLoader返回
 			return ClassUtils.getDefaultClassLoader();
 		}
 

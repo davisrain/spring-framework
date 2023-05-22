@@ -252,7 +252,9 @@ public class AnnotatedBeanDefinitionReader {
 			@Nullable Class<? extends Annotation>[] qualifiers, @Nullable Supplier<T> supplier,
 			@Nullable BeanDefinitionCustomizer[] customizers) {
 
+		// 根据beanClass初始化一个AnnotatedGenericBeanDefinition
 		AnnotatedGenericBeanDefinition abd = new AnnotatedGenericBeanDefinition(beanClass);
+		// 根据AnnotatedGenericBeanDefinition的annotationMetadata上面是否标注有@Conditional注解来判断该beanDefinition是否需要被跳过
 		if (this.conditionEvaluator.shouldSkip(abd.getMetadata())) {
 			return;
 		}

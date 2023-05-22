@@ -101,10 +101,13 @@ final class TypeMappedAnnotations implements MergedAnnotations {
 
 	@Override
 	public boolean isPresent(String annotationType) {
+		// 先使用annotationFilter进行过滤，如果满足条件，直接返回false，表示不存在
 		if (this.annotationFilter.matches(annotationType)) {
 			return false;
 		}
+		// 调用scan方法，比较返回的是否为true
 		return Boolean.TRUE.equals(scan(annotationType,
+				// 获取一个实现了AnnotationProcessor接口的IsPresent
 				IsPresent.get(this.repeatableContainers, this.annotationFilter, false)));
 	}
 
@@ -234,10 +237,13 @@ final class TypeMappedAnnotations implements MergedAnnotations {
 
 	@Nullable
 	private <C, R> R scan(C criteria, AnnotationsProcessor<C, R> processor) {
+		// 如果this.annotations不为null
+		// 调用processor的doWithAnnotations方法，得到返回结果，再调用processor的finish方法处理返回结果并返回
 		if (this.annotations != null) {
 			R result = processor.doWithAnnotations(criteria, 0, this.source, this.annotations);
 			return processor.finish(result);
 		}
+		// 如果element和searchStrategy不为null，调用AnnotationsScanner的scan方法进行查找
 		if (this.element != null && this.searchStrategy != null) {
 			return AnnotationsScanner.scan(criteria, this.element, this.searchStrategy, processor);
 		}
@@ -248,9 +254,11 @@ final class TypeMappedAnnotations implements MergedAnnotations {
 	static MergedAnnotations from(AnnotatedElement element, SearchStrategy searchStrategy,
 			RepeatableContainers repeatableContainers, AnnotationFilter annotationFilter) {
 
+		// 调用AnnotationScanner的isKnownEmpty查看element上的注解是否为空的
 		if (AnnotationsScanner.isKnownEmpty(element, searchStrategy)) {
 			return NONE;
 		}
+		// 否则的话，初始化一个TypeMappedAnnotations返回
 		return new TypeMappedAnnotations(element, searchStrategy, repeatableContainers, annotationFilter);
 	}
 

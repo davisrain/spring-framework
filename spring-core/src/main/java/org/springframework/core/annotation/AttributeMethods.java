@@ -65,21 +65,31 @@ final class AttributeMethods {
 	private AttributeMethods(@Nullable Class<? extends Annotation> annotationType, Method[] attributeMethods) {
 		this.annotationType = annotationType;
 		this.attributeMethods = attributeMethods;
+		// 根据attributeMethods的数量初始化一个boolean类型的数组
 		this.canThrowTypeNotPresentException = new boolean[attributeMethods.length];
 		boolean foundDefaultValueMethod = false;
 		boolean foundNestedAnnotation = false;
+		// 遍历属性方法数组
 		for (int i = 0; i < attributeMethods.length; i++) {
 			Method method = this.attributeMethods[i];
+			// 获取到方法的返回类型
 			Class<?> type = method.getReturnType();
+			// 如果方法存在默认值
 			if (method.getDefaultValue() != null) {
+				// 将foundDefaultValueMethod标志置为true
 				foundDefaultValueMethod = true;
 			}
+			// 如果返回值类型是注解或是注解数组
 			if (type.isAnnotation() || (type.isArray() && type.getComponentType().isAnnotation())) {
+				// 将foundNestedAnnotation标志置为true
 				foundNestedAnnotation = true;
 			}
+			// 将方法accessible设为true
 			ReflectionUtils.makeAccessible(method);
+			// 如果返回值类型为Class.class 或者 Class[].class 或者 枚举类型，将canThrowTypeNotPresentException数组对应下标的值设为true
 			this.canThrowTypeNotPresentException[i] = (type == Class.class || type == Class[].class || type.isEnum());
 		}
+		// 将上述两个标志置赋值给自身属性
 		this.hasDefaultValueMethod = foundDefaultValueMethod;
 		this.hasNestedAnnotation = foundNestedAnnotation;
 	}
@@ -104,17 +114,23 @@ final class AttributeMethods {
 	 * @see #validate(Annotation)
 	 */
 	boolean isValid(Annotation annotation) {
+		// 判断annotation是annotationType的实例
 		assertAnnotation(annotation);
+		// 然后根据注解类持有的属性方法的个数循环
 		for (int i = 0; i < size(); i++) {
+			// 如果对应下标的canThrowTypeNotPresentException数组的值为true
 			if (canThrowTypeNotPresentException(i)) {
 				try {
+					// 获取对应属性方法进行调用
 					get(i).invoke(annotation);
 				}
+				// 如果抛出了异常，说明是非法的
 				catch (Throwable ex) {
 					return false;
 				}
 			}
 		}
+		// 否则，返回true
 		return true;
 	}
 
@@ -246,30 +262,40 @@ final class AttributeMethods {
 	 * @return the attribute methods for the annotation type
 	 */
 	static AttributeMethods forAnnotationType(@Nullable Class<? extends Annotation> annotationType) {
+		// 如果annotationType为null的话，直接返回常量NONE
 		if (annotationType == null) {
 			return NONE;
 		}
+		// 否则从缓存中查询，如果不存在的话，执行compute方法计算出结果存入缓存之后返回
 		return cache.computeIfAbsent(annotationType, AttributeMethods::compute);
 	}
 
 	private static AttributeMethods compute(Class<? extends Annotation> annotationType) {
+		// 获取注解类中声明的方法
 		Method[] methods = annotationType.getDeclaredMethods();
 		int size = methods.length;
+		// 遍历方法
 		for (int i = 0; i < methods.length; i++) {
+			// 如果不是属性方法的话，将其数组下标对应的元素置为null，并且将size-1
 			if (!isAttributeMethod(methods[i])) {
 				methods[i] = null;
 				size--;
 			}
 		}
+		// 如果size最终为0了，返回常量NONE
 		if (size == 0) {
 			return NONE;
 		}
+		// 将方法根据名称排序，如果数组中元素为null的话，排到后面
 		Arrays.sort(methods, methodComparator);
+		// 然后将数组按size大小复制过来
 		Method[] attributeMethods = Arrays.copyOf(methods, size);
+		// 根据annotationType和attributeMethods封装一个AttributeMethods对象返回
 		return new AttributeMethods(annotationType, attributeMethods);
 	}
 
 	private static boolean isAttributeMethod(Method method) {
+		// 方法参数为0且返回返回值不为void的才是属性方法
 		return (method.getParameterCount() == 0 && method.getReturnType() != void.class);
 	}
 
