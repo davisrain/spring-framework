@@ -85,8 +85,10 @@ final class AnnotationTypeMapping {
 	AnnotationTypeMapping(@Nullable AnnotationTypeMapping source,
 			Class<? extends Annotation> annotationType, @Nullable Annotation annotation) {
 
+		// source是标注了该注解的注解，比如@Service就在声明中标注了@Component，因此@Service是@Component的source
 		this.source = source;
-		// 如果source不为null，设置为source的root，如果为null，设置为自己
+		// 如果source不为null，设置为source的root，如果为null，设置为自己。
+		// 比如，@Component的source是@Service @Service由于没有source，所以root是自身，那么@Component的root也就是@Service
 		this.root = (source != null ? source.getRoot() : this);
 		// 如果source不为null，将source的distance+1，如果为null，设置为0
 		this.distance = (source == null ? 0 : source.getDistance() + 1);
@@ -106,11 +108,15 @@ final class AnnotationTypeMapping {
 		this.annotationValueMappings = filledIntArray(this.attributes.size());
 		// 根据attribute的size创建一个AnnotationTypeMapping的数组
 		this.annotationValueSource = new AnnotationTypeMapping[this.attributes.size()];
-		// 解析alias
+		// 解析标注了@AliasFor的属性方法，构造一个map将@AliasFor中指向的Method作为key，将标注了@AliasFor的属性方法集合作为value
 		this.aliasedBy = resolveAliasedForTargets();
 		// 处理aliases
 		processAliases();
+		// 为根注解和元注解同名的属性强制设置别名，根注解就是root指向的注解，元注解就是最底层的注解
+		// 比如@Service中 @Service就是根注解，@Component就是元注解。还可以称@Service为子注解 @Component是父注解
 		addConventionMappings();
+		// 为非根注解的子注解和元注解同名的属性强制设置别名，比如有三层结构，比如@RestController上标注了@Controller，@Controller上又标注了@Component。
+		// 那么@Controller是非根注解的子注解，@Component是元注解
 		addConventionAnnotationValues();
 		this.synthesizable = computeSynthesizableFlag();
 	}
@@ -237,14 +243,20 @@ final class AnnotationTypeMapping {
 		List<Method> aliases = new ArrayList<>();
 		// 遍历注解的属性方法
 		for (int i = 0; i < this.attributes.size(); i++) {
+			// 避免重复创建集合
 			aliases.clear();
 			// 将下标i对应的属性方法加入到list中
 			aliases.add(this.attributes.get(i));
-			// 收集Aliases
+			// 1.收集别名
+			// 该方法可以收集到 source链 上所有以 下标i对应的属性方法 为别名的 其他属性方法(标注了@AliasFor("attribute.getName()")的方法)。
+			// 比如：attribute如果对应的是@Component的value方法，
+			// @Component有source @Service的话，因为@Service的value方法上标注了@AliasFor(value = "value", annotation = "Component.class")，
+			// 那么@Service的AnnotationTypeMapping的aliasedBy中有(value(Component:Method), [value(Service:Method)])，
+			// 所以@Service的value方法也会被收集到aliases集合中去。那么aliases中的结构是[value(Component:Method), value(Service:Method)]
 			collectAliases(aliases);
 			// 如果aliases的size大于1的话，说明根据属性方法取到了对应的别名方法
 			if (aliases.size() > 1) {
-				// 调用processAliases重载方法进行处理
+				// 2.处理别名
 				processAliases(i, aliases);
 			}
 		}
@@ -258,7 +270,7 @@ final class AnnotationTypeMapping {
 			int size = aliases.size();
 			// 遍历aliases
 			for (int j = 0; j < size; j++) {
-				// 尝试从aliasedBy中取到下标为j对应的属性方法的别名方法
+				// 尝试从mapping的aliasedBy属性中取到下标为j对应的属性方法的别名方法
 				List<Method> additional = mapping.aliasedBy.get(aliases.get(j));
 				// 如果取到的方法集合不为null的话
 				if (additional != null) {
@@ -272,13 +284,16 @@ final class AnnotationTypeMapping {
 	}
 
 	private void processAliases(int attributeIndex, List<Method> aliases) {
-		// 获取aliases中包含的第一个root的属性方法的下标
+		// 确认别名链上，是否有别名来自于root
 		int rootAttributeIndex = getFirstRootAttributeIndex(aliases);
 		// 将this赋值给mapping
 		AnnotationTypeMapping mapping = this;
-		// 如果mapping不为null
+		// 从当前注解向root递归
 		while (mapping != null) {
-			// rootAttributeIndex不为-1且root不等于自身
+			// 若有当前正在处理的注解中：
+			// 1.有别名字段来自于root；
+			// 2.别名链中有一个别名来自于该注解；
+			// 则在当前处理的注解的aliasMappings上，记录这个来自于root的别名属性，表示它存在一个来自root的别名
 			if (rootAttributeIndex != -1 && mapping != this.root) {
 				// 遍历循环mapping的属性方法
 				for (int i = 0; i < mapping.attributes.size(); i++) {
@@ -289,19 +304,23 @@ final class AnnotationTypeMapping {
 					}
 				}
 			}
-			// 更新mapping持有的mirrorSets
+			// 更新mapping持有的mirrorSets，用于记录这个mapping中有多少对属性相关联
 			mapping.mirrorSets.updateFrom(aliases);
 			// 将aliases添加进claimedAliases集合中
 			mapping.claimedAliases.addAll(aliases);
 			// 如果mapping的annotation不为null的话
 			if (mapping.annotation != null) {
-				// 调用mirrorSets的resolve方法
+				// 调用mirrorSets的resolve方法，返回一个int数组，表示了mapping中的各个属性的取值索引
 				int[] resolvedMirrors = mapping.mirrorSets.resolve(null,
 						mapping.annotation, ReflectionUtils::invokeMethod);
-				// 遍历mapping的属性方法
+				// 遍历当前mapping的属性方法
 				for (int i = 0; i < mapping.attributes.size(); i++) {
-					// 如果aliases中包含了对应的属性方法
+					// 如果别名链集合中存在当前mapping的属性方法的话
 					if (aliases.contains(mapping.attributes.get(i))) {
+						// 设置this对象的attributeIndex对应的属性的取值下标为resolvedMirrors[i]，该属性要和annotationValueSource配合使用
+						// 设置this对象的attributeIndex对应的属性的取值mapping为当前mapping。
+						// 因此this对象attributeIndex下标的属性取值方式就是从mapping对象的resolvedMirrors[i]位置的属性去取值。
+						// 所以在同一组别名链中，越靠近root的属性值优先级越高，会覆盖远离root的属性值。
 						this.annotationValueMappings[attributeIndex] = resolvedMirrors[i];
 						this.annotationValueSource[attributeIndex] = mapping;
 					}
@@ -327,6 +346,7 @@ final class AnnotationTypeMapping {
 	}
 
 	private void addConventionMappings() {
+		// 如果distance为0，表示自身就是根注解，那么直接返回
 		if (this.distance == 0) {
 			return;
 		}
@@ -687,10 +707,12 @@ final class AnnotationTypeMapping {
 			// 遍历属性方法
 			for (int i = 0; i < attributes.size(); i++) {
 				Method attribute = attributes.get(i);
-				// 如果aliases中包含对应的属性方法
+				// 如果aliases中包含对应的属性方法，表示该注解存在属性位于别名链中
 				if (aliases.contains(attribute)) {
+					// 将size+1
 					size++;
-					// 当size > 1时
+					// 当size > 1时，表示该注解存在大于1个的属性处于别名链中，因此需要多个属性方法关联起来。
+					// 即创建一个MirrorSet，将assigned数组中 属性对应下标的元素都设置为这个MirrorSet
 					if (size > 1) {
 						// 如果mirrorSet为null，创建一个，并将assigned[last]赋值为mirrorSet
 						if (mirrorSet == null) {
@@ -706,6 +728,7 @@ final class AnnotationTypeMapping {
 			// 如果mirrorSet不为null
 			if (mirrorSet != null) {
 				// 调用mirrorSet的update方法
+				// 用mirrorSet中的size记录有多少个相关联的属性，并且用indexes数组记录每个属性对应的下标
 				mirrorSet.update();
 				// 将assigned转换为set，并且去掉null元素
 				Set<MirrorSet> unique = new LinkedHashSet<>(Arrays.asList(this.assigned));
@@ -738,10 +761,11 @@ final class AnnotationTypeMapping {
 			// 遍历mirrorSets数组
 			for (int i = 0; i < size(); i++) {
 				MirrorSet mirrorSet = get(i);
-				// 调用mirrorSet的resolve方法
+				// 调用mirrorSet的resolve方法，该方法将返回一个属性方法下标resolved，
+				// 表示MirrorSet所关联的所有属性的值都从由该resolved指向的属性来获取
 				int resolved = mirrorSet.resolve(source, annotation, valueExtractor);
-				// 循环mirrorSet的indexes，并且将result数组中index下标的值设置为resolved，
-				// 表示index下标的方法的值来自resolved下标方法的返回值
+				// 因此循环mirrorSet的indexes，每个index表示这个mirrorSet所关联的属性在attributes中的下标位置，
+				// 将result数组中的index下标的值设置为上一步得到的resolved，也就表示这些属性的取值都取决于resolved指向的那个属性
 				for (int j = 0; j < mirrorSet.size; j++) {
 					result[mirrorSet.indexes[j]] = resolved;
 				}
