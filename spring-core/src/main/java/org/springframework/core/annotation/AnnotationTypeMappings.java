@@ -72,10 +72,14 @@ final class AnnotationTypeMappings {
 
 	private void addAllMappings(Class<? extends Annotation> annotationType) {
 		Deque<AnnotationTypeMapping> queue = new ArrayDeque<>();
+		// 初始化一个AnnotationTypeMapping添加进队尾
 		addIfPossible(queue, null, annotationType, null);
+		// 如果队列不为空，循环
 		while (!queue.isEmpty()) {
+			// 从队首取出一个mapping，添加进mappings中
 			AnnotationTypeMapping mapping = queue.removeFirst();
 			this.mappings.add(mapping);
+			// 将mapping的元注解添加进队列中
 			addMetaAnnotationsToQueue(queue, mapping);
 		}
 	}
@@ -109,6 +113,7 @@ final class AnnotationTypeMappings {
 			Class<? extends Annotation> annotationType, @Nullable Annotation ann) {
 
 		try {
+			// 初始化一个AnnotationTypeMapping添加进队尾
 			queue.addLast(new AnnotationTypeMapping(source, annotationType, ann));
 		}
 		catch (Exception ex) {
@@ -194,14 +199,21 @@ final class AnnotationTypeMappings {
 	static AnnotationTypeMappings forAnnotationType(Class<? extends Annotation> annotationType,
 			RepeatableContainers repeatableContainers, AnnotationFilter annotationFilter) {
 
+		// 如果传入的repeatableContainers参数是StandardRepeatableContainers，从standardRepeatablesCache缓存中取。
+		// 如果缓存未命中，以annotationFilter为key，创建一个cache放入缓存中。然后尝试从cache的mappings字段中根据annotationType获取
+		// AnnotationTypeMappings，如果mappings字段中不存在key为annotationType的缓存，那么初始化一个AnnotationTypeMappings类型放入缓存并返回
 		if (repeatableContainers == RepeatableContainers.standardRepeatables()) {
 			return standardRepeatablesCache.computeIfAbsent(annotationFilter,
 					key -> new Cache(repeatableContainers, key)).get(annotationType);
 		}
+		// 如果传入的repeatableContainers参数是NoRepeatableContainers，从noRepeatablesCache缓存中取。
+		// 如果缓存未命中，创建一个cache放入缓存中，以annotationFilter为key。然后尝试从cache的mappings字段中根据annotationType获取
+		// AnnotationTypeMappings，如果mappings字段中不存在key为annotationType的缓存，那么初始化一个AnnotationTypeMappings类型放入缓存并返回
 		if (repeatableContainers == RepeatableContainers.none()) {
 			return noRepeatablesCache.computeIfAbsent(annotationFilter,
 					key -> new Cache(repeatableContainers, key)).get(annotationType);
 		}
+		// 否则的话，直接根据repeatableContainers annotationFilter annotationType初始化一个AnnotationTypeMappings返回
 		return new AnnotationTypeMappings(repeatableContainers, annotationFilter, annotationType);
 	}
 

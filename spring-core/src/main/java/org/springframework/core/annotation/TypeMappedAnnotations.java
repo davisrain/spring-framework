@@ -318,15 +318,24 @@ final class TypeMappedAnnotations implements MergedAnnotations {
 		public Boolean doWithAnnotations(Object requiredType, int aggregateIndex,
 				@Nullable Object source, Annotation[] annotations) {
 
+			// 遍历注解数组
 			for (Annotation annotation : annotations) {
+				// 如果遍历到的注解不为null的话
 				if (annotation != null) {
+					// 获取注解的类型type
 					Class<? extends Annotation> type = annotation.annotationType();
+					// 如果type不为null，且不满足过滤器的条件，不会被过滤
 					if (type != null && !this.annotationFilter.matches(type)) {
+						// 判断type是否和requireType相等 或者 type的名称是否等于requireType，如果是的话，直接返回true
+						// 表示requireType所表示的注解存在于source上
 						if (type == requiredType || type.getName().equals(requiredType)) {
 							return Boolean.TRUE;
 						}
+						// 如果annotation是repeatedAnnotations的一个容器注解，尝试拿到其持有的repeatedAnnotations注解数组；
+						// 如果不是，返回null
 						Annotation[] repeatedAnnotations =
 								this.repeatableContainers.findRepeatedAnnotations(annotation);
+						// 如果repeatedAnnotations不为null，将获取到的注解数组递归调用doWithAnnotations方法
 						if (repeatedAnnotations != null) {
 							Boolean result = doWithAnnotations(
 									requiredType, aggregateIndex, source, repeatedAnnotations);
@@ -334,7 +343,9 @@ final class TypeMappedAnnotations implements MergedAnnotations {
 								return result;
 							}
 						}
+						// 如果directOnly为false的话
 						if (!this.directOnly) {
+							//
 							AnnotationTypeMappings mappings = AnnotationTypeMappings.forAnnotationType(type);
 							for (int i = 0; i < mappings.size(); i++) {
 								AnnotationTypeMapping mapping = mappings.get(i);

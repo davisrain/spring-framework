@@ -461,12 +461,17 @@ abstract class AnnotationsScanner {
 	@SuppressWarnings("unchecked")
 	@Nullable
 	static <A extends Annotation> A getDeclaredAnnotation(AnnotatedElement source, Class<A> annotationType) {
+		// 获取source上声明的所有符合条件的注解组成的数组，
+		// 不符合条件的逻辑是：注解类以java.lang org.springframework.lang开头 或者 注解的属性方法调用会抛出TypeNotPresentException
 		Annotation[] annotations = getDeclaredAnnotations(source, false);
+		// 遍历注解数组
 		for (Annotation annotation : annotations) {
+			// 如果注解不为null且类型和传入的annotationType相等，直接返回
 			if (annotation != null && annotationType == annotation.annotationType()) {
 				return (A) annotation;
 			}
 		}
+		// 否则返回null
 		return null;
 	}
 
