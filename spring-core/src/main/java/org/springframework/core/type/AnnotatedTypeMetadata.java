@@ -98,8 +98,10 @@ public interface AnnotatedTypeMetadata {
 	default Map<String, Object> getAnnotationAttributes(String annotationName,
 			boolean classValuesAsString) {
 
+		// 获取MergedAnnotations，调用其get方法根据annotationName获取MergedAnnotation
 		MergedAnnotation<Annotation> annotation = getAnnotations().get(annotationName,
 				null, MergedAnnotationSelectors.firstDirectlyDeclared());
+		// 如果annotation是不存在的，返回null
 		if (!annotation.isPresent()) {
 			return null;
 		}

@@ -590,14 +590,19 @@ final class AnnotationTypeMapping {
 	 */
 	@Nullable
 	Object getMappedAnnotationValue(int attributeIndex, boolean metaAnnotationsOnly) {
+		// 根据attributeIndex获取属性方法的映射索引mappedIndex
 		int mappedIndex = this.annotationValueMappings[attributeIndex];
+		// 如果mappedIndex为-1，说明该下标的属性方法没有非根注解的元注解的属性方法映射，直接返回null
 		if (mappedIndex == -1) {
 			return null;
 		}
+		// 否则的话，根据attributeIndex获取对应的元注解映射mapping
 		AnnotationTypeMapping source = this.annotationValueSource[attributeIndex];
+		// 如果source等于自身的话，并且要求必须从元注解中取值，那么直接返回null
 		if (source == this && metaAnnotationsOnly) {
 			return null;
 		}
+		// 根据元注解的实例 和 元注解对应的属性方法进行反射调用，或者值返回
 		return ReflectionUtils.invokeMethod(source.attributes.get(mappedIndex), source.annotation);
 	}
 
@@ -826,7 +831,7 @@ final class AnnotationTypeMapping {
 				for (int i = 0; i < this.size; i++) {
 					// 获取到对应下标的属性方法
 					Method attribute = attributes.get(this.indexes[i]);
-					// 调用注解的属性方法获取value
+					// 调用注解的属性方法获取value(也可能不是反射调用，比如TypeMappedAnnotation的构造方法中的TypeMappedAnnotation::getValueForMirrorResolution)
 					Object value = valueExtractor.extract(attribute, annotation);
 					// 如果value为null或者value的值和默认值相等
 					boolean isDefaultValue = (value == null ||

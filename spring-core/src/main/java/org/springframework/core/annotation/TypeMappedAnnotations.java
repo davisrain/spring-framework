@@ -171,11 +171,14 @@ final class TypeMappedAnnotations implements MergedAnnotations {
 			@Nullable Predicate<? super MergedAnnotation<A>> predicate,
 			@Nullable MergedAnnotationSelector<A> selector) {
 
+		// 如果注解类型会被filter过滤掉，直接返回一个MissingMergedAnnotation，表示注解不存在
 		if (this.annotationFilter.matches(annotationType)) {
 			return MergedAnnotation.missing();
 		}
+		// 调用scan方法，其中AnnotationProcessor传入实现类MergedAnnotationFinder，对MergedAnnotation进行查找
 		MergedAnnotation<A> result = scan(annotationType,
 				new MergedAnnotationFinder<>(annotationType, predicate, selector));
+		// 如果查找的结果不为null，直接返回，否则返回MissingMergedAnnotation
 		return (result != null ? result : MergedAnnotation.missing());
 	}
 
@@ -404,6 +407,7 @@ final class TypeMappedAnnotations implements MergedAnnotations {
 
 			this.requiredType = requiredType;
 			this.predicate = predicate;
+			// 如果selector为null的话，默认取nearest选择器，选择逻辑是更靠近根注解，优先级越高
 			this.selector = (selector != null ? selector : MergedAnnotationSelectors.nearest());
 		}
 
@@ -418,14 +422,18 @@ final class TypeMappedAnnotations implements MergedAnnotations {
 		public MergedAnnotation<A> doWithAnnotations(Object type, int aggregateIndex,
 				@Nullable Object source, Annotation[] annotations) {
 
+			// 遍历传入的注解数组
 			for (Annotation annotation : annotations) {
+				// 如果注解不为null且不会被filter过滤掉
 				if (annotation != null && !annotationFilter.matches(annotation)) {
+					// 调用process方法返回result，如果result不为null的话，直接返回
 					MergedAnnotation<A> result = process(type, aggregateIndex, source, annotation);
 					if (result != null) {
 						return result;
 					}
 				}
 			}
+			// 否则返回null
 			return null;
 		}
 
@@ -433,21 +441,29 @@ final class TypeMappedAnnotations implements MergedAnnotations {
 		private MergedAnnotation<A> process(
 				Object type, int aggregateIndex, @Nullable Object source, Annotation annotation) {
 
+			// 尝试注解是否是重复容器注解，如果是的话，递归调用doWithAnnotations方法进行解析
 			Annotation[] repeatedAnnotations = repeatableContainers.findRepeatedAnnotations(annotation);
 			if (repeatedAnnotations != null) {
 				return doWithAnnotations(type, aggregateIndex, source, repeatedAnnotations);
 			}
+			// 如果不是重复容器注解，将注解映射为AnnotationTypeMappings
 			AnnotationTypeMappings mappings = AnnotationTypeMappings.forAnnotationType(
 					annotation.annotationType(), repeatableContainers, annotationFilter);
+			// 然后遍历mappings中持有的AnnotationTypeMapping
 			for (int i = 0; i < mappings.size(); i++) {
 				AnnotationTypeMapping mapping = mappings.get(i);
+				// 判断mapping中持有注解类型 和 要求的注解类型是否一致
 				if (isMappingForType(mapping, annotationFilter, this.requiredType)) {
+					// 如果一致的话，尝试根据mapping, source, rootAnnotation创建一个MergedAnnotation
 					MergedAnnotation<A> candidate = TypeMappedAnnotation.createIfPossible(
 							mapping, source, annotation, aggregateIndex, IntrospectionFailureLogger.INFO);
+					// 如果candidate不为null 并且 predicate为null或者判断通过
 					if (candidate != null && (this.predicate == null || this.predicate.test(candidate))) {
+						// 使用选择器来判断该候选对象是否是最佳的，如果是，直接返回
 						if (this.selector.isBestCandidate(candidate)) {
 							return candidate;
 						}
+						// 如果不是的话，将候选对象和当前的result进行比较，选出一个更好的放入result中，等待下一次比较
 						updateLastResult(candidate);
 					}
 				}
@@ -457,12 +473,14 @@ final class TypeMappedAnnotations implements MergedAnnotations {
 
 		private void updateLastResult(MergedAnnotation<A> candidate) {
 			MergedAnnotation<A> lastResult = this.result;
+			// 如果上一次的result不为null的话，使用选择器在二者之间选择；否则，直接将候选对象赋值给result
 			this.result = (lastResult != null ? this.selector.select(lastResult, candidate) : candidate);
 		}
 
 		@Override
 		@Nullable
 		public MergedAnnotation<A> finish(@Nullable MergedAnnotation<A> result) {
+			// 如果传入的result为null的话，返回自身持有的result；如果不为null，返回传入的result
 			return (result != null ? result : this.result);
 		}
 	}

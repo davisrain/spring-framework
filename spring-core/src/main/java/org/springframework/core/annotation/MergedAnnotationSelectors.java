@@ -90,6 +90,7 @@ public abstract class MergedAnnotationSelectors {
 
 		@Override
 		public boolean isBestCandidate(MergedAnnotation<Annotation> annotation) {
+			// 判断该注解对象是否是根注解(直接声明在AnnotatedElement类型上的)
 			return annotation.getDistance() == 0;
 		}
 
@@ -97,9 +98,11 @@ public abstract class MergedAnnotationSelectors {
 		public MergedAnnotation<Annotation> select(
 				MergedAnnotation<Annotation> existing, MergedAnnotation<Annotation> candidate) {
 
+			// 如果存在的注解对应不是根注解，而候选对象是根注解，那么选择候选对象
 			if (existing.getDistance() > 0 && candidate.getDistance() == 0) {
 				return candidate;
 			}
+			// 否则的话选择存在的对象
 			return existing;
 		}
 
