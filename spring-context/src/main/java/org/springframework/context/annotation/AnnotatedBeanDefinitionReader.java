@@ -259,7 +259,9 @@ public class AnnotatedBeanDefinitionReader {
 			return;
 		}
 
+		// 设置instanceSupplier进BeanDefinition
 		abd.setInstanceSupplier(supplier);
+		// 使用scopeMetadataResolver对BeanDefinition的scope进行解析
 		ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(abd);
 		abd.setScope(scopeMetadata.getScopeName());
 		String beanName = (name != null ? name : this.beanNameGenerator.generateBeanName(abd, this.registry));

@@ -145,9 +145,15 @@ public abstract class RepeatableContainers {
 
 		@Override
 		@Nullable
+		// 因为多个标注了@Repeatable注解的注解声明在同一个位置时，java会将其映射为一个容器注解
+		// 即@Repeatable注解的value属性所指向的那个注解类型。
+		// 比如：@ComponentScan注解上标注了@Repeatable(ComponentScans.class)。当一个类上标注了多个@ComponentScan注解，查找该类声明的注解时，
+		// 返回的是@ComponentScans注解，调用其value方法会返回原本标注在类上的多个@ComponentScan注解的实例
 		Annotation[] findRepeatedAnnotations(Annotation annotation) {
+			// 找到注解中获取重复注解的方法
 			Method method = getRepeatedAnnotationsMethod(annotation.annotationType());
 			if (method != null) {
+				// 如果方法不为null，调用被返回结果
 				return (Annotation[]) ReflectionUtils.invokeMethod(method, annotation);
 			}
 			return super.findRepeatedAnnotations(annotation);
@@ -155,18 +161,25 @@ public abstract class RepeatableContainers {
 
 		@Nullable
 		private static Method getRepeatedAnnotationsMethod(Class<? extends Annotation> annotationType) {
+			// 尝试从缓存中查找，如果未命中，调用方法计算之后放入缓存
 			Object result = cache.computeIfAbsent(annotationType,
 					StandardRepeatableContainers::computeRepeatedAnnotationsMethod);
+			// 如果结果不等于常量NONE，返回结果，否则返回null
 			return (result != NONE ? (Method) result : null);
 		}
 
 		private static Object computeRepeatedAnnotationsMethod(Class<? extends Annotation> annotationType) {
+			// 拿到注解类型的属性方法聚合对象
 			AttributeMethods methods = AttributeMethods.forAnnotationType(annotationType);
+			// 如果属性方法只有一个且名称为value的话，执行下面逻辑，否则直接返回NONE
 			if (methods.hasOnlyValueAttribute()) {
 				Method method = methods.get(0);
 				Class<?> returnType = method.getReturnType();
+				// 判断方法的返回值是否是数组，只有是数组才满足条件
 				if (returnType.isArray()) {
+					// 获取数组的元素类型
 					Class<?> componentType = returnType.getComponentType();
+					// 元素类型是注解类型且该类型上标注了@Repeatable注解，返回method
 					if (Annotation.class.isAssignableFrom(componentType) &&
 							componentType.isAnnotationPresent(Repeatable.class)) {
 						return method;

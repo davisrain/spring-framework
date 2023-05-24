@@ -79,26 +79,39 @@ final class AnnotationTypeMappings {
 			// 从队首取出一个mapping，添加进mappings中
 			AnnotationTypeMapping mapping = queue.removeFirst();
 			this.mappings.add(mapping);
-			// 将mapping的元注解添加进队列中
+			// 将mapping的元注解(标注在mapping指向的注解上的注解)添加进队列中
 			addMetaAnnotationsToQueue(queue, mapping);
 		}
 	}
 
 	private void addMetaAnnotationsToQueue(Deque<AnnotationTypeMapping> queue, AnnotationTypeMapping source) {
+		// 查找到标注在source的注解类型上的所有符合条件的注解
 		Annotation[] metaAnnotations = AnnotationsScanner.getDeclaredAnnotations(source.getAnnotationType(), false);
+		// 遍历注解数组
 		for (Annotation metaAnnotation : metaAnnotations) {
+			// 如果不符合map条件的话，执行下一次循环
 			if (!isMappable(source, metaAnnotation)) {
 				continue;
 			}
+			// 调用repeatableContainers查找元注解是否是重复注解的容器注解，
+			// 因为多个标注了@Repeatable注解的注解声明在同一个位置时，java会将其映射为一个容器注解
+			// 即@Repeatable注解的value属性所指向的那个注解类型。
+			// 比如：@ComponentScan注解上标注了@Repeatable(ComponentScans.class)。当一个类上标注了多个@ComponentScan注解，查找该类声明的注解时，
+			// 返回的是@ComponentScans注解，调用其value方法会返回原本标注在类上的多个@ComponentScan注解的实例
 			Annotation[] repeatedAnnotations = this.repeatableContainers.findRepeatedAnnotations(metaAnnotation);
+			// 如果数组不为null
 			if (repeatedAnnotations != null) {
+				// 遍历重复注解数组
 				for (Annotation repeatedAnnotation : repeatedAnnotations) {
+					// 判断是否符合map条件
 					if (!isMappable(source, repeatedAnnotation)) {
 						continue;
 					}
+					// 将注解映射为AnnotationTypeMapping添加进队尾
 					addIfPossible(queue, source, repeatedAnnotation);
 				}
 			}
+			// 如果该注解不是重复注解的容器注解，直接尝试将其映射为AnnotationTypeMapping类型添加进队尾，并且会传入source对象
 			else {
 				addIfPossible(queue, source, metaAnnotation);
 			}
@@ -126,6 +139,9 @@ final class AnnotationTypeMappings {
 	}
 
 	private boolean isMappable(AnnotationTypeMapping source, @Nullable Annotation metaAnnotation) {
+		// 判断source和metaAnnotation是否是可以匹配的
+		// 判断逻辑是：metaAnnotation不为null 并且 不会被自身持有的filter过滤 并且source的注解类型不是java.lang org.springframework.lang开头的
+		// 并且不是早已经匹配过的
 		return (metaAnnotation != null && !this.filter.matches(metaAnnotation) &&
 				!AnnotationFilter.PLAIN.matches(source.getAnnotationType()) &&
 				!isAlreadyMapped(source, metaAnnotation));
@@ -134,12 +150,15 @@ final class AnnotationTypeMappings {
 	private boolean isAlreadyMapped(AnnotationTypeMapping source, Annotation metaAnnotation) {
 		Class<? extends Annotation> annotationType = metaAnnotation.annotationType();
 		AnnotationTypeMapping mapping = source;
+		// 从source一直循环到root
 		while (mapping != null) {
+			// 如果存在当前mapping的注解类型和元注解类型相同，说明已经匹配过，返回true
 			if (mapping.getAnnotationType() == annotationType) {
 				return true;
 			}
 			mapping = mapping.getSource();
 		}
+		// 否则返回false
 		return false;
 	}
 

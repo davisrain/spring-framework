@@ -299,6 +299,7 @@ public abstract class AnnotationConfigUtils {
 
 	@Nullable
 	static AnnotationAttributes attributesFor(AnnotatedTypeMetadata metadata, String annotationClassName) {
+		// 将调用AnnotatedTypeMetadata的getAnnotationAttributes方法返回的map封装成AnnotationAttributes对象返回
 		return AnnotationAttributes.fromMap(metadata.getAnnotationAttributes(annotationClassName, false));
 	}
 

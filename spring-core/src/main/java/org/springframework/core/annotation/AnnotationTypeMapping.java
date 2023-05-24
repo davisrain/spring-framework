@@ -350,14 +350,22 @@ final class AnnotationTypeMapping {
 		if (this.distance == 0) {
 			return;
 		}
+		// 拿到root注解的属性方法聚合对象
 		AttributeMethods rootAttributes = this.root.getAttributes();
 		int[] mappings = this.conventionMappings;
+		// 遍历conventionMappings数组
 		for (int i = 0; i < mappings.length; i++) {
+			// 获取自身下标i位置的属性方法的名称
 			String name = this.attributes.get(i).getName();
+			// 获取下标i位置的MirrorSet，如果不为null的话，说明下标i和自身的其他属性方法构成了别名
 			MirrorSet mirrors = getMirrorSets().getAssigned(i);
+			// 查找root注解的属性方法中名称等于name的下标，如果不存在，返回-1
 			int mapped = rootAttributes.indexOf(name);
+			// 如果name不是等于value字符串 并且 root注解中存在相同名称的属性方法
 			if (!MergedAnnotation.VALUE.equals(name) && mapped != -1) {
+				// 将conventionMappings下标i的元素更新为root注解同名属性方法的下标mapped
 				mappings[i] = mapped;
+				// 如果MirrorSet不为null，将MirrorSet所关联的属性方法的下标位置在conventionMappings中的元素也映射为mapped
 				if (mirrors != null) {
 					for (int j = 0; j < mirrors.size(); j++) {
 						mappings[mirrors.getAttributeIndex(j)] = mapped;
@@ -368,16 +376,23 @@ final class AnnotationTypeMapping {
 	}
 
 	private void addConventionAnnotationValues() {
+		// 遍历元注解的属性方法集合对象
 		for (int i = 0; i < this.attributes.size(); i++) {
 			Method attribute = this.attributes.get(i);
+			// 判断属性方法名称是否等于value字符串
 			boolean isValueAttribute = MergedAnnotation.VALUE.equals(attribute.getName());
 			AnnotationTypeMapping mapping = this;
+			// 从元注解开始遍历，当遍历到根注解的时候跳出循环
 			while (mapping != null && mapping.distance > 0) {
+				// 查找当前mapping的属性方法中和元注解的attribute属性方法同名的下标，如果不存在，返回-1
 				int mapped = mapping.getAttributes().indexOf(attribute.getName());
+				// 如果存在同名方法 且 判断出当前mapping的优先级更高
 				if (mapped != -1 && isBetterConventionAnnotationValue(i, isValueAttribute, mapping)) {
+					// 将annotationValueMappings和annotationValueSource中的内容更新掉
 					this.annotationValueMappings[i] = mapped;
 					this.annotationValueSource[i] = mapping;
 				}
+				// 将mapping替换为mapping.source
 				mapping = mapping.source;
 			}
 		}
@@ -386,10 +401,14 @@ final class AnnotationTypeMapping {
 	private boolean isBetterConventionAnnotationValue(int index, boolean isValueAttribute,
 			AnnotationTypeMapping mapping) {
 
+		// 如果annotationValueMappings数组index位置的元素为-1，表示还没有映射关系，那么直接返回true
 		if (this.annotationValueMappings[index] == -1) {
 			return true;
 		}
+		// 否则的话，获取index在annotationValueSource数组中的mapping元素，查看它的distance
 		int existingDistance = this.annotationValueSource[index].distance;
+		// 当新的mapping的distance更小，且方法不是value方法的时候，返回true。
+		// 说明越靠近根注解，优先级越高
 		return !isValueAttribute && existingDistance > mapping.distance;
 	}
 

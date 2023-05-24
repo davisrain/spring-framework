@@ -274,7 +274,9 @@ final class TypeMappedAnnotations implements MergedAnnotations {
 	private static boolean isMappingForType(AnnotationTypeMapping mapping,
 			AnnotationFilter annotationFilter, @Nullable Object requiredType) {
 
+		// 拿到mapping中的实际注解类型
 		Class<? extends Annotation> actualType = mapping.getAnnotationType();
+		// 如果实际类型不会被过滤掉 并且 如果请求的类型为null 或者 请求类型等于实际类型 或者 请求类型等于实际的名称，返回true
 		return (!annotationFilter.matches(actualType) &&
 				(requiredType == null || actualType == requiredType || actualType.getName().equals(requiredType)));
 	}
@@ -343,12 +345,16 @@ final class TypeMappedAnnotations implements MergedAnnotations {
 								return result;
 							}
 						}
-						// 如果directOnly为false的话
+						// 如果directOnly为false的话，表示不单单只查找标注的注解本身，如果注解类上标注了其他注解，也会一并查找
+						// 比如@Controller注解类上标注了@Component注解
 						if (!this.directOnly) {
-							//
+							// 将注解类型映射为AnnotationTypeMappings，这是AnnotationTypeMapping的聚合类型。
+							// mappings中持有了一个AnnotationTypeMapping的集合，里面包含了注解和所有标注在注解上的元注解的映射类型
 							AnnotationTypeMappings mappings = AnnotationTypeMappings.forAnnotationType(type);
+							// 遍历持有的AnnotationTypeMapping
 							for (int i = 0; i < mappings.size(); i++) {
 								AnnotationTypeMapping mapping = mappings.get(i);
+								// 查看AnnotationTypeMapping是否符合是requireType的映射类型，如果符合，返回true，表示请求的注解类型存在
 								if (isMappingForType(mapping, this.annotationFilter, requiredType)) {
 									return Boolean.TRUE;
 								}
