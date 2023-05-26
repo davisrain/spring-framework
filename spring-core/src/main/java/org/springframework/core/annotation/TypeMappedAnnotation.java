@@ -460,11 +460,15 @@ final class TypeMappedAnnotation<A extends Annotation> extends AbstractMergedAnn
 	@SuppressWarnings("unchecked")
 	@Nullable
 	private <T> T adapt(Method attribute, @Nullable Object value, Class<T> type) {
+		// 如果value为null的话，直接返回null
 		if (value == null) {
 			return null;
 		}
+		// 根据属性方法返回值来转换value的类型
 		value = adaptForAttribute(attribute, value);
+		// 根据方法返回值类将type进行转换
 		type = getAdaptType(attribute, type);
+		// 将Class类型和String类型 以及 Class[]类型和String[]类型 相互转换
 		if (value instanceof Class && type == String.class) {
 			value = ((Class<?>) value).getName();
 		}
@@ -487,6 +491,7 @@ final class TypeMappedAnnotation<A extends Annotation> extends AbstractMergedAnn
 			}
 			value = classes;
 		}
+		// 如果value是MergedAnnotation类型 type是注解类型的 调用MergedAnnotation的synthesize方法生成一个注解返回
 		else if (value instanceof MergedAnnotation && type.isAnnotation()) {
 			MergedAnnotation<?> annotation = (MergedAnnotation<?>) value;
 			value = annotation.synthesize();
@@ -499,6 +504,7 @@ final class TypeMappedAnnotation<A extends Annotation> extends AbstractMergedAnn
 			}
 			value = array;
 		}
+		// 如果value不是type类型的实例，报错
 		if (!type.isInstance(value)) {
 			throw new IllegalArgumentException("Unable to adapt value of type " +
 					value.getClass().getName() + " to " + type.getName());
@@ -508,16 +514,24 @@ final class TypeMappedAnnotation<A extends Annotation> extends AbstractMergedAnn
 
 	@SuppressWarnings("unchecked")
 	private Object adaptForAttribute(Method attribute, Object value) {
+		// 如果方法返回值是初始类型，转换为包装类型
 		Class<?> attributeType = ClassUtils.resolvePrimitiveIfNecessary(attribute.getReturnType());
+		// 如果方法返回值是数组类型的，而得到的值不是数组类型的
 		if (attributeType.isArray() && !value.getClass().isArray()) {
+			// 根据value生成一个数组，并将value设置进数组下标0的元素
 			Object array = Array.newInstance(value.getClass(), 1);
 			Array.set(array, 0, value);
+			// 递归调用adaptForAttribute方法
 			return adaptForAttribute(attribute, array);
 		}
+		// 如果方法返回值类型是注解类型的
 		if (attributeType.isAnnotation()) {
+			// 调用adaptToMergedAnnotation方法将value转换为MergedAnnotation类型
 			return adaptToMergedAnnotation(value, (Class<? extends Annotation>) attributeType);
 		}
+		// 如果方法返回值类型是注解数组类型
 		if (attributeType.isArray() && attributeType.getComponentType().isAnnotation()) {
+			// 转换成MergeAnnotation[]类型返回
 			MergedAnnotation<?>[] result = new MergedAnnotation<?>[Array.getLength(value)];
 			for (int i = 0; i < result.length; i++) {
 				result[i] = adaptToMergedAnnotation(Array.get(value, i),
@@ -525,21 +539,25 @@ final class TypeMappedAnnotation<A extends Annotation> extends AbstractMergedAnn
 			}
 			return result;
 		}
+		// 如果方法返回值类型和value的类型是属于Class和String之中的，直接返回
 		if ((attributeType == Class.class && value instanceof String) ||
 				(attributeType == Class[].class && value instanceof String[]) ||
 				(attributeType == String.class && value instanceof Class) ||
 				(attributeType == String[].class && value instanceof Class[])) {
 			return value;
 		}
+		// 如果方法返回值类型的数组类型 而value是空数组。那么根据返回值类型获取一个空数组返回
 		if (attributeType.isArray() && isEmptyObjectArray(value)) {
 			return emptyArray(attributeType.getComponentType());
 		}
+		// 否则，如果value不是返回值类型的实例，报错
 		if (!attributeType.isInstance(value)) {
 			throw new IllegalStateException("Attribute '" + attribute.getName() +
 					"' in annotation " + getType().getName() + " should be compatible with " +
 					attributeType.getName() + " but a " + value.getClass().getName() +
 					" value was returned");
 		}
+		// 返回value
 		return value;
 	}
 
@@ -556,9 +574,11 @@ final class TypeMappedAnnotation<A extends Annotation> extends AbstractMergedAnn
 	}
 
 	private MergedAnnotation<?> adaptToMergedAnnotation(Object value, Class<? extends Annotation> annotationType) {
+		// 如果value已经是MergedAnnotation的实例了，直接返回
 		if (value instanceof MergedAnnotation) {
 			return (MergedAnnotation<?>) value;
 		}
+		// 否则将其转换为TypeMappedAnnotation类型返回
 		AnnotationTypeMapping mapping = AnnotationTypeMappings.forAnnotationType(annotationType).get(0);
 		return new TypeMappedAnnotation<>(
 				mapping, null, this.source, value, getValueExtractor(value), this.aggregateIndex);
@@ -576,16 +596,20 @@ final class TypeMappedAnnotation<A extends Annotation> extends AbstractMergedAnn
 
 	@SuppressWarnings("unchecked")
 	private <T> Class<T> getAdaptType(Method attribute, Class<T> type) {
+		// 如果type不等于Object.class的话，直接返回
 		if (type != Object.class) {
 			return type;
 		}
 		Class<?> attributeType = attribute.getReturnType();
+		// 如果方法返回值是注解类型，返回MergedAnnotation.class
 		if (attributeType.isAnnotation()) {
 			return (Class<T>) MergedAnnotation.class;
 		}
+		// 如果方法返回值是注解数组类型，返回MergedAnnotation[].class
 		if (attributeType.isArray() && attributeType.getComponentType().isAnnotation()) {
 			return (Class<T>) MergedAnnotation[].class;
 		}
+		// 如果方法返回值是基本类型，返回包装类型；否则返回方法返回值原类型
 		return (Class<T>) ClassUtils.resolvePrimitiveIfNecessary(attributeType);
 	}
 

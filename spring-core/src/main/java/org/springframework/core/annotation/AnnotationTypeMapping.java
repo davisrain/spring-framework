@@ -466,6 +466,7 @@ final class AnnotationTypeMapping {
 	}
 
 	private void validateAllAliasesClaimed() {
+		// 检查所有标注了@AliasFor注解的属性方法中@AliasFor annotation属性指向的注解是否存在于该注解的元注解中，如果不存在的话，报错
 		for (int i = 0; i < this.attributes.size(); i++) {
 			Method attribute = this.attributes.get(i);
 			AliasFor aliasFor = AnnotationsScanner.getDeclaredAnnotation(attribute, AliasFor.class);
@@ -479,6 +480,7 @@ final class AnnotationTypeMapping {
 	}
 
 	private void validateMirrorSet(MirrorSet mirrorSet) {
+		// 检查互为MirrorSet的属性方法是否都存在默认值 且默认值相等
 		Method firstAttribute = mirrorSet.get(0);
 		Object firstDefaultValue = firstAttribute.getDefaultValue();
 		for (int i = 1; i <= mirrorSet.size() - 1; i++) {

@@ -153,6 +153,8 @@ final class AnnotationTypeMappings {
 		// 从source一直循环到root
 		while (mapping != null) {
 			// 如果存在当前mapping的注解类型和元注解类型相同，说明已经匹配过，返回true
+			// 该方法可以解决循环依赖或者标注自身的问题，比如@A上标注了@B，注解@B上标注了@A，在解析b的元注解的时候会找到到a，
+			// 但是会发现a的类型已经在b的source中出现过，所以返回true，用于跳过该元注解的解析
 			if (mapping.getAnnotationType() == annotationType) {
 				return true;
 			}
