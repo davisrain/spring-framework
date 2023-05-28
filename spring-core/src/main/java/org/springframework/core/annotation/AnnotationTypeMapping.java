@@ -434,12 +434,14 @@ final class AnnotationTypeMapping {
 		}
 
 		// Has nested annotations or arrays of annotations that are synthesizable?
+		// 如果注解的属性方法中返回值有是注解或者是注解数组的
 		if (getAttributes().hasNestedAnnotation()) {
 			AttributeMethods attributeMethods = getAttributes();
 			for (int i = 0; i < attributeMethods.size(); i++) {
 				Method method = attributeMethods.get(i);
 				Class<?> type = method.getReturnType();
 				if (type.isAnnotation() || (type.isArray() && type.getComponentType().isAnnotation())) {
+					// 拿到返回值的注解类型，然后查看该返回类型的注解是否是可合成的
 					Class<? extends Annotation> annotationType =
 							(Class<? extends Annotation>) (type.isAnnotation() ? type : type.getComponentType());
 					AnnotationTypeMapping mapping = AnnotationTypeMappings.forAnnotationType(annotationType).get(0);

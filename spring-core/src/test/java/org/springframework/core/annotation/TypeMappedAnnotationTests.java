@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.reflect.Array;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +28,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.map;
 
 /**
  * Tests for {@link TypeMappedAnnotation}. See also
@@ -117,6 +119,22 @@ class TypeMappedAnnotationTests {
 		assertThat(annotation.getClassArray("classArrayValue")).containsExactly(InputStream.class);
 	}
 
+	@Test
+	void mappingConventionValueToMetaAnnotationReturnsMappedValues() {
+		TestA annotation = WithConventionValueToMetaAnnotation.class.getAnnotation(TestA.class);
+		AnnotationTypeMappings mappings = AnnotationTypeMappings.forAnnotationType(annotation.annotationType());
+		MergedAnnotation<TestD> mergedAnnotation = null;
+		for (int i = 0; i < mappings.size(); i++) {
+			AnnotationTypeMapping mapping = mappings.get(i);
+			if (mapping.getAnnotationType() == TestD.class) {
+				mergedAnnotation = TypeMappedAnnotation.createIfPossible(mapping, WithConventionValueToMetaAnnotation.class, annotation, 0, IntrospectionFailureLogger.INFO);
+			}
+		}
+		if (mergedAnnotation != null) {
+			System.out.println(mergedAnnotation.getString("convention"));
+		}
+	}
+
 	private <A extends Annotation> TypeMappedAnnotation<A> getTypeMappedAnnotation(
 			Class<?> source, Class<A> annotationType) {
 		return getTypeMappedAnnotation(source, annotationType, annotationType);
@@ -143,6 +161,8 @@ class TypeMappedAnnotationTests {
 		throw new IllegalStateException(
 				"No mapping from " + annotation + " to " + mappedAnnotationType);
 	}
+
+	@Test
 
 	@Retention(RetentionPolicy.RUNTIME)
 	static @interface ExplicitMirror {
@@ -263,6 +283,44 @@ class TypeMappedAnnotationTests {
 		Class<?> classValue();
 
 		Class<?>[] classArrayValue();
+
+	}
+
+	@Retention(RetentionPolicy.RUNTIME)
+	@TestB(name = "nameB", convention = "conventionB")
+	static @interface TestA {
+
+	}
+
+	@Retention(RetentionPolicy.RUNTIME)
+	@TestC(conventionC = "conventionC")
+	static @interface TestB {
+
+		String name() default "";
+
+		String convention() default "";
+	}
+
+	@Retention(RetentionPolicy.RUNTIME)
+	@TestD
+	static @interface TestC {
+
+		String name() default "";
+
+		@AliasFor(value = "convention", annotation = TestD.class)
+		String conventionC() default "";
+	}
+
+	@Retention(RetentionPolicy.RUNTIME)
+	static @interface TestD {
+
+		String name() default "";
+
+		String convention() default "";
+	}
+
+	@TestA
+	static class WithConventionValueToMetaAnnotation {
 
 	}
 

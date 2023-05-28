@@ -316,13 +316,17 @@ final class TypeMappedAnnotation<A extends Annotation> extends AbstractMergedAnn
 	private <T extends Map<String, Object>> Object adaptValueForMapOptions(Method attribute, Object value,
 			Class<?> mapType, Function<MergedAnnotation<?>, T> factory, Adapt[] adaptations) {
 
+		// 如果value是MergedAnnotation类型的
 		if (value instanceof MergedAnnotation) {
 			MergedAnnotation<?> annotation = (MergedAnnotation<?>) value;
+			// 并且adaptations中有ANNOTATION_TO_MAP这个枚举，将其再转换为map；否则的话，生成一个注解的动态代理类对象
 			return (Adapt.ANNOTATION_TO_MAP.isIn(adaptations) ?
 					annotation.asMap(factory, adaptations) : annotation.synthesize());
 		}
+		// 如果value是MergedAnnotation数组类型的
 		if (value instanceof MergedAnnotation[]) {
 			MergedAnnotation<?>[] annotations = (MergedAnnotation<?>[]) value;
+			// 并且adaptations中有ANNOTATION_TO_MAP这个枚举，将其再转换为map数组
 			if (Adapt.ANNOTATION_TO_MAP.isIn(adaptations)) {
 				Object result = Array.newInstance(mapType, annotations.length);
 				for (int i = 0; i < annotations.length; i++) {
@@ -330,6 +334,7 @@ final class TypeMappedAnnotation<A extends Annotation> extends AbstractMergedAnn
 				}
 				return result;
 			}
+			// 否则的话，将其转换称动态代理注解数组
 			Object result = Array.newInstance(
 					attribute.getReturnType().getComponentType(), annotations.length);
 			for (int i = 0; i < annotations.length; i++) {
@@ -337,6 +342,7 @@ final class TypeMappedAnnotation<A extends Annotation> extends AbstractMergedAnn
 			}
 			return result;
 		}
+		// 如果是其他类型的，直接返回
 		return value;
 	}
 

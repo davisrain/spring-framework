@@ -252,10 +252,13 @@ public abstract class AnnotationConfigUtils {
 	}
 
 	static void processCommonDefinitionAnnotations(AnnotatedBeanDefinition abd, AnnotatedTypeMetadata metadata) {
+		// 查找是否存在@Lazy注解，并返回其属性
 		AnnotationAttributes lazy = attributesFor(metadata, Lazy.class);
+		// 如果存在的话，将abd的lazyInit字段设置为@Lazy注解的value属性的值
 		if (lazy != null) {
 			abd.setLazyInit(lazy.getBoolean("value"));
 		}
+		// 如果beanDefinition中的metadata和传入的metadata不同的话，尝试使用beanDefinition中的来解析
 		else if (abd.getMetadata() != metadata) {
 			lazy = attributesFor(abd.getMetadata(), Lazy.class);
 			if (lazy != null) {
@@ -263,18 +266,23 @@ public abstract class AnnotationConfigUtils {
 			}
 		}
 
+		// 判断是否被@Primary注解标注，如果是的话，将beanDefinition中的primary设置为true
 		if (metadata.isAnnotated(Primary.class.getName())) {
 			abd.setPrimary(true);
 		}
+		// 查找@DependsOn注解，并获取其属性
 		AnnotationAttributes dependsOn = attributesFor(metadata, DependsOn.class);
+		// 如果存在，将beanDefinition中的dependsOn字段设置为@DependsOn注解的value属性
 		if (dependsOn != null) {
 			abd.setDependsOn(dependsOn.getStringArray("value"));
 		}
 
+		// 解析@Role注解，并设置beanDefinition的role字段
 		AnnotationAttributes role = attributesFor(metadata, Role.class);
 		if (role != null) {
 			abd.setRole(role.getNumber("value").intValue());
 		}
+		// 解析Description注解，并设置beanDefinition的description字段
 		AnnotationAttributes description = attributesFor(metadata, Description.class);
 		if (description != null) {
 			abd.setDescription(description.getString("value"));
@@ -285,10 +293,13 @@ public abstract class AnnotationConfigUtils {
 			ScopeMetadata metadata, BeanDefinitionHolder definition, BeanDefinitionRegistry registry) {
 
 		ScopedProxyMode scopedProxyMode = metadata.getScopedProxyMode();
+		// 如果scopeProxyMode等于NO，直接返回原本的beanDefinition
 		if (scopedProxyMode.equals(ScopedProxyMode.NO)) {
 			return definition;
 		}
+		// 如果等于TARGET_CLASS的话
 		boolean proxyTargetClass = scopedProxyMode.equals(ScopedProxyMode.TARGET_CLASS);
+		// 创建一个范围代理进行返回
 		return ScopedProxyCreator.createScopedProxy(definition, registry, proxyTargetClass);
 	}
 

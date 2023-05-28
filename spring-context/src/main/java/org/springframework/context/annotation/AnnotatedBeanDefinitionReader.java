@@ -261,12 +261,17 @@ public class AnnotatedBeanDefinitionReader {
 
 		// 设置instanceSupplier进BeanDefinition
 		abd.setInstanceSupplier(supplier);
-		// 使用scopeMetadataResolver对BeanDefinition的scope进行解析
+		// 使用scopeMetadataResolver对BeanDefinition的scope进行解析，得到一个ScopeMetadata对象
 		ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(abd);
+		// 将scopeName设置进BeanDefinition中
 		abd.setScope(scopeMetadata.getScopeName());
+		// 使用beanNameGenerator生成beanName
 		String beanName = (name != null ? name : this.beanNameGenerator.generateBeanName(abd, this.registry));
 
+		// 处理一些常规的定义注解 比如@Lazy @Primary @DependsOn @Role @Description
 		AnnotationConfigUtils.processCommonDefinitionAnnotations(abd);
+		// 如果限定词不为null的话，遍历进行处理，如果不是@Primary @Lazy类型的限定词，
+		// 将其包装成一个AutowireCandidateQualifier添加进beanDefinition中
 		if (qualifiers != null) {
 			for (Class<? extends Annotation> qualifier : qualifiers) {
 				if (Primary.class == qualifier) {
@@ -280,14 +285,18 @@ public class AnnotatedBeanDefinitionReader {
 				}
 			}
 		}
+		// 如果定制器不为null的话，对beanDefinition调用customizer的customize方法
 		if (customizers != null) {
-			for (BeanDefinitionCustomizer customizer : customizers) {
+			for (BeanDefinitionCustomizer customizer : customizers) { 
 				customizer.customize(abd);
 			}
 		}
 
+		// 根据beanName和beanDefinition生成一个BeanDefinitionHolder
 		BeanDefinitionHolder definitionHolder = new BeanDefinitionHolder(abd, beanName);
+		// 应用ScopeMetadata的scopedProxyMode属性
 		definitionHolder = AnnotationConfigUtils.applyScopedProxyMode(scopeMetadata, definitionHolder, this.registry);
+		// 将其注册进registry中
 		BeanDefinitionReaderUtils.registerBeanDefinition(definitionHolder, this.registry);
 	}
 

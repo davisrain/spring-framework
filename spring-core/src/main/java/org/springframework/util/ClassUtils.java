@@ -947,13 +947,19 @@ public abstract class ClassUtils {
 	 */
 	public static String getShortName(String className) {
 		Assert.hasLength(className, "Class name must not be empty");
+		// 获取最后一个.所在的位置
 		int lastDotIndex = className.lastIndexOf(PACKAGE_SEPARATOR);
+		// 获取cglib代理类的$$符号所在的位置
 		int nameEndIndex = className.indexOf(CGLIB_CLASS_SEPARATOR);
+		// 如果不存在$$符合，那么将类名长度作为结束位置
 		if (nameEndIndex == -1) {
 			nameEndIndex = className.length();
 		}
+		// 截取到简单类名
 		String shortName = className.substring(lastDotIndex + 1, nameEndIndex);
+		// 将表示内部类的$符合替换为.
 		shortName = shortName.replace(INNER_CLASS_SEPARATOR, PACKAGE_SEPARATOR);
+		// 返回
 		return shortName;
 	}
 
