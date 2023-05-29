@@ -81,6 +81,7 @@ public abstract class OrderUtils {
 	 */
 	@Nullable
 	public static Integer getOrder(Class<?> type) {
+		// 从注解中查找order，并且注解的搜索策略是TYPE_HIERARCHY，即父类和接口都进行搜索，且不限制父类的注解必须要标注@Inherit注解
 		return getOrderFromAnnotations(type, MergedAnnotations.from(type, SearchStrategy.TYPE_HIERARCHY));
 	}
 
@@ -94,28 +95,38 @@ public abstract class OrderUtils {
 	 */
 	@Nullable
 	static Integer getOrderFromAnnotations(AnnotatedElement element, MergedAnnotations annotations) {
+		// 如果element不是Class类型的，直接调用findOrder返回
 		if (!(element instanceof Class)) {
 			return findOrder(annotations);
 		}
+		// 否则尝试从缓存中查找
 		Object cached = orderCache.get(element);
 		if (cached != null) {
+			// 缓存命中，且是Integer类型的，返回结果；否则返回null
 			return (cached instanceof Integer ? (Integer) cached : null);
 		}
+		// 缓存未命中，调用findOrder进行查找
 		Integer result = findOrder(annotations);
+		// 如果结果存在，放入缓存，否则，放入一个常量NOT_ANNOTATED
 		orderCache.put(element, result != null ? result : NOT_ANNOTATED);
+		// 返回结果
 		return result;
 	}
 
 	@Nullable
 	private static Integer findOrder(MergedAnnotations annotations) {
+		// 从MergeAnnotations聚合注解中查找@Order所对应的MergedAnnotation
 		MergedAnnotation<Order> orderAnnotation = annotations.get(Order.class);
+		// 如果@Order注解是存在的，获取其value属性值
 		if (orderAnnotation.isPresent()) {
 			return orderAnnotation.getInt(MergedAnnotation.VALUE);
 		}
+		// 否则查找@javax.annotation.Priority注解，如果存在，返回其value属性值
 		MergedAnnotation<?> priorityAnnotation = annotations.get(JAVAX_PRIORITY_ANNOTATION);
 		if (priorityAnnotation.isPresent()) {
 			return priorityAnnotation.getInt(MergedAnnotation.VALUE);
 		}
+		// 否则返回null
 		return null;
 	}
 
