@@ -53,6 +53,7 @@ final class SimpleMetadataReader implements MetadataReader {
 	}
 
 	private static ClassReader getClassReader(Resource resource) throws IOException {
+		// 根据resource获取到inputStream，然后根据inputStream创建一个ClassReader返回
 		try (InputStream is = resource.getInputStream()) {
 			try {
 				return new ClassReader(is);

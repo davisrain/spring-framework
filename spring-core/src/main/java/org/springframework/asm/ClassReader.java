@@ -187,10 +187,14 @@ public class ClassReader {
    */
   ClassReader(
       final byte[] classFileBuffer, final int classFileOffset, final boolean checkClassVersion) {
+	  // 将包含class文件内容的字节数组赋值自身属性
     this.classFileBuffer = classFileBuffer;
     this.b = classFileBuffer;
     // Check the class' major_version. This field is after the magic and minor_version fields, which
     // use 4 and 2 bytes respectively.
+	  // 如果checkClassVersion标志为true的话，检查u2类型的major_version，
+	  // 因为major_version前面有u4的魔数和u2的minor_version，所以从第6个字节开始读取。
+	  // 如果读取到的major_version大于59的话，也就是大于JDK15的话，抛出异常，无法支持
     if (checkClassVersion && readShort(classFileOffset + 6) > Opcodes.V15) {
       throw new IllegalArgumentException(
           "Unsupported class file major version " + readShort(classFileOffset + 6));
@@ -310,15 +314,19 @@ public class ClassReader {
     if (inputStream == null) {
       throw new IOException("Class not found");
     }
+	// 将inputStream中的字节数据读出并写入到ByteArrayOutputStream的字节数组中
     try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+		// 分块读取，每次读取4KB
       byte[] data = new byte[INPUT_STREAM_DATA_CHUNK_SIZE];
       int bytesRead;
       while ((bytesRead = inputStream.read(data, 0, data.length)) != -1) {
         outputStream.write(data, 0, bytesRead);
       }
       outputStream.flush();
+	  // 然后将ByteArrayOutputStream的字节数组复制并返回
       return outputStream.toByteArray();
     } finally {
+		// 根据close参数决定要不要关闭输入流
       if (close) {
         inputStream.close();
       }
