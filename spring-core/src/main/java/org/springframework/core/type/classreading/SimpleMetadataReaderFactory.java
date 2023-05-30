@@ -75,14 +75,18 @@ public class SimpleMetadataReaderFactory implements MetadataReaderFactory {
 	@Override
 	public MetadataReader getMetadataReader(String className) throws IOException {
 		try {
+			// 将className替换成resourcePath的格式，比如java.lang.String就会被替换成classpath:java/lang/String.class
 			String resourcePath = ResourceLoader.CLASSPATH_URL_PREFIX +
 					ClassUtils.convertClassNameToResourcePath(className) + ClassUtils.CLASS_FILE_SUFFIX;
+			// 使用resourceLoader加载resource
 			Resource resource = this.resourceLoader.getResource(resourcePath);
+			// 调用getMetadataReader的重载方法，传入resource获取MetadataReader
 			return getMetadataReader(resource);
 		}
 		catch (FileNotFoundException ex) {
 			// Maybe an inner class name using the dot name syntax? Need to use the dollar syntax here...
 			// ClassUtils.forName has an equivalent check for resolution into Class references later on.
+			// 如果没有找到对应的文件，尝试将最后一个.的内容替换为内部类去查找
 			int lastDotIndex = className.lastIndexOf('.');
 			if (lastDotIndex != -1) {
 				String innerClassName =
@@ -100,6 +104,7 @@ public class SimpleMetadataReaderFactory implements MetadataReaderFactory {
 
 	@Override
 	public MetadataReader getMetadataReader(Resource resource) throws IOException {
+		// 创建一个SimpleMetadataReader返回
 		return new SimpleMetadataReader(resource, this.resourceLoader.getClassLoader());
 	}
 

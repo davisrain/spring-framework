@@ -235,41 +235,55 @@ final class PostProcessorRegistrationDelegate {
 	public static void registerBeanPostProcessors(
 			ConfigurableListableBeanFactory beanFactory, AbstractApplicationContext applicationContext) {
 
+		// 查找beanFactory中所有BeanPostProcessor的beanName
 		String[] postProcessorNames = beanFactory.getBeanNamesForType(BeanPostProcessor.class, true, false);
 
 		// Register BeanPostProcessorChecker that logs an info message when
 		// a bean is created during BeanPostProcessor instantiation, i.e. when
 		// a bean is not eligible for getting processed by all BeanPostProcessors.
+		// 计算beanProcessor的总数，beanFactory持有的processors集合的数量 + 所有类型是BeanPostProcessor的bean的数量 + 1
 		int beanProcessorTargetCount = beanFactory.getBeanPostProcessorCount() + 1 + postProcessorNames.length;
+		// 向持有的processors集合中添加一个BeanPostProcessorChecker，
+		// 用于打印日志，说明当一个bean在BeanPostProcessor初始化的过程中创建的话，那么它就没办法被所有的BeanPostProcessor处理
 		beanFactory.addBeanPostProcessor(new BeanPostProcessorChecker(beanFactory, beanProcessorTargetCount));
 
 		// Separate between BeanPostProcessors that implement PriorityOrdered,
 		// Ordered, and the rest.
+		// 将BeanPostProcessors按照实现了PriorityOrdered接口、实现了Ordered接口、以及其他进行分类
 		List<BeanPostProcessor> priorityOrderedPostProcessors = new ArrayList<>();
 		List<BeanPostProcessor> internalPostProcessors = new ArrayList<>();
 		List<String> orderedPostProcessorNames = new ArrayList<>();
 		List<String> nonOrderedPostProcessorNames = new ArrayList<>();
+		// 遍历beanNames
 		for (String ppName : postProcessorNames) {
+			// 如果beanName对应的类型实现了PriorityOrdered接口
 			if (beanFactory.isTypeMatch(ppName, PriorityOrdered.class)) {
+				// 生成bean，添加到priorityOrdered集合中
 				BeanPostProcessor pp = beanFactory.getBean(ppName, BeanPostProcessor.class);
 				priorityOrderedPostProcessors.add(pp);
+				// 判断其是否实现了MergedBeanDefinitionPostProcessor接口，如果实现了，添加进internal集合中
 				if (pp instanceof MergedBeanDefinitionPostProcessor) {
 					internalPostProcessors.add(pp);
 				}
 			}
+			// 如果实现了Ordered接口，将beanName添加进ordered集合中
 			else if (beanFactory.isTypeMatch(ppName, Ordered.class)) {
 				orderedPostProcessorNames.add(ppName);
 			}
+			// 其他情况将beanName添加进nonOrdered集合中
 			else {
 				nonOrderedPostProcessorNames.add(ppName);
 			}
 		}
 
 		// First, register the BeanPostProcessors that implement PriorityOrdered.
+		// 进行排序、然后添加进beanFactory持有的BeanPostProcessor类的集合中
 		sortPostProcessors(priorityOrderedPostProcessors, beanFactory);
 		registerBeanPostProcessors(beanFactory, priorityOrderedPostProcessors);
 
 		// Next, register the BeanPostProcessors that implement Ordered.
+		// 同上面一样，将实现了Ordered接口的处理器排序、注册到BeanFactory中，
+		// 其中实现了MergedBeanDefinitionPostProcessor接口的处理器会被添加到internal集合中
 		List<BeanPostProcessor> orderedPostProcessors = new ArrayList<>(orderedPostProcessorNames.size());
 		for (String ppName : orderedPostProcessorNames) {
 			BeanPostProcessor pp = beanFactory.getBean(ppName, BeanPostProcessor.class);
@@ -282,6 +296,7 @@ final class PostProcessorRegistrationDelegate {
 		registerBeanPostProcessors(beanFactory, orderedPostProcessors);
 
 		// Now, register all regular BeanPostProcessors.
+		// 同理，将剩余的处理器注册到BeanFactory和internal集合中
 		List<BeanPostProcessor> nonOrderedPostProcessors = new ArrayList<>(nonOrderedPostProcessorNames.size());
 		for (String ppName : nonOrderedPostProcessorNames) {
 			BeanPostProcessor pp = beanFactory.getBean(ppName, BeanPostProcessor.class);
@@ -293,11 +308,13 @@ final class PostProcessorRegistrationDelegate {
 		registerBeanPostProcessors(beanFactory, nonOrderedPostProcessors);
 
 		// Finally, re-register all internal BeanPostProcessors.
+		// 对internal集合中的处理器进行排序，然后再次注册到BeanFactory中
 		sortPostProcessors(internalPostProcessors, beanFactory);
 		registerBeanPostProcessors(beanFactory, internalPostProcessors);
 
 		// Re-register post-processor for detecting inner beans as ApplicationListeners,
 		// moving it to the end of the processor chain (for picking up proxies etc).
+		// 再次将ApplicationListenerDetector这个处理器注册进beanFactory，将其放在处理器链的最后
 		beanFactory.addBeanPostProcessor(new ApplicationListenerDetector(applicationContext));
 	}
 

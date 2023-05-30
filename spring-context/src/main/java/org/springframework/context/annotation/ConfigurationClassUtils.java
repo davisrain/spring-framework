@@ -85,29 +85,37 @@ abstract class ConfigurationClassUtils {
 	public static boolean checkConfigurationClassCandidate(
 			BeanDefinition beanDef, MetadataReaderFactory metadataReaderFactory) {
 
+		// 获取bd的beanClassName
 		String className = beanDef.getBeanClassName();
+		// 如果不存在className 或者 bd的factoryMethodName不为null的话，直接返回false，
+		// 说明不是ConfigurationClassCandidate
 		if (className == null || beanDef.getFactoryMethodName() != null) {
 			return false;
 		}
 
 		AnnotationMetadata metadata;
+		// 如果bd是AnnotatedBeanDefinition类型的 并且 beanClassName和metadata中的className相同，直接获取bd持有的AnnotationMetadata
 		if (beanDef instanceof AnnotatedBeanDefinition &&
 				className.equals(((AnnotatedBeanDefinition) beanDef).getMetadata().getClassName())) {
 			// Can reuse the pre-parsed metadata from the given BeanDefinition...
 			metadata = ((AnnotatedBeanDefinition) beanDef).getMetadata();
 		}
+		// 如果bd是AbstractBeanDefinition类型的，并且存在beanClass
 		else if (beanDef instanceof AbstractBeanDefinition && ((AbstractBeanDefinition) beanDef).hasBeanClass()) {
 			// Check already loaded Class if present...
 			// since we possibly can't even load the class file for this Class.
 			Class<?> beanClass = ((AbstractBeanDefinition) beanDef).getBeanClass();
+			// 判断beanClass是否是以下几种类型的，如果是，直接返回false
 			if (BeanFactoryPostProcessor.class.isAssignableFrom(beanClass) ||
 					BeanPostProcessor.class.isAssignableFrom(beanClass) ||
 					AopInfrastructureBean.class.isAssignableFrom(beanClass) ||
 					EventListenerFactory.class.isAssignableFrom(beanClass)) {
 				return false;
 			}
+			// 根据beanClass生成一个StandardAnnotationMetadata类型的实例赋值给metadata
 			metadata = AnnotationMetadata.introspect(beanClass);
 		}
+		// 否则，根据beanName，使用metadataReaderFactory生成一个metadataReader，再使用这个reader去读取metadata
 		else {
 			try {
 				MetadataReader metadataReader = metadataReaderFactory.getMetadataReader(className);

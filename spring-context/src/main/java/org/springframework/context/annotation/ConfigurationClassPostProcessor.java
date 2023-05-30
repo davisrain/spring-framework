@@ -223,6 +223,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	 */
 	@Override
 	public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
+		// 判断是否已经处理过这个registry
 		int registryId = System.identityHashCode(registry);
 		if (this.registriesPostProcessed.contains(registryId)) {
 			throw new IllegalStateException(
@@ -234,6 +235,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		}
 		this.registriesPostProcessed.add(registryId);
 
+		// 调用具体的处理逻辑
 		processConfigBeanDefinitions(registry);
 	}
 
@@ -267,19 +269,25 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		List<BeanDefinitionHolder> configCandidates = new ArrayList<>();
 		String[] candidateNames = registry.getBeanDefinitionNames();
 
+		// 遍历所有的BeanDefinition的beanNames
 		for (String beanName : candidateNames) {
+			// 根据beanName获取到对应的bd
 			BeanDefinition beanDef = registry.getBeanDefinition(beanName);
+			// 查看bd是否有org.springframework.context.annotation.ConfigurationClassPostProcessor.configurationClass这个属性，
+			// 如果有，说明已经作为configuration class被处理过了
 			if (beanDef.getAttribute(ConfigurationClassUtils.CONFIGURATION_CLASS_ATTRIBUTE) != null) {
 				if (logger.isDebugEnabled()) {
 					logger.debug("Bean definition has already been processed as a configuration class: " + beanDef);
 				}
 			}
+			// 检查bd是否是ConfigurationClass的候选，如果是的话，封装一个BeanDefinitionHolder添加进configCandidates集合中
 			else if (ConfigurationClassUtils.checkConfigurationClassCandidate(beanDef, this.metadataReaderFactory)) {
 				configCandidates.add(new BeanDefinitionHolder(beanDef, beanName));
 			}
 		}
 
 		// Return immediately if no @Configuration classes were found
+		// 如果没有候选的bd，说明没有ConfigurationClass被找到，直接返回
 		if (configCandidates.isEmpty()) {
 			return;
 		}
