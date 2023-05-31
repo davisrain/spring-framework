@@ -201,29 +201,38 @@ public class ClassReader {
     }
     // Create the constant pool arrays. The constant_pool_count field is after the magic,
     // minor_version and major_version fields, which use 4, 2 and 2 bytes respectively.
+	  // 读取有常量池info的数量，从第八个字节开始，因为前面有u4的魔数、u2的minor_version、u2的major_version
     int constantPoolCount = readUnsignedShort(classFileOffset + 8);
+	// 创建一个int数组，表示每个常量池info起始字节在class文件字节数组中的偏移位置
     cpInfoOffsets = new int[constantPoolCount];
+	// 创建一个String数组，用于保存常量池中的utf8类型的info
     constantUtf8Values = new String[constantPoolCount];
     // Compute the offset of each constant pool entry, as well as a conservative estimate of the
     // maximum length of the constant pool strings. The first constant pool entry is after the
     // magic, minor_version, major_version and constant_pool_count fields, which use 4, 2, 2 and 2
     // bytes respectively.
+	  // 计算每个常量池info的偏移位置
+	  // 从第一个常量池info开始，index为1，偏移量为10个字节，因为第一个常量池info前面会有4个字节的魔数、2个字节的小版本号、
+	  // 2个字节的大版本号、以及2个字节的常量池数量
     int currentCpInfoIndex = 1;
     int currentCpInfoOffset = classFileOffset + 10;
     int currentMaxStringLength = 0;
     boolean hasBootstrapMethods = false;
     boolean hasConstantDynamic = false;
     // The offset of the other entries depend on the total size of all the previous entries.
+	  // 按照常量池info的数量来循环，因为常量池#0的位置是空出来的，所以从1开始
     while (currentCpInfoIndex < constantPoolCount) {
+		// 将cpInfo的偏移量设置为currentCpInfoOffset+1，即不计算tag所占用的那一个字节
       cpInfoOffsets[currentCpInfoIndex++] = currentCpInfoOffset + 1;
       int cpInfoSize;
+	  // 然后根据tag的值来判断该info是什么类型的，根据不同的类型来决定该cpInfo占用的总长度
       switch (classFileBuffer[currentCpInfoOffset]) {
-        case Symbol.CONSTANT_FIELDREF_TAG:
-        case Symbol.CONSTANT_METHODREF_TAG:
-        case Symbol.CONSTANT_INTERFACE_METHODREF_TAG:
-        case Symbol.CONSTANT_INTEGER_TAG:
-        case Symbol.CONSTANT_FLOAT_TAG:
-        case Symbol.CONSTANT_NAME_AND_TYPE_TAG:
+        case Symbol.CONSTANT_FIELDREF_TAG: // tag(1) + Constant_Class_info(2) + Constant_NameAndType_info(2)
+        case Symbol.CONSTANT_METHODREF_TAG:  // tag(1) + Constant_Class_info(2) + Constant_NameAndType_info(2)
+        case Symbol.CONSTANT_INTERFACE_METHODREF_TAG:  // tag(1) + Constant_Class_info(2) + Constant_NameAndType_info(2)
+        case Symbol.CONSTANT_INTEGER_TAG:  // tag(1) + Integer(4)
+        case Symbol.CONSTANT_FLOAT_TAG:  // tag(1) + Float(4)
+		  case Symbol.CONSTANT_NAME_AND_TYPE_TAG:  // tag(1) + Constant_UTF8_info(2):name + Constant_UTF8_info(2):descriptor
           cpInfoSize = 5;
           break;
         case Symbol.CONSTANT_DYNAMIC_TAG:
@@ -235,13 +244,16 @@ public class ClassReader {
           cpInfoSize = 5;
           hasBootstrapMethods = true;
           break;
-        case Symbol.CONSTANT_LONG_TAG:
-        case Symbol.CONSTANT_DOUBLE_TAG:
+        case Symbol.CONSTANT_LONG_TAG: // tag(1) + Long(8)
+        case Symbol.CONSTANT_DOUBLE_TAG: // tag(1) + Double(8)
           cpInfoSize = 9;
+		  // 如果是long或者double类型的常量，占用两个常量池的位置
           currentCpInfoIndex++;
           break;
-        case Symbol.CONSTANT_UTF8_TAG:
+        case Symbol.CONSTANT_UTF8_TAG:  // tag(1) + length(2) + u1(length)
+			// cpInfoSize等于1字节的tag加上2字节的length，并且加上length的字节数
           cpInfoSize = 3 + readUnsignedShort(currentCpInfoOffset + 1);
+		  // 如果cpInfoSize大于了当前最大的string长度，将其替换给currentMaxStringLength
           if (cpInfoSize > currentMaxStringLength) {
             // The size in bytes of this CONSTANT_Utf8 structure provides a conservative estimate
             // of the length in characters of the corresponding string, and is much cheaper to
@@ -252,7 +264,7 @@ public class ClassReader {
         case Symbol.CONSTANT_METHOD_HANDLE_TAG:
           cpInfoSize = 4;
           break;
-        case Symbol.CONSTANT_CLASS_TAG:
+        case Symbol.CONSTANT_CLASS_TAG: // tag(1) + Constant_UTF8_info(2)
         case Symbol.CONSTANT_STRING_TAG:
         case Symbol.CONSTANT_METHOD_TYPE_TAG:
         case Symbol.CONSTANT_PACKAGE_TAG:
@@ -262,10 +274,13 @@ public class ClassReader {
         default:
           throw new IllegalArgumentException();
       }
+	  // 将当前cpInfo的偏移量加上cpInfoSize，得到下一个cpInfo的偏移量
       currentCpInfoOffset += cpInfoSize;
     }
+	// 将currentMaxStringLength赋值给maxStringLength
     maxStringLength = currentMaxStringLength;
     // The Classfile's access_flags field is just after the last constant pool entry.
+	  // class文件的访问标志就在常量池后面，因此将当前常量池的偏移量赋值给header
     header = currentCpInfoOffset;
 
     // Allocate the cache of ConstantDynamic values, if there is at least one.
