@@ -78,11 +78,16 @@ final class SimpleMethodMetadataReadingVisitor extends MethodVisitor {
 
 	@Override
 	public void visitEnd() {
+		// 如果方法上标注的注解不为空
 		if (!this.annotations.isEmpty()) {
+			// 读取方法的返回值类型名称
 			String returnTypeName = Type.getReturnType(this.descriptor).getClassName();
+			// 根据MergedAnnotation集合创建一个MergedAnnotationsCollection对象
 			MergedAnnotations annotations = MergedAnnotations.of(this.annotations);
+			// 然后根据方法名、访问标志、声明的类名、返回值类型名称、以及方法上标注的注解集合的聚合对象生成一个SimpleMethodMetadata
 			SimpleMethodMetadata metadata = new SimpleMethodMetadata(this.name,
 					this.access, this.declaringClassName, returnTypeName, annotations);
+			// 将metadata应用到consumer，具体逻辑是添加到SimpleAnnotationMetadataReadingVisitor中的annotatedMethods集合中
 			this.consumer.accept(metadata);
 		}
 	}

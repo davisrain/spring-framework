@@ -140,14 +140,19 @@ final class SimpleAnnotationMetadata implements AnnotationMetadata {
 	@Override
 	public Set<MethodMetadata> getAnnotatedMethods(String annotationName) {
 		Set<MethodMetadata> annotatedMethods = null;
+		// 遍历自身所持有的MethodMetadata集合
 		for (MethodMetadata annotatedMethod : this.annotatedMethods) {
+			// 根据当前遍历的方法元数据判断方法上是否标注了指定注解
 			if (annotatedMethod.isAnnotated(annotationName)) {
+				// 如果要返回的集合为null，创建并赋值
 				if (annotatedMethods == null) {
 					annotatedMethods = new LinkedHashSet<>(4);
 				}
+				// 将当前遍历的方法元数据添加进集合
 				annotatedMethods.add(annotatedMethod);
 			}
 		}
+		// 如果不为null，返回，否则返回空集合
 		return annotatedMethods != null ? annotatedMethods : Collections.emptySet();
 	}
 

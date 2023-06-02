@@ -127,9 +127,10 @@ final class TypeMappedAnnotation<A extends Annotation> extends AbstractMergedAnn
 		this.classLoader = classLoader;
 		// 根注解标注的位置
 		this.source = source;
-		// 根注解类型对应的实例
+		// 根注解类型对应的属性，可以是根注解的实例，也可以根注解属性键值对组成的map
 		this.rootAttributes = rootAttributes;
-		// 一般为反射方法调用
+		// 属性值提取器，如果rootAttributes是根注解的实例的话，那么该值应该是反射方法调用的MethodHandle(ReflectionUtils::invokeMethod)；
+		// 如果rootAttributes是根注解属性键值对的话，该值应该是提取map中value值的MethodHandle(TypeMappedAnnotation::extractFromMap)。
 		this.valueExtractor = valueExtractor;
 		this.aggregateIndex = aggregateIndex;
 		this.useMergedValues = true;
@@ -666,7 +667,9 @@ final class TypeMappedAnnotation<A extends Annotation> extends AbstractMergedAnn
 			Class<A> annotationType, @Nullable Map<String, ?> attributes) {
 
 		Assert.notNull(annotationType, "Annotation type must not be null");
+		// 根据注解类型生成对应的注解映射AnnotationTypeMappings
 		AnnotationTypeMappings mappings = AnnotationTypeMappings.forAnnotationType(annotationType);
+		// 从mappings中获取根注解的mapping，然后根据根注解的属性键值对，初始化一个TypeMappedAnnotation返回
 		return new TypeMappedAnnotation<>(
 				mappings.get(0), classLoader, source, attributes, TypeMappedAnnotation::extractFromMap, 0);
 	}

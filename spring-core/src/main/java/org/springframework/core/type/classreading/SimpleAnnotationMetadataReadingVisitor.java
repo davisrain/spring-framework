@@ -82,11 +82,14 @@ final class SimpleAnnotationMetadataReadingVisitor extends ClassVisitor {
 	public void visit(int version, int access, String name, String signature,
 			@Nullable String supername, String[] interfaces) {
 
+		// 将resourcePath类型的名称转换为类名，具体逻辑就是将文件分隔符转换为.
 		this.className = toClassName(name);
 		this.access = access;
+		// 如果存在父类名称且访问标志表示该类不是接口的话，将supername转换为类名的形式
 		if (supername != null && !isInterface(access)) {
 			this.superClassName = toClassName(supername);
 		}
+		// 将接口名称也转换成类名的形式
 		this.interfaceNames = new String[interfaces.length];
 		for (int i = 0; i < interfaces.length; i++) {
 			this.interfaceNames[i] = toClassName(interfaces[i]);
@@ -95,19 +98,25 @@ final class SimpleAnnotationMetadataReadingVisitor extends ClassVisitor {
 
 	@Override
 	public void visitOuterClass(String owner, String name, String desc) {
+		// 将持有这个类的类名赋值给enclosingClassName属性
 		this.enclosingClassName = toClassName(owner);
 	}
 
 	@Override
 	public void visitInnerClass(String name, @Nullable String outerName, String innerName,
 			int access) {
+		// 如果outerName不为null
 		if (outerName != null) {
 			String className = toClassName(name);
 			String outerClassName = toClassName(outerName);
+			// 当前的类名等于innerClass的类名的话
 			if (this.className.equals(className)) {
+				// 将enclosingClassName设置为outerClassName
 				this.enclosingClassName = outerClassName;
+				// 并且根据内部类是否是static的设置independentInnerClass属性
 				this.independentInnerClass = ((access & Opcodes.ACC_STATIC) != 0);
 			}
+			// 如果当前的类名等于outerClassName，那么将内部类的类名添加到memberClassNames集合中，表示该类拥有的内部类
 			else if (this.className.equals(outerClassName)) {
 				this.memberClassNames.add(className);
 			}
@@ -129,9 +138,11 @@ final class SimpleAnnotationMetadataReadingVisitor extends ClassVisitor {
 		// Skip bridge methods - we're only interested in original
 		// annotation-defining user methods. On JDK 8, we'd otherwise run into
 		// double detection of the same annotated method...
+		// 如果是桥接方法，直接返回null
 		if (isBridge(access)) {
 			return null;
 		}
+		// 否则，创建一个SimpleMethodMetadataReadingVisitor返回
 		return new SimpleMethodMetadataReadingVisitor(this.classLoader, this.className,
 				access, name, descriptor, this.annotatedMethods::add);
 	}

@@ -389,10 +389,13 @@ public final class Type {
     // Skip the first character, which is always a '('.
     int currentOffset = 1;
     // Skip the argument types, one at a each loop iteration.
+    // 将偏移量移动到字符为)的下一个位置
     while (methodDescriptor.charAt(currentOffset) != ')') {
+      // 如果当前字符是[，跳过
       while (methodDescriptor.charAt(currentOffset) == '[') {
         currentOffset++;
       }
+      // 如果当前字符是L，那么直接去查找;字符，直接将偏移量跳到;字符之后
       if (methodDescriptor.charAt(currentOffset++) == 'L') {
         // Skip the argument descriptor content.
         int semiColumnOffset = methodDescriptor.indexOf(';', currentOffset);
@@ -436,6 +439,7 @@ public final class Type {
       case '[':
         return new Type(ARRAY, descriptorBuffer, descriptorBegin, descriptorEnd);
       case 'L':
+        // 生成一个Type，指定类型为Object，然后开始位置+1，结束位置-1，因为引用类型的描述符都是Lxxx/xxx/xxx;格式的，因此将第一个字符和最后一个字符去掉就是生成的类路径
         return new Type(OBJECT, descriptorBuffer, descriptorBegin + 1, descriptorEnd - 1);
       case '(':
         return new Type(METHOD, descriptorBuffer, descriptorBegin, descriptorEnd);
@@ -482,6 +486,7 @@ public final class Type {
         return stringBuilder.toString();
       case OBJECT:
       case INTERNAL:
+        // 将描述符的第一个字符和最后一个字符去掉之后，将/转换为.就能得到对应类的全限定名
         return valueBuffer.substring(valueBegin, valueEnd).replace('/', '.');
       default:
         throw new AssertionError();

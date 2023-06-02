@@ -164,12 +164,15 @@ public abstract class AnnotationUtils {
 	 * @see #isCandidateClass(Class, Class)
 	 */
 	public static boolean isCandidateClass(Class<?> clazz, String annotationName) {
+		// 如果注解类型名称是以java.开头的，直接返回true，表示该clazz是携带该注解的候选类
 		if (annotationName.startsWith("java.")) {
 			return true;
 		}
+		// 如果clazz的名称是以java.开头或者clazz是Ordered.class，那么直接返回false，表示不是候选类
 		if (AnnotationsScanner.hasPlainJavaAnnotationsOnly(clazz)) {
 			return false;
 		}
+		// 其他情况返回true
 		return true;
 	}
 

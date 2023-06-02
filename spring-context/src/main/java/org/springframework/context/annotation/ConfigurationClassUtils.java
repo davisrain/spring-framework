@@ -118,7 +118,11 @@ abstract class ConfigurationClassUtils {
 		// 否则，根据beanName，使用metadataReaderFactory生成一个metadataReader，再使用这个reader去读取metadata
 		else {
 			try {
+				// 具体逻辑是：根据类名获取到对应的Resource，然后根据Resource生成一个SimpleMetadataReader用于读取元数据，
+				// 在其初始化的时候，就会使用asm框架的ClassReader去读取resource对应的class文件的字节，然后使用SimpleAnnotationMetadataReadingVisitor
+				// 去读取类的基本信息和注解信息，以及被注解标注的方法基本信息和方法上的注解，封装成一个SimpleAnnotationMetadata对象持有
 				MetadataReader metadataReader = metadataReaderFactory.getMetadataReader(className);
+				// 获取reader持有的AnnotationMetadata类型的对象
 				metadata = metadataReader.getAnnotationMetadata();
 			}
 			catch (IOException ex) {
@@ -130,23 +134,32 @@ abstract class ConfigurationClassUtils {
 			}
 		}
 
+		// 获取到类上标注的@Configuration注解的属性
 		Map<String, Object> config = metadata.getAnnotationAttributes(Configuration.class.getName());
+		// 如果注解存在，且proxyBeanMethods为true的话，设置bd的属性CONFIGURATION_CLASS_ATTRIBUTE为full
 		if (config != null && !Boolean.FALSE.equals(config.get("proxyBeanMethods"))) {
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_FULL);
 		}
+		// 如果标注了@Configuration注解 或者
+		// 标注了@Component @ComponentScan @Import @ImportResource这四种注解其中一个 或者
+		// 类中声明了标注了@Bean的方法
+		// 那么也是ConfigurationClass的candidate，不过是lite类型的，将bd的属性CONFIGURATION_CLASS_ATTRIBUTE设置为lite
 		else if (config != null || isConfigurationCandidate(metadata)) {
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_LITE);
 		}
+		// 其他情况返回false，表示不是ConfigurationClass的候选
 		else {
 			return false;
 		}
 
 		// It's a full or lite configuration candidate... Let's determine the order value, if any.
+		// 根据元数据获取order值，如果存在的话，将bd的ORDER_ATTRIBUTE属性设置为order的值
 		Integer order = getOrder(metadata);
 		if (order != null) {
 			beanDef.setAttribute(ORDER_ATTRIBUTE, order);
 		}
 
+		// 最后返回true，表示是ConfigurationClass的候选
 		return true;
 	}
 
@@ -159,11 +172,13 @@ abstract class ConfigurationClassUtils {
 	 */
 	public static boolean isConfigurationCandidate(AnnotationMetadata metadata) {
 		// Do not consider an interface or an annotation...
+		// 如果metadata对表示的类是接口，直接返回false
 		if (metadata.isInterface()) {
 			return false;
 		}
 
 		// Any of the typical annotations found?
+		// 查看对应的类上是否标注了@Component @ComponentScan @Import @ImportResource这四种注解之一，如果是，返回true
 		for (String indicator : candidateIndicators) {
 			if (metadata.isAnnotated(indicator)) {
 				return true;
@@ -171,6 +186,7 @@ abstract class ConfigurationClassUtils {
 		}
 
 		// Finally, let's look for @Bean methods...
+		// 判断类中是否声明了标注了@Bean注解的方法
 		return hasBeanMethods(metadata);
 	}
 
@@ -195,7 +211,9 @@ abstract class ConfigurationClassUtils {
 	 */
 	@Nullable
 	public static Integer getOrder(AnnotationMetadata metadata) {
+		// 获取类上标注的@Order注解的属性map
 		Map<String, Object> orderAttributes = metadata.getAnnotationAttributes(Order.class.getName());
+		// 如果属性map不为null，获取value属性对应的值，否则返回null
 		return (orderAttributes != null ? ((Integer) orderAttributes.get(AnnotationUtils.VALUE)) : null);
 	}
 

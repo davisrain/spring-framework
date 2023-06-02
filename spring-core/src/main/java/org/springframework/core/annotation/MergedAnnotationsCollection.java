@@ -46,7 +46,9 @@ final class MergedAnnotationsCollection implements MergedAnnotations {
 
 	private MergedAnnotationsCollection(Collection<MergedAnnotation<?>> annotations) {
 		Assert.notNull(annotations, "Annotations must not be null");
+		// 将注解集合转换成数组
 		this.annotations = annotations.toArray(new MergedAnnotation<?>[0]);
+		// 然后遍历注解数组，将每个注解对应的AnnotationTypeMappings都设置进mappings数组中
 		this.mappings = new AnnotationTypeMappings[this.annotations.length];
 		for (int i = 0; i < this.annotations.length; i++) {
 			MergedAnnotation<?> annotation = this.annotations[i];
@@ -93,22 +95,28 @@ final class MergedAnnotationsCollection implements MergedAnnotations {
 	}
 
 	private boolean isPresent(Object requiredType, boolean directOnly) {
+		// 遍历持有的MergedAnnotation，查看是否有注解类型等于要查找的类型，如果有，返回true
 		for (MergedAnnotation<?> annotation : this.annotations) {
 			Class<? extends Annotation> type = annotation.getType();
 			if (type == requiredType || type.getName().equals(requiredType)) {
 				return true;
 			}
 		}
+		// 判断是否只查找直接标注的注解，如果不是，那么可以查找标注在注解中的元注解
 		if (!directOnly) {
+			// 遍历注解对应的mappings集合
 			for (AnnotationTypeMappings mappings : this.mappings) {
+				// 然后遍历每个mappings中持有的对应注解的mapping
 				for (int i = 1; i < mappings.size(); i++) {
 					AnnotationTypeMapping mapping = mappings.get(i);
+					// 如果发现有mapping对应的注解类型是要查找的类型，返回true
 					if (isMappingForType(mapping, requiredType)) {
 						return true;
 					}
 				}
 			}
 		}
+		// 否则返回false
 		return false;
 	}
 
@@ -150,7 +158,9 @@ final class MergedAnnotationsCollection implements MergedAnnotations {
 			@Nullable Predicate<? super MergedAnnotation<A>> predicate,
 			@Nullable MergedAnnotationSelector<A> selector) {
 
+		// 调用find方法根据注解类型名称查找对应的注解
 		MergedAnnotation<A> result = find(annotationType, predicate, selector);
+		// 如果result为null，返回MissingMergedAnnotation，否则返回result
 		return (result != null ? result : MergedAnnotation.missing());
 	}
 
@@ -160,25 +170,34 @@ final class MergedAnnotationsCollection implements MergedAnnotations {
 			@Nullable Predicate<? super MergedAnnotation<A>> predicate,
 			@Nullable MergedAnnotationSelector<A> selector) {
 
+		// 如果选择器为null的话，使用nearest选择器
 		if (selector == null) {
 			selector = MergedAnnotationSelectors.nearest();
 		}
 
 		MergedAnnotation<A> result = null;
+		// 遍历持有的MergedAnnotation数组
 		for (int i = 0; i < this.annotations.length; i++) {
+			// 获取对应的注解和对应的mappings
 			MergedAnnotation<?> root = this.annotations[i];
 			AnnotationTypeMappings mappings = this.mappings[i];
+			// 遍历mappings中持有的mapping
 			for (int mappingIndex = 0; mappingIndex < mappings.size(); mappingIndex++) {
 				AnnotationTypeMapping mapping = mappings.get(mappingIndex);
+				// 如果mapping不是要查找的类型，继续下一次循环
 				if (!isMappingForType(mapping, requiredType)) {
 					continue;
 				}
+				// 如果mappingIndex等于0的话，说明根注解就是要找的注解，直接将root赋值，否则根据mapping和root注解创建一个TypeMappedAnnotation
 				MergedAnnotation<A> candidate = (mappingIndex == 0 ? (MergedAnnotation<A>) root :
 						TypeMappedAnnotation.createIfPossible(mapping, root, IntrospectionFailureLogger.INFO));
+				// 如果候选注解不为null，并且验证通过
 				if (candidate != null && (predicate == null || predicate.test(candidate))) {
+					// 判断该注解是否是最佳的候选，如果是，直接返回
 					if (selector.isBestCandidate(candidate)) {
 						return candidate;
 					}
+					// 否则将候选注解同上一次的结果相比较，选出更优的那个，然后继续查找
 					result = (result != null ? selector.select(result, candidate) : candidate);
 				}
 			}
@@ -211,9 +230,11 @@ final class MergedAnnotationsCollection implements MergedAnnotations {
 
 	static MergedAnnotations of(Collection<MergedAnnotation<?>> annotations) {
 		Assert.notNull(annotations, "Annotations must not be null");
+		// 如果注解数组为空，直接返回常量NONE
 		if (annotations.isEmpty()) {
 			return TypeMappedAnnotations.NONE;
 		}
+		// 否则的话，创建一个MergedAnnotationsCollection对象返回
 		return new MergedAnnotationsCollection(annotations);
 	}
 

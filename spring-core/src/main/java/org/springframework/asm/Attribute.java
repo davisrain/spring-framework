@@ -125,9 +125,14 @@ public class Attribute {
       final char[] charBuffer,
       final int codeAttributeOffset,
       final Label[] labels) {
+	  // 根据自身的type再创建一个Attribute对象
     Attribute attribute = new Attribute(type);
+	// 将attribute对象的content初始化为一个长为length的字节数组
     attribute.content = new byte[length];
+	// 然后从class文件字节数组中复制 表示属性内容的字节 到attribute的content字节数组中，
+	  // 从属性内容开始的偏移量offset开始，复制对应属性内容长度length的字节。
     System.arraycopy(classReader.classFileBuffer, offset, attribute.content, 0, length);
+	// 然后返回attribute对象
     return attribute;
   }
 

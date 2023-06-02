@@ -240,7 +240,7 @@ public class ClassReader {
           hasBootstrapMethods = true;
           hasConstantDynamic = true;
           break;
-        case Symbol.CONSTANT_INVOKE_DYNAMIC_TAG:
+        case Symbol.CONSTANT_INVOKE_DYNAMIC_TAG: // tag(1) + bootstrapMethodIndex(2) + Constant_NameAndType_info(2)
           cpInfoSize = 5;
           hasBootstrapMethods = true;
           break;
@@ -261,7 +261,7 @@ public class ClassReader {
             currentMaxStringLength = cpInfoSize;
           }
           break;
-        case Symbol.CONSTANT_METHOD_HANDLE_TAG:
+        case Symbol.CONSTANT_METHOD_HANDLE_TAG: // tag(1) + reference_kind(u1,取值在1-9之间，代表不同的方法调用类型) + reference(u2,指向常量池中的一个方法引用)
           cpInfoSize = 4;
           break;
         case Symbol.CONSTANT_CLASS_TAG: // tag(1) + Constant_UTF8_info(2)
@@ -284,9 +284,11 @@ public class ClassReader {
     header = currentCpInfoOffset;
 
     // Allocate the cache of ConstantDynamic values, if there is at least one.
+	  // 如果存在ConstantDynamic的话，创建一个数组用于缓存
     constantDynamicValues = hasConstantDynamic ? new ConstantDynamic[constantPoolCount] : null;
 
     // Read the BootstrapMethods attribute, if any (only get the offset of each method).
+	  // 如果存在引导方法的话，解析引导方法属性表，设置引导方法属性表的偏移量；否则的话，将bootstrapMethodOffsets设置为null
     bootstrapMethodOffsets =
         hasBootstrapMethods ? readBootstrapMethodsAttribute(currentMaxStringLength) : null;
   }
@@ -450,8 +452,10 @@ public class ClassReader {
 
     // Read the access_flags, this_class, super_class, interface_count and interfaces fields.
     char[] charBuffer = context.charBuffer;
+	// 将当前偏移量设置为header，即访问标志开始的位置，然后分别读取访问标志，当前类，父类和所有实现的接口
     int currentOffset = header;
     int accessFlags = readUnsignedShort(currentOffset);
+	// readClass底层还是调用的readUTF8方法，读取类的符号引用
     String thisClass = readClass(currentOffset + 2, charBuffer);
     String superClass = readClass(currentOffset + 4, charBuffer);
     String[] interfaces = new String[readUnsignedShort(currentOffset + 6)];
@@ -463,6 +467,7 @@ public class ClassReader {
 
     // Read the class attributes (the variables are ordered as in Section 4.7 of the JVMS).
     // Attribute offsets exclude the attribute_name_index and attribute_length fields.
+	  // 读取class文件中的属性，并且属性的偏移量不包含 属性的名称索引 和 属性的内容长度
     // - The offset of the InnerClasses attribute, or 0.
     int innerClassesOffset = 0;
     // - The offset of the EnclosingMethod attribute, or 0.
@@ -499,16 +504,24 @@ public class ClassReader {
     //   This list in the <i>reverse order</i> or their order in the ClassFile structure.
     Attribute attributes = null;
 
+	// 获取class文件第一个属性的偏移量
     int currentAttributeOffset = getFirstAttributeOffset();
+	// 读取class文件属性的数量，进行循环
     for (int i = readUnsignedShort(currentAttributeOffset - 2); i > 0; --i) {
       // Read the attribute_info's attribute_name and attribute_length fields.
+		// 读取属性的名称
       String attributeName = readUTF8(currentAttributeOffset, charBuffer);
+	  // 读取属性的长度
       int attributeLength = readInt(currentAttributeOffset + 2);
+	  // 将当前属性偏移量+6，指向属性的内容
       currentAttributeOffset += 6;
       // The tests are sorted in decreasing frequency order (based on frequencies observed on
       // typical classes).
+		// 如果属性名是SourceFile，从当前属性偏移量的位置读取2个字节的常量池中Constant_UTF8_info类型常量的索引，进行解析，
+		// 然后将解析出的字符串赋值给sourceFile
       if (Constants.SOURCE_FILE.equals(attributeName)) {
         sourceFile = readUTF8(currentAttributeOffset, charBuffer);
+		// 如果属性名是InnerClasses，将当前偏移量赋值给innerClassesOffset，同理，下面的代码也是解析相应属性的偏移量或者名称
       } else if (Constants.INNER_CLASSES.equals(attributeName)) {
         innerClassesOffset = currentAttributeOffset;
       } else if (Constants.ENCLOSING_METHOD.equals(attributeName)) {
@@ -525,10 +538,14 @@ public class ClassReader {
         runtimeVisibleAnnotationsOffset = currentAttributeOffset;
       } else if (Constants.RUNTIME_VISIBLE_TYPE_ANNOTATIONS.equals(attributeName)) {
         runtimeVisibleTypeAnnotationsOffset = currentAttributeOffset;
+		// 如果属性名称等于Deprecated，表示该类已经过时了，需要在访问标志中添加这一属性
       } else if (Constants.DEPRECATED.equals(attributeName)) {
         accessFlags |= Opcodes.ACC_DEPRECATED;
+		// 如果属性名称等于Synthetic，说明该类是合成的，也需要在访问标志中添加这一属性
       } else if (Constants.SYNTHETIC.equals(attributeName)) {
         accessFlags |= Opcodes.ACC_SYNTHETIC;
+		// 如果属性名等于SourceDebugExtension，根据当前属性偏移量和该属性的长度，根据UTF8编码规则读取值。
+		  // SourceDebugExtension属性的结构是：attribute_name_index(u2) attribute_length(u4) debug_extension(u1 * attribute_length)
       } else if (Constants.SOURCE_DEBUG_EXTENSION.equals(attributeName)) {
         sourceDebugExtension =
             readUtf(currentAttributeOffset, attributeLength, new char[attributeLength]);
@@ -544,6 +561,7 @@ public class ClassReader {
         moduleMainClass = readClass(currentAttributeOffset, charBuffer);
       } else if (Constants.MODULE_PACKAGES.equals(attributeName)) {
         modulePackagesOffset = currentAttributeOffset;
+		// 如果属性名等于BootstrapMethods，将其解析为Attribute对象，并和当前存在的Attribute对象链接起来，形成一个属性链
       } else if (!Constants.BOOTSTRAP_METHODS.equals(attributeName)) {
         // The BootstrapMethods attribute is read in the constructor.
         Attribute attribute =
@@ -558,6 +576,7 @@ public class ClassReader {
         attribute.nextAttribute = attributes;
         attributes = attribute;
       }
+	  // 然后将当前属性偏移量 + 当前属性长度，使得偏移量指向下一个属性开始的位置
       currentAttributeOffset += attributeLength;
     }
 
@@ -567,6 +586,8 @@ public class ClassReader {
         readInt(cpInfoOffsets[1] - 7), accessFlags, thisClass, signature, superClass, interfaces);
 
     // Visit the SourceFile and SourceDebugExtenstion attributes.
+	  // 如果parsingOptions没有设置SKIP_DEBUG 并且 sourceFile存在 或者 sourceDebugExtension存在的话，
+	  // 调用visitor的visitSource方法进行访问
     if ((parsingOptions & SKIP_DEBUG) == 0
         && (sourceFile != null || sourceDebugExtension != null)) {
       classVisitor.visitSource(sourceFile, sourceDebugExtension);
@@ -584,25 +605,39 @@ public class ClassReader {
     }
 
     // Visit the EnclosingMethod attribute.
+	  // 用于标识局部类或匿名类所在的外围方法。
+	  // EnclosingMethod的内容应该是attribute_name_index(u2) attribute_length(u4) class_index(u2) method_index(u2，指向常量池中的Constant_NameAndType_info)
     if (enclosingMethodOffset != 0) {
+		// 读取类名称
       String className = readClass(enclosingMethodOffset, charBuffer);
       int methodIndex = readUnsignedShort(enclosingMethodOffset + 2);
+	  // 读取方法的name和descriptor
       String name = methodIndex == 0 ? null : readUTF8(cpInfoOffsets[methodIndex], charBuffer);
       String type = methodIndex == 0 ? null : readUTF8(cpInfoOffsets[methodIndex] + 2, charBuffer);
+	  // 调用visitOuterClass方法
       classVisitor.visitOuterClass(className, name, type);
     }
 
     // Visit the RuntimeVisibleAnnotations attribute.
+	  // 运行时可见注解属性的结构是：attribute_name_index(u2) attribute_length(u4) num_annotations(u2) annotations(num_annotations)
+	  // annotation的结构是：type_index(u2，指向常量池的Constant_UTF8_info常量) num_element_value_pairs(u2) element_value_pairs(num_element_value_pairs)
+	  // 关于annotation的结构，详细内容可以查看https://docs.oracle.com/cd/E28389_01/apirefs.1111/b32476/oracle/toplink/libraries/asm/attrs/Annotation.html
     if (runtimeVisibleAnnotationsOffset != 0) {
+		// 读取注解的数量
       int numAnnotations = readUnsignedShort(runtimeVisibleAnnotationsOffset);
+	  // 获取当前注解的偏移量
       int currentAnnotationOffset = runtimeVisibleAnnotationsOffset + 2;
+	  // 根据注解的数量进行遍历
       while (numAnnotations-- > 0) {
         // Parse the type_index field.
+		  // 读取当前注解的描述符，是以字段描述符的形式表示注解的，比如Ljava/lang/Target;
         String annotationDescriptor = readUTF8(currentAnnotationOffset, charBuffer);
         currentAnnotationOffset += 2;
         // Parse num_element_value_pairs and element_value_pairs and visit these values.
+		  // 调用readElementValues方法解析注解中的属性和值
         currentAnnotationOffset =
             readElementValues(
+					// 根据注解描述符以及可见性生成一个AnnotationVisitor
                 classVisitor.visitAnnotation(annotationDescriptor, /* visible = */ true),
                 currentAnnotationOffset,
                 /* named = */ true,
@@ -677,6 +712,7 @@ public class ClassReader {
     }
 
     // Visit the non standard attributes.
+	  // 访问非标准的属性表，比如BootstrapMethods
     while (attributes != null) {
       // Copy and reset the nextAttribute field so that it can also be used in ClassWriter.
       Attribute nextAttribute = attributes.nextAttribute;
@@ -686,10 +722,14 @@ public class ClassReader {
     }
 
     // Visit the NestedMembers attribute.
+	  // 宿主类通过该属性了解自己有哪些内部类
     if (nestMembersOffset != 0) {
+		// 读取u2类型的内部类数量
       int numberOfNestMembers = readUnsignedShort(nestMembersOffset);
       int currentNestMemberOffset = nestMembersOffset + 2;
+	  // 然后根据内部类数量循环
       while (numberOfNestMembers-- > 0) {
+		  // 读取u2类型的指向Constant_class_info的常量，然后将其转换为UTF8类型的类名字符串
         classVisitor.visitNestMember(readClass(currentNestMemberOffset, charBuffer));
         currentNestMemberOffset += 2;
       }
@@ -708,13 +748,18 @@ public class ClassReader {
 
     // Visit the InnerClasses attribute.
     if (innerClassesOffset != 0) {
+		// 读取内部类的数量
       int numberOfClasses = readUnsignedShort(innerClassesOffset);
       int currentClassesOffset = innerClassesOffset + 2;
       while (numberOfClasses-- > 0) {
         classVisitor.visitInnerClass(
+				// 读取InnerClass的class_info_index
             readClass(currentClassesOffset, charBuffer),
+			// 读取OuterClass的class_info_index
             readClass(currentClassesOffset + 2, charBuffer),
+			// 读取InnerClass的name_index
             readUTF8(currentClassesOffset + 4, charBuffer),
+			// 读取InnerClass的access_flag
             readUnsignedShort(currentClassesOffset + 6));
         currentClassesOffset += 8;
       }
@@ -730,13 +775,18 @@ public class ClassReader {
     }
 
     // Visit the fields and methods.
+	  // 访问类的字段和方法
+	  // 读取字段的数量
     int fieldsCount = readUnsignedShort(currentOffset);
     currentOffset += 2;
+	// 根据字段数量进行循环，调用readField进行读取
     while (fieldsCount-- > 0) {
       currentOffset = readField(classVisitor, context, currentOffset);
     }
+	// 读取方法的数量
     int methodsCount = readUnsignedShort(currentOffset);
     currentOffset += 2;
+	// 根据方法的数量进行循环，调用readMethod进行读取
     while (methodsCount-- > 0) {
       currentOffset = readMethod(classVisitor, context, currentOffset);
     }
@@ -1070,11 +1120,15 @@ public class ClassReader {
 
     // Read the access_flags, name_index and descriptor_index fields.
     int currentOffset = fieldInfoOffset;
+	// 读取字段的access_flags
     int accessFlags = readUnsignedShort(currentOffset);
+	// 读取字段的name_index
     String name = readUTF8(currentOffset + 2, charBuffer);
+	// 读取字段的descriptor_index
     String descriptor = readUTF8(currentOffset + 4, charBuffer);
     currentOffset += 6;
 
+	// 开始读取字段的属性表
     // Read the field attributes (the variables are ordered as in Section 4.7 of the JVMS).
     // Attribute offsets exclude the attribute_name_index and attribute_length fields.
     // - The value corresponding to the ConstantValue attribute, or null.
@@ -1093,11 +1147,15 @@ public class ClassReader {
     //   This list in the <i>reverse order</i> or their order in the ClassFile structure.
     Attribute attributes = null;
 
+	// 读取字段属性表的数量
     int attributesCount = readUnsignedShort(currentOffset);
     currentOffset += 2;
+	// 根据数量进行循环
     while (attributesCount-- > 0) {
       // Read the attribute_info's attribute_name and attribute_length fields.
+		// 读取属性的名称
       String attributeName = readUTF8(currentOffset, charBuffer);
+	  // 读取属性的长度
       int attributeLength = readInt(currentOffset + 2);
       currentOffset += 6;
       // The tests are sorted in decreasing frequency order (based on frequencies observed on
@@ -1254,8 +1312,11 @@ public class ClassReader {
 
     // Read the access_flags, name_index and descriptor_index fields.
     int currentOffset = methodInfoOffset;
+	// 读取方法的access_flags
     context.currentMethodAccessFlags = readUnsignedShort(currentOffset);
+	// 读取方法的name_index
     context.currentMethodName = readUTF8(currentOffset + 2, charBuffer);
+	// 读取方法的descriptor_index
     context.currentMethodDescriptor = readUTF8(currentOffset + 4, charBuffer);
     currentOffset += 6;
 
@@ -1291,27 +1352,37 @@ public class ClassReader {
     //   This list in the <i>reverse order</i> or their order in the ClassFile structure.
     Attribute attributes = null;
 
+	// 读取方法属性表的数量
     int attributesCount = readUnsignedShort(currentOffset);
     currentOffset += 2;
+	// 根据方法属性表的数量进行循环
     while (attributesCount-- > 0) {
       // Read the attribute_info's attribute_name and attribute_length fields.
+		// 读取属性名
       String attributeName = readUTF8(currentOffset, charBuffer);
+	  // 读取属性的长度
       int attributeLength = readInt(currentOffset + 2);
       currentOffset += 6;
       // The tests are sorted in decreasing frequency order (based on frequencies observed on
       // typical classes).
+		// 如果属性名等于Code，且parsingOptions没有设置SKIP_CODE标志的话，记录code属性的偏移量
       if (Constants.CODE.equals(attributeName)) {
         if ((context.parsingOptions & SKIP_CODE) == 0) {
           codeOffset = currentOffset;
         }
-      } else if (Constants.EXCEPTIONS.equals(attributeName)) {
+      }
+	  // 如果属性名等于Exceptions
+	  else if (Constants.EXCEPTIONS.equals(attributeName)) {
+		  // 记录Exceptions属性的偏移量
         exceptionsOffset = currentOffset;
+		// 并且解析方法声明throws的异常，将每种异常的类名称解析出来存入数组中
         exceptions = new String[readUnsignedShort(exceptionsOffset)];
         int currentExceptionOffset = exceptionsOffset + 2;
         for (int i = 0; i < exceptions.length; ++i) {
           exceptions[i] = readClass(currentExceptionOffset, charBuffer);
           currentExceptionOffset += 2;
         }
+		// 如果属性等于Signature，将signature所指向的常量池索引记录下来
       } else if (Constants.SIGNATURE.equals(attributeName)) {
         signatureIndex = readUnsignedShort(currentOffset);
       } else if (Constants.DEPRECATED.equals(attributeName)) {
@@ -1352,6 +1423,7 @@ public class ClassReader {
     }
 
     // Visit the method declaration.
+	  // 根据方法的访问标志、名称、描述符、签名、以及要抛出的异常数组构建一个MethodVisitor
     MethodVisitor methodVisitor =
         classVisitor.visitMethod(
             context.currentMethodAccessFlags,
@@ -1382,13 +1454,17 @@ public class ClassReader {
     }
 
     // Visit the MethodParameters attribute.
+	  // 访问MethodParameters属性，如果该属性的偏移量不为0并且parsingOptions没有设置SKIP_DEBUG的话
     if (methodParametersOffset != 0 && (context.parsingOptions & SKIP_DEBUG) == 0) {
+		// 读取方法参数的数量，这是一个u1类型的变量，所以使用readByte
       int parametersCount = readByte(methodParametersOffset);
       int currentParameterOffset = methodParametersOffset + 1;
       while (parametersCount-- > 0) {
         // Read the name_index and access_flags fields and visit them.
         methodVisitor.visitParameter(
+				// 读取参数名称
             readUTF8(currentParameterOffset, charBuffer),
+			// 读取参数的access_flags
             readUnsignedShort(currentParameterOffset + 2));
         currentParameterOffset += 4;
       }
@@ -1404,16 +1480,20 @@ public class ClassReader {
     }
 
     // Visit the RuntimeVisibleAnnotations attribute.
+	  // 访问运行时可见的注解
     if (runtimeVisibleAnnotationsOffset != 0) {
       int numAnnotations = readUnsignedShort(runtimeVisibleAnnotationsOffset);
       int currentAnnotationOffset = runtimeVisibleAnnotationsOffset + 2;
+	  // 读取注解的数量，然后循环
       while (numAnnotations-- > 0) {
         // Parse the type_index field.
+		  // 读取注解的type_index
         String annotationDescriptor = readUTF8(currentAnnotationOffset, charBuffer);
         currentAnnotationOffset += 2;
         // Parse num_element_value_pairs and element_value_pairs and visit these values.
         currentAnnotationOffset =
             readElementValues(
+					// 调用methodVisitor的visitAnnotation方法创建一个AnnotationVisitor
                 methodVisitor.visitAnnotation(annotationDescriptor, /* visible = */ true),
                 currentAnnotationOffset,
                 /* named = */ true,
@@ -2988,16 +3068,23 @@ public class ClassReader {
       final char[] charBuffer) {
     int currentOffset = annotationOffset;
     // Read the num_element_value_pairs field (or num_values field for an array_value).
+	  // 读取当前注解的键值对的数量，element_value_pairs的结构是 element_name_index(u2), element_value
     int numElementValuePairs = readUnsignedShort(currentOffset);
     currentOffset += 2;
+	// 如果named为true，表示解析的是element_value_pair
     if (named) {
       // Parse the element_value_pairs array.
+		// 根据数量进行循环
       while (numElementValuePairs-- > 0) {
+		  // 读取元素的名称
         String elementName = readUTF8(currentOffset, charBuffer);
+		// 然后读取元素对应的值
         currentOffset =
             readElementValue(annotationVisitor, currentOffset + 2, elementName, charBuffer);
       }
-    } else {
+    }
+	// 如果named为false，表示解析的是数组中的element_value
+	else {
       // Parse the array_value array.
       while (numElementValuePairs-- > 0) {
         currentOffset =
@@ -3005,6 +3092,7 @@ public class ClassReader {
       }
     }
     if (annotationVisitor != null) {
+		// 调用annotationVisitor的visitEnd方法
       annotationVisitor.visitEnd();
     }
     return currentOffset;
@@ -3025,8 +3113,33 @@ public class ClassReader {
       final int elementValueOffset,
       final String elementName,
       final char[] charBuffer) {
+	  // element_value的结构是：element_value {
+	  //     u1 tag;
+	  //     union {
+	  //       u2   const_value_index;
+	  //       {
+	  //         u2   type_name_index;
+	  //         u2   const_name_index;
+	  //       } enum_const_value;
+	  //       u2   class_info_index;
+	  //       annotation annotation_value;
+	  //       {
+	  //         u2    num_values;
+	  //         element_value values[num_values];
+	  //       } array_value;
+	  //     } value;
+	  //   }
+	  // tag的表示：基本类型由其描述符来表示，即ZBCSIFJD。
+	  //    其他类型：
+	  //     's'  String
+	  //     'e'  enum constant
+	  //     'c'  class
+	  //     '@'  annotation type
+	  //     '['  array
     int currentOffset = elementValueOffset;
+	// 如果annotationVisitor为null的话，直接将偏移量移动对应长度
     if (annotationVisitor == null) {
+		// 判断对应偏移量指向的字节内容，即读取element_value的tag
       switch (classFileBuffer[currentOffset] & 0xFF) {
         case 'e': // enum_const_value
           return currentOffset + 5;
@@ -3038,17 +3151,22 @@ public class ClassReader {
           return currentOffset + 3;
       }
     }
+	// 判断对应偏移量指向的字节内容，即读取element_value的tag
     switch (classFileBuffer[currentOffset++] & 0xFF) {
+		// 如果是B的话，说明后面两个字节指向的是常量池的Constant_Integer_info
       case 'B': // const_value_index, CONSTANT_Integer
+		  // 读取出常量池中对应的常量，并转换为byte类型，调用annotationVisitor的visit方法，将元素名称和元素值都传入
         annotationVisitor.visit(
             elementName, (byte) readInt(cpInfoOffsets[readUnsignedShort(currentOffset)]));
         currentOffset += 2;
         break;
+		// 如果是char类型的，同理
       case 'C': // const_value_index, CONSTANT_Integer
         annotationVisitor.visit(
             elementName, (char) readInt(cpInfoOffsets[readUnsignedShort(currentOffset)]));
         currentOffset += 2;
         break;
+		// 如果是double float int long类型的调用readConst方法，根据指向的常量的tag不同，选择不同的读取方式
       case 'D': // const_value_index, CONSTANT_Double
       case 'F': // const_value_index, CONSTANT_Float
       case 'I': // const_value_index, CONSTANT_Integer
@@ -3057,6 +3175,7 @@ public class ClassReader {
             elementName, readConst(readUnsignedShort(currentOffset), charBuffer));
         currentOffset += 2;
         break;
+		// 如果是short类型的，同byte char类型一样
       case 'S': // const_value_index, CONSTANT_Integer
         annotationVisitor.visit(
             elementName, (short) readInt(cpInfoOffsets[readUnsignedShort(currentOffset)]));
@@ -3064,6 +3183,7 @@ public class ClassReader {
         break;
 
       case 'Z': // const_value_index, CONSTANT_Integer
+		  // 如果是boolean类型的，根据读出的int是否是0，来判断是false还是true
         annotationVisitor.visit(
             elementName,
             readInt(cpInfoOffsets[readUnsignedShort(currentOffset)]) == 0
@@ -3072,10 +3192,12 @@ public class ClassReader {
         currentOffset += 2;
         break;
       case 's': // const_value_index, CONSTANT_Utf8
+		  // 如果是s，表示是一个字符串，读取常量池中Constant_UTF8_info类型的常量
         annotationVisitor.visit(elementName, readUTF8(currentOffset, charBuffer));
         currentOffset += 2;
         break;
       case 'e': // enum_const_value
+		  // 如果是e，表示是枚举类型
         annotationVisitor.visitEnum(
             elementName,
             readUTF8(currentOffset, charBuffer),
@@ -3083,20 +3205,27 @@ public class ClassReader {
         currentOffset += 4;
         break;
       case 'c': // class_info
+		  // 如果是c，表示是类，仍然读取常量池中UTF8类型的常量，然后用Type来解析
         annotationVisitor.visit(elementName, Type.getType(readUTF8(currentOffset, charBuffer)));
         currentOffset += 2;
         break;
       case '@': // annotation_value
+		  // 如果是注解，递归调用readElementValues方法
         currentOffset =
             readElementValues(
+					// 解析出annotation对应的type_index，调用visitAnnotation根据原annotationVisitor生成一个新的对应type_index的annotationVisitor
+					// 用于方法的递归调用
                 annotationVisitor.visitAnnotation(elementName, readUTF8(currentOffset, charBuffer)),
                 currentOffset + 2,
                 true,
                 charBuffer);
         break;
       case '[': // array_value
+		  // 如果是数组，获取数组长度，即tag后续的u2
         int numValues = readUnsignedShort(currentOffset);
         currentOffset += 2;
+		// 如果数组长度为0，递归调用readElementValues方法，这里仍要递归调用的原因是要调用ArrayVisitor的visitEnd方法生成一个空数组
+		  // 作为element_name的value放入到AnnotationVisitor的attributes中
         if (numValues == 0) {
           return readElementValues(
               annotationVisitor.visitArray(elementName),
@@ -3104,6 +3233,8 @@ public class ClassReader {
               /* named = */ false,
               charBuffer);
         }
+		// 读取数组元素中第一个element_value的tag，判断其元素类型，然后根据数组长度创建对应类型的数组，
+		  // 然后根据数组长度循环读取每一个element_value，将其解析之后存入数组
         switch (classFileBuffer[currentOffset] & 0xFF) {
           case 'B':
             byte[] byteValues = new byte[numValues];
@@ -3111,6 +3242,7 @@ public class ClassReader {
               byteValues[i] = (byte) readInt(cpInfoOffsets[readUnsignedShort(currentOffset + 1)]);
               currentOffset += 3;
             }
+			// 然后将数组存入annotationVisitor的attributes中
             annotationVisitor.visit(elementName, byteValues);
             break;
           case 'Z':
@@ -3174,6 +3306,7 @@ public class ClassReader {
             annotationVisitor.visit(elementName, doubleValues);
             break;
           default:
+			  // 如果数组元素类型不是基础类型，那么递归调用readElementValues方法进行解析
             currentOffset =
                 readElementValues(
                     annotationVisitor.visitArray(elementName),
@@ -3432,40 +3565,59 @@ public class ClassReader {
   final int getFirstAttributeOffset() {
     // Skip the access_flags, this_class, super_class, and interfaces_count fields (using 2 bytes
     // each), as well as the interfaces array field (2 bytes per interface).
+	  // 从header开始，计算偏移量。因为header指向的是access_flags开始的位置，后面有u2的access_flags，u2的this_class，u2的super_class；
+	  // 然后有u2的interfaces_count，然后是对应数量的u2类型的指向常量池interface类型的索引。所以下面的这句的效果使得当前偏移量直接跳到了class文件字段表数量开始的位置
     int currentOffset = header + 8 + readUnsignedShort(header + 6) * 2;
 
     // Read the fields_count field.
+	  // 然后读取u2长度的内容，是class文件中存在的字段info的数量
     int fieldsCount = readUnsignedShort(currentOffset);
+	// 将偏移量+2，移到字段表实际内容开始的位置
     currentOffset += 2;
     // Skip the 'fields' array field.
+	  // 遍历字段表
     while (fieldsCount-- > 0) {
       // Invariant: currentOffset is the offset of a field_info structure.
       // Skip the access_flags, name_index and descriptor_index fields (2 bytes each), and read the
       // attributes_count field.
+		// 字段表info有u2类型的access_flags、u2类型的name_index、u2类型的descriptor_index，然后是u2类型的属性表数量，再然后是对应数量的属性表info
+		// 所以我们从当前偏移量+6的位置读取两个字节，读取到的就是该字段存在的属性表数量
       int attributesCount = readUnsignedShort(currentOffset + 6);
+	  // 将当前偏移量+8，移动到字段属性表开始的地方
       currentOffset += 8;
       // Skip the 'attributes' array field.
+		// 遍历字段的属性表
       while (attributesCount-- > 0) {
         // Invariant: currentOffset is the offset of an attribute_info structure.
         // Read the attribute_length field (2 bytes after the start of the attribute_info) and skip
         // this many bytes, plus 6 for the attribute_name_index and attribute_length fields
         // (yielding the total size of the attribute_info structure).
+		  // 属性表的结构都是u2类型的name_index(表示属性表的名称)，u4类型的attribute_length(表示属性表的长度)，然后对应长度的u1类型的内容。
+		  // 所以下面这句将当前偏移量直接移到了下一个字段属性表开始的位置
         currentOffset += 6 + readInt(currentOffset + 2);
       }
     }
 
     // Skip the methods_count and 'methods' fields, using the same method as above.
+	  // 遍历完字段表内容之后，当前偏移量就指向了方法表数量开始的位置，同解析字段表的逻辑类似
+	  // 先解析出方法数量
     int methodsCount = readUnsignedShort(currentOffset);
-    currentOffset += 2;
+    // 将当前偏移量+2，移动到方法表内容开始的位置
+	currentOffset += 2;
+	// 遍历方法表集合
     while (methodsCount-- > 0) {
+		// 方法表info的结构和字段表info相似，都是access_flags(u2) name_index(u2) descriptor_index(u2) attribute_count(u2) attribute_info(attribute_count)
       int attributesCount = readUnsignedShort(currentOffset + 6);
+	  // 将当前偏移量移到方法属性表info开始的位置
       currentOffset += 8;
       while (attributesCount-- > 0) {
+		  // 将当前偏移量移到下一个方法属性表开始的位置
         currentOffset += 6 + readInt(currentOffset + 2);
       }
     }
 
     // Skip the ClassFile's attributes_count field.
+	  // 将当前偏移量+2，跳过class文件的属性表的数量字段，指向class文件属性表第一个属性开始的位置
     return currentOffset + 2;
   }
 
@@ -3477,26 +3629,39 @@ public class ClassReader {
    * @return the offsets of the bootstrap methods.
    */
   private int[] readBootstrapMethodsAttribute(final int maxStringLength) {
+	  // 根据常量池中最长的UTF8类型的常量的长度创建一个char数组
     char[] charBuffer = new char[maxStringLength];
+	// 获取class文件第一个属性表info的偏移量
     int currentAttributeOffset = getFirstAttributeOffset();
     int[] currentBootstrapMethodOffsets = null;
+	// 读取class文件属性表的数量，然后进行循环
     for (int i = readUnsignedShort(currentAttributeOffset - 2); i > 0; --i) {
       // Read the attribute_info's attribute_name and attribute_length fields.
+		// 读取属性的名称 u2类型的name_index，然后拿到常量池中取解析出对应Constant_UTF8_info的内容
       String attributeName = readUTF8(currentAttributeOffset, charBuffer);
+	  // 读取属性的长度 u4类型的attribute_length
       int attributeLength = readInt(currentAttributeOffset + 2);
+	  // 然后将当前属性偏移量+6，指向属性的具体内容
       currentAttributeOffset += 6;
+	  // 如果属性名等于BootstrapMethods才执行if逻辑，否则将偏移量增加对应的属性长度，跳过当前属性
       if (Constants.BOOTSTRAP_METHODS.equals(attributeName)) {
         // Read the num_bootstrap_methods field and create an array of this size.
+		  // 根据获取到的u2类型的num_bootstrap_methods引导方法的数量来创建对应长度的int数组，用于表示每个引导方法开始的偏移量
         currentBootstrapMethodOffsets = new int[readUnsignedShort(currentAttributeOffset)];
         // Compute and store the offset of each 'bootstrap_methods' array field entry.
+		  // 将偏移量+2，跳过引导方法数量，指向引导方法的内容开始位置
         int currentBootstrapMethodOffset = currentAttributeOffset + 2;
+		// 根据引导方法数量进行循环
         for (int j = 0; j < currentBootstrapMethodOffsets.length; ++j) {
+			// 将每个引导方法开始的偏移量记录到数组中
           currentBootstrapMethodOffsets[j] = currentBootstrapMethodOffset;
           // Skip the bootstrap_method_ref and num_bootstrap_arguments fields (2 bytes each),
           // as well as the bootstrap_arguments array field (of size num_bootstrap_arguments * 2).
+			// 跳过引导方法info的内容，bootstrap_method_ref(u2) + num_bootstrap_arguments(u2) + bootstrap_arguments(u2) * num_bootstrap_arguments
           currentBootstrapMethodOffset +=
               4 + readUnsignedShort(currentBootstrapMethodOffset + 2) * 2;
         }
+		// 返回记录了每个引导方法开始位置的偏移量的数组
         return currentBootstrapMethodOffsets;
       }
       currentAttributeOffset += attributeLength;
@@ -3532,12 +3697,16 @@ public class ClassReader {
       final char[] charBuffer,
       final int codeAttributeOffset,
       final Label[] labels) {
+	  // 遍历属性原型数组
     for (Attribute attributePrototype : attributePrototypes) {
+		// 如果存在原型中type和传入的type相等的情况
       if (attributePrototype.type.equals(type)) {
+		  // 使用属性原型去读取
         return attributePrototype.read(
             this, offset, length, charBuffer, codeAttributeOffset, labels);
       }
     }
+	// 否则根据type新建一个Attribute对象去读取
     return new Attribute(type).read(this, offset, length, null, -1, null);
   }
 
@@ -3655,10 +3824,13 @@ public class ClassReader {
    */
   // DontCheck(AbbreviationAsWordInName): can't be renamed (for backward binary compatibility).
   public String readUTF8(final int offset, final char[] charBuffer) {
+	  // 从偏移量开始读取两个字节，是对常量池中常量的索引
     int constantPoolEntryIndex = readUnsignedShort(offset);
+	// 如果偏移量是0或者读出的索引位置为0，返回null
     if (offset == 0 || constantPoolEntryIndex == 0) {
       return null;
     }
+	// 否则，读取常量池中对应索引的UTF8值
     return readUtf(constantPoolEntryIndex, charBuffer);
   }
 
@@ -3672,11 +3844,14 @@ public class ClassReader {
    * @return the String corresponding to the specified CONSTANT_Utf8 entry.
    */
   final String readUtf(final int constantPoolEntryIndex, final char[] charBuffer) {
+	  // 先尝试去缓存中查找，如果命中的话，直接返回
     String value = constantUtf8Values[constantPoolEntryIndex];
     if (value != null) {
       return value;
     }
+	// 如果缓存中不存在，直接获取常量池对应索引在class文件字节数组中的偏移位置，该位置是跳过了tag的
     int cpInfoOffset = cpInfoOffsets[constantPoolEntryIndex];
+	// 然后从偏移量+2的位置根据偏移量后2个字节所代表的长度，读取对应长度的字节出来解析，然后将结果存入缓存中
     return constantUtf8Values[constantPoolEntryIndex] =
         readUtf(cpInfoOffset + 2, readUnsignedShort(cpInfoOffset), charBuffer);
   }
@@ -3691,18 +3866,31 @@ public class ClassReader {
    * @return the String corresponding to the specified UTF8 string.
    */
   private String readUtf(final int utfOffset, final int utfLength, final char[] charBuffer) {
+	  // 设置当前偏移量 和 结束偏移量
     int currentOffset = utfOffset;
     int endOffset = currentOffset + utfLength;
     int strLength = 0;
     byte[] classBuffer = classFileBuffer;
+	// 进行循环读取
     while (currentOffset < endOffset) {
+		// 获取当前字节
       int currentByte = classBuffer[currentOffset++];
+	  // 如果当前字节的从左往右第二位bit为0，根据UTF8编码的性质，可以得出，第一个字符只包含1个字节，且最大只能为127。
+		// UTF8编码的性质：如果字符只占1个字节，字符的第一个字节的第一位为0；
+		// 否则，字符的第一个字节前面有多少位1，代表该字符总共占用多少个字节，并且最后一位1后面会紧跟一个0，第一个字节剩余的位置才表示数据内容；
+		// 如果占用多个字节，那么后续字节的前两位都固定为10，只剩下6位用来表示数据。
+		// 比如，一个字节长的字符表示为0xxxxxxx；两个字节长的字符表示为110xxxxx 10xxxxxx；三个字节长的字符表示为1110xxxx 10xxxxxx 10xxxxxx
       if ((currentByte & 0x80) == 0) {
+		  // 将第一个字符解析出来设置进字符数组中
         charBuffer[strLength++] = (char) (currentByte & 0x7F);
+		// 如果当前字节与11100000进行位与操作，得到的结果是11000000，那么说明字节的第三位是0，说明这个字符是由两个字节构成的
       } else if ((currentByte & 0xE0) == 0xC0) {
+		  // 根据性质，取第一个字节的后5位 以及第二个字节的后6位，得到对应的字符
         charBuffer[strLength++] =
             (char) (((currentByte & 0x1F) << 6) + (classBuffer[currentOffset++] & 0x3F));
+		// 剩余的情况，说明字符是由3个字节构成的
       } else {
+		  // 取第一个字节的后4位，与后面两个字节的后6位，得到对应的字符
         charBuffer[strLength++] =
             (char)
                 (((currentByte & 0xF) << 12)
@@ -3710,6 +3898,7 @@ public class ClassReader {
                     + (classBuffer[currentOffset++] & 0x3F));
       }
     }
+	// 最后将字符数组转换为String类型返回，完成对UTF8常量的解析
     return new String(charBuffer, 0, strLength);
   }
 

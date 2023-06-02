@@ -128,10 +128,14 @@ public class StandardAnnotationMetadata extends StandardClassMetadata implements
 
 	@Override
 	public boolean hasAnnotatedMethods(String annotationName) {
+		// 如果持有的类型是携带对应注解的候选类
 		if (AnnotationUtils.isCandidateClass(getIntrospectedClass(), annotationName)) {
 			try {
+				// 通过反射获取类中声明的方法
 				Method[] methods = ReflectionUtils.getDeclaredMethods(getIntrospectedClass());
+				// 遍历方法数组
 				for (Method method : methods) {
+					// 判断当前遍历的方法上是否标注了对应注解
 					if (isAnnotatedMethod(method, annotationName)) {
 						return true;
 					}
@@ -168,7 +172,11 @@ public class StandardAnnotationMetadata extends StandardClassMetadata implements
 	}
 
 	private boolean isAnnotatedMethod(Method method, String annotationName) {
+		// 如果方法不是桥接方法，且方法上有注解存在，并且方法上标注了对应注解，返回true
 		return !method.isBridge() && method.getAnnotations().length > 0 &&
+				// 该方法的逻辑是：根据method生成一个MergedAnnotations，即TypeMappedAnnotations，
+				// 然后通过IsPresent这个AnnotationProcessor对方法上标注的注解进行处理，查找方法上是否标注了对应的注解，
+				// 不仅仅会查找直接标注在方法上的，还会查找标注在注解中的元注解。
 				AnnotatedElementUtils.isAnnotated(method, annotationName);
 	}
 
