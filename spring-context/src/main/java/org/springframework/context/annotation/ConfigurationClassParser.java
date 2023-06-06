@@ -156,27 +156,35 @@ class ConfigurationClassParser {
 			ProblemReporter problemReporter, Environment environment, ResourceLoader resourceLoader,
 			BeanNameGenerator componentScanBeanNameGenerator, BeanDefinitionRegistry registry) {
 
+		// 用于生成元数据的reader
 		this.metadataReaderFactory = metadataReaderFactory;
 		this.problemReporter = problemReporter;
 		this.environment = environment;
 		this.resourceLoader = resourceLoader;
 		this.registry = registry;
+		// 初始化一个ComponentScanAnnotationParser，即@ComponentScan注解的解析器
 		this.componentScanParser = new ComponentScanAnnotationParser(
 				environment, resourceLoader, componentScanBeanNameGenerator, registry);
+		// 初始化一个ConditionEvaluator，用于解析@Conditional注解
 		this.conditionEvaluator = new ConditionEvaluator(registry, environment, resourceLoader);
 	}
 
 
 	public void parse(Set<BeanDefinitionHolder> configCandidates) {
+		// 遍历ConfigurationClass的候选bd组成的set
 		for (BeanDefinitionHolder holder : configCandidates) {
+			// 获取到当前的bd
 			BeanDefinition bd = holder.getBeanDefinition();
 			try {
+				// 如果bd是AnnotatedBeanDefinition类型的，获取到其持有的元数据调用parse的重载方法进行解析
 				if (bd instanceof AnnotatedBeanDefinition) {
 					parse(((AnnotatedBeanDefinition) bd).getMetadata(), holder.getBeanName());
 				}
+				// 如果bd是AbstractBeanDefinition类型的，且存在beanClass，那么根据beanClass生成StandardAnnotationMetadata元数据进行解析
 				else if (bd instanceof AbstractBeanDefinition && ((AbstractBeanDefinition) bd).hasBeanClass()) {
 					parse(((AbstractBeanDefinition) bd).getBeanClass(), holder.getBeanName());
 				}
+				// 如果是其他情况，根据beanClassName通过MetadataReader使用asm读取对应类的class文件，生成SimpleAnnotationMetadata进行解析
 				else {
 					parse(bd.getBeanClassName(), holder.getBeanName());
 				}
@@ -195,15 +203,19 @@ class ConfigurationClassParser {
 
 	protected final void parse(@Nullable String className, String beanName) throws IOException {
 		Assert.notNull(className, "No bean class name for configuration class bean definition");
+		// 通过元数据读取器工厂生成一个元数据读取器SimpleMetadataReader
 		MetadataReader reader = this.metadataReaderFactory.getMetadataReader(className);
+		// 将元数据读取器和beanName封装成一个ConfigurationClass，调用processConfigurationClass方法进行处理
 		processConfigurationClass(new ConfigurationClass(reader, beanName), DEFAULT_EXCLUSION_FILTER);
 	}
 
 	protected final void parse(Class<?> clazz, String beanName) throws IOException {
+		// 根据beanClass和beanName封装一个ConfigurationClass进行处理
 		processConfigurationClass(new ConfigurationClass(clazz, beanName), DEFAULT_EXCLUSION_FILTER);
 	}
 
 	protected final void parse(AnnotationMetadata metadata, String beanName) throws IOException {
+		// 根据AnnotationMetadata和beanName封装一个ConfigurationClass进行处理
 		processConfigurationClass(new ConfigurationClass(metadata, beanName), DEFAULT_EXCLUSION_FILTER);
 	}
 
@@ -223,34 +235,46 @@ class ConfigurationClassParser {
 
 
 	protected void processConfigurationClass(ConfigurationClass configClass, Predicate<String> filter) throws IOException {
+		// 根据条件评估器判断该ConfigurationClass是否需要被跳过，具体逻辑是根据ConfigurationClass上标注的@Conditional注解中的value值Condition类来确定的
 		if (this.conditionEvaluator.shouldSkip(configClass.getMetadata(), ConfigurationPhase.PARSE_CONFIGURATION)) {
 			return;
 		}
 
+		// 查看该ConfigurationClass是否已存在
 		ConfigurationClass existingClass = this.configurationClasses.get(configClass);
+		// 如果已存在
 		if (existingClass != null) {
+			// 并且当前这个ConfigurationClass是被导入的，即通过@Import注解从别的ConfigurationClass上导入的。
 			if (configClass.isImported()) {
+				// 并且存在的ConfigurationClass也是被导入的
 				if (existingClass.isImported()) {
+					// 那么将当前cc的导入信息合并到已存在的cc的导入信息中
 					existingClass.mergeImportedBy(configClass);
 				}
 				// Otherwise ignore new imported config class; existing non-imported class overrides it.
+				// 如果已存在的cc不是被导入的，那么忽略当前的cc，保留不是被导入的cc
 				return;
 			}
+			// 如果当前的cc不是被导入的
 			else {
 				// Explicit bean definition found, probably replacing an import.
 				// Let's remove the old one and go with the new one.
+				// 那么将已存在的cc删除，后续会将当前的cc添加进configurationClasses中，这样可以最大程度地保证集合中持有的是 不是被@Import注解导入的ConfigurationClass
 				this.configurationClasses.remove(configClass);
 				this.knownSuperclasses.values().removeIf(configClass::equals);
 			}
 		}
 
 		// Recursively process the configuration class and its superclass hierarchy.
+		// 将ConfigurationClass转换为SourceClass
 		SourceClass sourceClass = asSourceClass(configClass, filter);
 		do {
+			// 然后将ConfigurationClass和SourceClass都作为参数，调用doProcessConfigurationClass执行具体的处理逻辑，并且递归到父类
 			sourceClass = doProcessConfigurationClass(configClass, sourceClass, filter);
 		}
 		while (sourceClass != null);
 
+		// 处理完成后将ConfigurationClass放入configurationClasses中
 		this.configurationClasses.put(configClass, configClass);
 	}
 
@@ -638,10 +662,13 @@ class ConfigurationClassParser {
 	 * Factory method to obtain a {@link SourceClass} from a {@link ConfigurationClass}.
 	 */
 	private SourceClass asSourceClass(ConfigurationClass configurationClass, Predicate<String> filter) throws IOException {
+		// 获取ConfigurationClass中的AnnotationMetadata
 		AnnotationMetadata metadata = configurationClass.getMetadata();
+		// 如果是StandardAnnotationMetadata类型的，直接获取其introspectedClass转换为SourceClass
 		if (metadata instanceof StandardAnnotationMetadata) {
 			return asSourceClass(((StandardAnnotationMetadata) metadata).getIntrospectedClass(), filter);
 		}
+		// 否则获取其className转换成SourceClass
 		return asSourceClass(metadata.getClassName(), filter);
 	}
 
@@ -649,19 +676,23 @@ class ConfigurationClassParser {
 	 * Factory method to obtain a {@link SourceClass} from a {@link Class}.
 	 */
 	SourceClass asSourceClass(@Nullable Class<?> classType, Predicate<String> filter) throws IOException {
+		// 如果类型为null或者符合过滤条件，那么返回持有的objectSourceClass
 		if (classType == null || filter.test(classType.getName())) {
 			return this.objectSourceClass;
 		}
 		try {
 			// Sanity test that we can reflectively read annotations,
 			// including Class attributes; if not -> fall back to ASM
+			// 获取其类上标注的所有注解，判断是否可以通过反射对注解进行读取，如果不行的话，回退到asm的方式
 			for (Annotation ann : classType.getDeclaredAnnotations()) {
 				AnnotationUtils.validateAnnotation(ann);
 			}
+			// 如果没有异常抛出，通过类型初始化SourceClass
 			return new SourceClass(classType);
 		}
 		catch (Throwable ex) {
 			// Enforce ASM via class name resolution
+			// 强制通过类全限定名的asm方式读取字节码生成SourceClass
 			return asSourceClass(classType.getName(), filter);
 		}
 	}
@@ -681,9 +712,11 @@ class ConfigurationClassParser {
 	 * Factory method to obtain a {@link SourceClass} from a class name.
 	 */
 	SourceClass asSourceClass(@Nullable String className, Predicate<String> filter) throws IOException {
+		// 如果类名为null或者符合过滤条件，直接返回objectSourceClass
 		if (className == null || filter.test(className)) {
 			return this.objectSourceClass;
 		}
+		// 如果类名是以java开头的，不适用asm框架去读取core java的字节码，直接尝试进行类加载
 		if (className.startsWith("java")) {
 			// Never use ASM for core java types
 			try {
@@ -693,6 +726,7 @@ class ConfigurationClassParser {
 				throw new NestedIOException("Failed to load class [" + className + "]", ex);
 			}
 		}
+		// 否则的话，使用asm框架读取对应类名的字节码，解析成SimpleAnnotationMetadata，被SimpleMetadataReader持有
 		return new SourceClass(this.metadataReaderFactory.getMetadataReader(className));
 	}
 
@@ -924,11 +958,14 @@ class ConfigurationClassParser {
 		private final AnnotationMetadata metadata;
 
 		public SourceClass(Object source) {
+			// 将传入的参数赋值给source字段，该对象类型可能是Class或MetadataReader
 			this.source = source;
+			// 如果是Class类型，生成一个StandardAnnotationMetadata赋值给metadata
 			if (source instanceof Class) {
 				this.metadata = AnnotationMetadata.introspect((Class<?>) source);
 			}
 			else {
+				// 如果是MetadataReader，获取其持有的注解元数据赋值给metadata
 				this.metadata = ((MetadataReader) source).getAnnotationMetadata();
 			}
 		}

@@ -146,7 +146,10 @@ final class AttributeMethods {
 	 */
 	void validate(Annotation annotation) {
 		assertAnnotation(annotation);
+		// 遍历注解类型的所有属性方法
 		for (int i = 0; i < size(); i++) {
+			// 如果对应下标的属性方法可能会抛出TypeNotPresent异常，就尝试通过传入的注解实例去调用这个方法，
+			// 检查是否真的会抛出异常
 			if (canThrowTypeNotPresentException(i)) {
 				try {
 					get(i).invoke(annotation);

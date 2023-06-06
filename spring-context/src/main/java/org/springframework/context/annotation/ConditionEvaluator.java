@@ -84,34 +84,47 @@ class ConditionEvaluator {
 			return false;
 		}
 
+		// 如果phase为null
 		if (phase == null) {
+			// 如果metadata是AnnotationMetadata并且metadata是ConfigurationClass的候选，递归调用本方法且传入PARSE_CONFIGURATION的阶段枚举
 			if (metadata instanceof AnnotationMetadata &&
 					ConfigurationClassUtils.isConfigurationCandidate((AnnotationMetadata) metadata)) {
 				return shouldSkip(metadata, ConfigurationPhase.PARSE_CONFIGURATION);
 			}
+			// 否则传入REGISTER_BEAN的阶段枚举
 			return shouldSkip(metadata, ConfigurationPhase.REGISTER_BEAN);
 		}
 
+		// 根据metadata获取到@Conditional注解里的内容，并将其整理为一个Condition类的集合
 		List<Condition> conditions = new ArrayList<>();
+		// getConditionClasses方法获取metadata上标注的所有@Conditional注解中value的值，并且整合为一个集合。
+		// 遍历这个集合，得到每个@Condition注解的value值，是一个String类型的数组，里面对应的是Condition类的全限定名
 		for (String[] conditionClasses : getConditionClasses(metadata)) {
+			// 然后遍历Condition类的类名
 			for (String conditionClass : conditionClasses) {
+				// 调用getCondition获取对应的实例，并将其加入到conditions集合中
 				Condition condition = getCondition(conditionClass, this.context.getClassLoader());
 				conditions.add(condition);
 			}
 		}
 
+		// 根据PriorityOrdered接口 Ordered接口 @Order @Priority注解的order值进行排序
 		AnnotationAwareOrderComparator.sort(conditions);
 
+		// 遍历这些condition实例
 		for (Condition condition : conditions) {
 			ConfigurationPhase requiredPhase = null;
+			// 如果condition是ConfigurationCondition类型的，获取其配置阶段
 			if (condition instanceof ConfigurationCondition) {
 				requiredPhase = ((ConfigurationCondition) condition).getConfigurationPhase();
 			}
+			// 如果要求的阶段为null或和当前阶段相等 并且 condition类判断出不匹配，那么该配置类需要被过滤，返回true
 			if ((requiredPhase == null || requiredPhase == phase) && !condition.matches(this.context, metadata)) {
 				return true;
 			}
 		}
 
+		// 如果检查完了所有的Condition类，都匹配条件，返回false，不用被过滤
 		return false;
 	}
 
@@ -123,7 +136,9 @@ class ConditionEvaluator {
 	}
 
 	private Condition getCondition(String conditionClassName, @Nullable ClassLoader classloader) {
+		// 根据类名加载类
 		Class<?> conditionClass = ClassUtils.resolveClassName(conditionClassName, classloader);
+		// 初始化实例
 		return (Condition) BeanUtils.instantiateClass(conditionClass);
 	}
 

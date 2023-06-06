@@ -226,7 +226,9 @@ abstract class ConfigurationClassUtils {
 	 * @since 4.2
 	 */
 	public static int getOrder(BeanDefinition beanDef) {
+		// 获取bd中之前设置的order属性
 		Integer order = (Integer) beanDef.getAttribute(ORDER_ATTRIBUTE);
+		// 如果order不存在，返回最低的优先级
 		return (order != null ? order : Ordered.LOWEST_PRECEDENCE);
 	}
 
