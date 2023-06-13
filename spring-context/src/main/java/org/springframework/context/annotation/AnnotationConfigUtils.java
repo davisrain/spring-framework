@@ -327,12 +327,17 @@ public abstract class AnnotationConfigUtils {
 		Set<AnnotationAttributes> result = new LinkedHashSet<>();
 
 		// Direct annotation present?
+		// 尝试直接查找对应的注解，获取其属性
 		addAttributesIfNotNull(result, metadata.getAnnotationAttributes(annotationClassName, false));
 
 		// Container annotation present?
+		// 获取其容器注解的属性
 		Map<String, Object> container = metadata.getAnnotationAttributes(containerClassName, false);
+		// 如果容器注解不为null，并且存在value属性，容器注解的value属性持有的是可重复注解的实例，在属性获取的过程中，因为annotationsToMap属性为true，
+		// 会将其根据属性转换为map类型，因此value对应的是一个map的数组，针对其进行遍历，能获取到每个注解对应的属性
 		if (container != null && container.containsKey("value")) {
 			for (Map<String, Object> containedAttributes : (Map<String, Object>[]) container.get("value")) {
+				// 然后添加进结果中
 				addAttributesIfNotNull(result, containedAttributes);
 			}
 		}

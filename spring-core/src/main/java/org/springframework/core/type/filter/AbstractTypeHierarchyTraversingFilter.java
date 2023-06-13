@@ -59,24 +59,33 @@ public abstract class AbstractTypeHierarchyTraversingFilter implements TypeFilte
 
 		// This method optimizes avoiding unnecessary creation of ClassReaders
 		// as well as visiting over those readers.
+		// 只有一个实现版本，就是AnnotationTypeFilter判断类上是否标注或元标注了对应注解
 		if (matchSelf(metadataReader)) {
 			return true;
 		}
+		// 获取ClassMetadata
 		ClassMetadata metadata = metadataReader.getClassMetadata();
+		// 判断类名是否匹配，AssignableTypeFilter类型就是判断目标类型和metadata的类名是否匹配
 		if (matchClassName(metadata.getClassName())) {
 			return true;
 		}
 
+		// 如果考虑inherited的话
 		if (this.considerInherited) {
+			// 获取父类名称
 			String superClassName = metadata.getSuperClassName();
 			if (superClassName != null) {
 				// Optimization to avoid creating ClassReader for super class.
+				// 判断父类名称是否匹配，AnnotationTypeFilter的实现是判断父类上是否标注了对应注解；
+				// AssignableTypeFilter的实现是判断目标类型是否是该父类可赋值的，即targetType.isAssignableFrom(superClass)返回true
 				Boolean superClassMatch = matchSuperClass(superClassName);
+				// 如果匹配，直接返回true
 				if (superClassMatch != null) {
 					if (superClassMatch.booleanValue()) {
 						return true;
 					}
 				}
+				// 否则的话，要使用asm读取父类的字节码生成父类的metadataReader递归调用match方法
 				else {
 					// Need to read super class to determine a match...
 					try {
@@ -94,15 +103,21 @@ public abstract class AbstractTypeHierarchyTraversingFilter implements TypeFilte
 			}
 		}
 
+		// 如果考虑接口的话
 		if (this.considerInterfaces) {
+			// 遍历metadata中的接口
 			for (String ifc : metadata.getInterfaceNames()) {
 				// Optimization to avoid creating ClassReader for super class
+				// 根据接口名判断是否符合条件，
+				// 同理，AnnotationTypeFilter是判断接口上是否有对应类型的注解
+				// AssignableTypeFilter的实现是判断接口是否可以赋值给目标类型
 				Boolean interfaceMatch = matchInterface(ifc);
 				if (interfaceMatch != null) {
 					if (interfaceMatch.booleanValue()) {
 						return true;
 					}
 				}
+				// 否则的话使用asm读取接口的class文件递归调用match方法
 				else {
 					// Need to read interface to determine a match...
 					try {

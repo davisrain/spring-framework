@@ -291,15 +291,20 @@ class ConfigurationClassParser {
 			ConfigurationClass configClass, SourceClass sourceClass, Predicate<String> filter)
 			throws IOException {
 
+		// 判断configClass上是否标注了@Component注解，如果是的话，首先递归地处理成员类，即查看是否有嵌套的configClass
 		if (configClass.getMetadata().isAnnotated(Component.class.getName())) {
 			// Recursively process any member (nested) classes first
 			processMemberClasses(configClass, sourceClass, filter);
 		}
 
 		// Process any @PropertySource annotations
+		// 处理标注在configClass上的@PropertySource注解，attributesForRepeatable方法会返回一个AnnotationAttributes类型的Set，
+		// 其中每一个元素代表了一个
 		for (AnnotationAttributes propertySource : AnnotationConfigUtils.attributesForRepeatable(
 				sourceClass.getMetadata(), PropertySources.class,
 				org.springframework.context.annotation.PropertySource.class)) {
+			// 如果environment是属于ConfigurableEnvironment类型的，对@PropertySource注解进行处理，
+			// 根据注解配置的信息，创建出PropertySource实例对象给environment持有
 			if (this.environment instanceof ConfigurableEnvironment) {
 				processPropertySource(propertySource);
 			}
@@ -310,15 +315,23 @@ class ConfigurationClassParser {
 		}
 
 		// Process any @ComponentScan annotations
+		// 然后处理标注在configClass上的@ComponentScan注解，返回所有@ComponentScan注解的属性集合
 		Set<AnnotationAttributes> componentScans = AnnotationConfigUtils.attributesForRepeatable(
 				sourceClass.getMetadata(), ComponentScans.class, ComponentScan.class);
+		// 如果注解属性不为空，并且根据@Condition注解判断出不应该被跳过，执行if里的逻辑对@ComponentScan注解进行解析
 		if (!componentScans.isEmpty() &&
 				!this.conditionEvaluator.shouldSkip(sourceClass.getMetadata(), ConfigurationPhase.REGISTER_BEAN)) {
+			// 遍历循环每一个ComponentScan注解的属性
 			for (AnnotationAttributes componentScan : componentScans) {
 				// The config class is annotated with @ComponentScan -> perform the scan immediately
+				// 通过ComponentScanAnnotationParser类去解析对应的注解信息，然后根据注解配置生成一个ClassPathBeanDefinitionScanner，
+				// 调用扫描器对指定的basePackages进行扫描，扫描到指定的class文件，通过asm的方法读取class文件生成metadataReader，
+				// 然后根据metadataReader生成对应的ScannedGenericBeanDefinition类型的bd，然后根据beanNameGenerator生成beanName。
+				// 将beanName和bd注册进容器中，然后返回该注解扫描到的所有BeanDefinitionHolder的集合
 				Set<BeanDefinitionHolder> scannedBeanDefinitions =
 						this.componentScanParser.parse(componentScan, sourceClass.getMetadata().getClassName());
 				// Check the set of scanned definitions for any further config classes and parse recursively if needed
+				// 检查这些扫描到的bd中是否有是ConfigurationClass的，如果有的话，递归调用parse方法进行解析
 				for (BeanDefinitionHolder holder : scannedBeanDefinitions) {
 					BeanDefinition bdCand = holder.getBeanDefinition().getOriginatingBeanDefinition();
 					if (bdCand == null) {
@@ -332,6 +345,7 @@ class ConfigurationClassParser {
 		}
 
 		// Process any @Import annotations
+		// 处理标注在configClass上的@Import注解
 		processImports(configClass, sourceClass, getImports(sourceClass), filter, true);
 
 		// Process any @ImportResource annotations
@@ -376,26 +390,35 @@ class ConfigurationClassParser {
 	private void processMemberClasses(ConfigurationClass configClass, SourceClass sourceClass,
 			Predicate<String> filter) throws IOException {
 
+		// 获取到其持有的成员类SourceClass集合
 		Collection<SourceClass> memberClasses = sourceClass.getMemberClasses();
+		// 如果集合不为空，说明存在内部类
 		if (!memberClasses.isEmpty()) {
 			List<SourceClass> candidates = new ArrayList<>(memberClasses.size());
 			for (SourceClass memberClass : memberClasses) {
+				// 检查内部类是否是ConfigClass并且内部类的名称和外部类名称不一致，如果是，加入候选集合
 				if (ConfigurationClassUtils.isConfigurationCandidate(memberClass.getMetadata()) &&
 						!memberClass.getMetadata().getClassName().equals(configClass.getMetadata().getClassName())) {
 					candidates.add(memberClass);
 				}
 			}
+			// 根据PriorityOrdered接口和Ordered接口排序
 			OrderComparator.sort(candidates);
+			// 遍历候选集合
 			for (SourceClass candidate : candidates) {
+				// 如果导入栈中已经包含了该外部类的话，报错
 				if (this.importStack.contains(configClass)) {
 					this.problemReporter.error(new CircularImportProblem(configClass, this.importStack));
 				}
 				else {
+					// 将外部类入栈
 					this.importStack.push(configClass);
 					try {
+						// 将候选类转换为ConfigurationClass，并且将外部类configClass作为参数，表示该类是由外部类导入的，存入importedBy字段，然后递归处理
 						processConfigurationClass(candidate.asConfigClass(configClass), filter);
 					}
 					finally {
+						// 将外部类出栈
 						this.importStack.pop();
 					}
 				}
@@ -464,26 +487,39 @@ class ConfigurationClassParser {
 	 * @throws IOException if loading a property source failed
 	 */
 	private void processPropertySource(AnnotationAttributes propertySource) throws IOException {
+		// 获取注解对应的name属性
 		String name = propertySource.getString("name");
+		// 如果name为空字符串的话，赋值为null
 		if (!StringUtils.hasLength(name)) {
 			name = null;
 		}
+		// 获取注解的encoding属性
 		String encoding = propertySource.getString("encoding");
+		// 如果encoding为空字符串，变为null
 		if (!StringUtils.hasLength(encoding)) {
 			encoding = null;
 		}
+		// 获取其value属性，返回一个String数组，表示属性来源的地址
 		String[] locations = propertySource.getStringArray("value");
+		// 判断数组长度是否大于0
 		Assert.isTrue(locations.length > 0, "At least one @PropertySource(value) location is required");
+		// 获取ignoreResourceNotFound标志
 		boolean ignoreResourceNotFound = propertySource.getBoolean("ignoreResourceNotFound");
 
+		// 获取用于根据资源创建PropertySource类的PropertySource工厂类
 		Class<? extends PropertySourceFactory> factoryClass = propertySource.getClass("factory");
+		// 如果类型是默认的PropertySource.class，那么获取默认的工厂DefaultPropertySourceFactory，否则的话，创建其实例
 		PropertySourceFactory factory = (factoryClass == PropertySourceFactory.class ?
 				DEFAULT_PROPERTY_SOURCE_FACTORY : BeanUtils.instantiateClass(factoryClass));
 
+		// 遍历地址数组
 		for (String location : locations) {
 			try {
+				// 根据environment对象解析地址中的占位符
 				String resolvedLocation = this.environment.resolveRequiredPlaceholders(location);
+				// 使用resourceLoader去加载资源
 				Resource resource = this.resourceLoader.getResource(resolvedLocation);
+				// 使用工厂类创建一个PropertySource实例，然后调用addPropertySource进行添加
 				addPropertySource(factory.createPropertySource(name, new EncodedResource(resource, encoding)));
 			}
 			catch (IllegalArgumentException | FileNotFoundException | UnknownHostException | SocketException ex) {
@@ -501,38 +537,53 @@ class ConfigurationClassParser {
 	}
 
 	private void addPropertySource(PropertySource<?> propertySource) {
+		// 获取PropertySource的名称
 		String name = propertySource.getName();
+		// 获取到environment中PropertySource的聚合对象
 		MutablePropertySources propertySources = ((ConfigurableEnvironment) this.environment).getPropertySources();
 
+		// 如果propertySourceNames中已经存在该name，说明已经解析过一个版本了，那么我们需要扩展它
 		if (this.propertySourceNames.contains(name)) {
 			// We've already added a version, we need to extend it
+			// 获取已经存在的PropertySource
 			PropertySource<?> existing = propertySources.get(name);
+			// 如果不为null的话
 			if (existing != null) {
+				// 判断传入的propertySource的类型
+				// 如果是ResourcePropertySource类型的，创建一个新的ResourcePropertySource，将resourceName作为其propertySource的name；
+				// 如果不是，直接赋值
 				PropertySource<?> newSource = (propertySource instanceof ResourcePropertySource ?
 						((ResourcePropertySource) propertySource).withResourceName() : propertySource);
+				// 如果存在的propertySource已经是一个聚合对象了，那么将新的ps添加到第一个
 				if (existing instanceof CompositePropertySource) {
 					((CompositePropertySource) existing).addFirstPropertySource(newSource);
 				}
 				else {
+					// 如果存在的ps是ResourcePropertySource类型的，同样的，将其name替换为resourceName
 					if (existing instanceof ResourcePropertySource) {
 						existing = ((ResourcePropertySource) existing).withResourceName();
 					}
+					// 然后创建根据name创建一个CompositePropertySource，用于持有多个name相同的PropertySource
 					CompositePropertySource composite = new CompositePropertySource(name);
 					composite.addPropertySource(newSource);
 					composite.addPropertySource(existing);
+					// 然后根据name将propertySources中的对象替换掉
 					propertySources.replace(name, composite);
 				}
 				return;
 			}
 		}
 
+		// 如果propertySourceNames还为空，将propertySource添加到末尾
 		if (this.propertySourceNames.isEmpty()) {
 			propertySources.addLast(propertySource);
 		}
+		// 如果不为空的话，获取最近的处理的propertySource的name，然后将当前PropertySource添加到name对应的PropertySource的前面
 		else {
 			String firstProcessed = this.propertySourceNames.get(this.propertySourceNames.size() - 1);
 			propertySources.addBefore(firstProcessed, propertySource);
 		}
+		// 将name添加进propertySourceNames中
 		this.propertySourceNames.add(name);
 	}
 
@@ -996,6 +1047,7 @@ class ConfigurationClassParser {
 		}
 
 		public ConfigurationClass asConfigClass(ConfigurationClass importedBy) {
+			// 根据source的不同类型，调用ConfigurationClass的不同构造方法，并且将importedBy传入
 			if (this.source instanceof Class) {
 				return new ConfigurationClass((Class<?>) this.source, importedBy);
 			}
@@ -1004,11 +1056,14 @@ class ConfigurationClassParser {
 
 		public Collection<SourceClass> getMemberClasses() throws IOException {
 			Object sourceToProcess = this.source;
+			// 如果source是Class类型的
 			if (sourceToProcess instanceof Class) {
 				Class<?> sourceClass = (Class<?>) sourceToProcess;
 				try {
+					// 获取该类型中声明的其他类型数组
 					Class<?>[] declaredClasses = sourceClass.getDeclaredClasses();
 					List<SourceClass> members = new ArrayList<>(declaredClasses.length);
+					// 然后将都转换为SourceClass类型的集合返回
 					for (Class<?> declaredClass : declaredClasses) {
 						members.add(asSourceClass(declaredClass, DEFAULT_EXCLUSION_FILTER));
 					}
@@ -1017,14 +1072,18 @@ class ConfigurationClassParser {
 				catch (NoClassDefFoundError err) {
 					// getDeclaredClasses() failed because of non-resolvable dependencies
 					// -> fall back to ASM below
+					// 如果出现异常了，使用asm读取字节码的方式
 					sourceToProcess = metadataReaderFactory.getMetadataReader(sourceClass.getName());
 				}
 			}
 
 			// ASM-based resolution - safe for non-resolvable classes as well
+			// 如果source字段是MetadataReader类型的
 			MetadataReader sourceReader = (MetadataReader) sourceToProcess;
+			// 获取其持有的SimpleAnnotationMetadata中持有的memberClassNames字段
 			String[] memberClassNames = sourceReader.getClassMetadata().getMemberClassNames();
 			List<SourceClass> members = new ArrayList<>(memberClassNames.length);
+			// 同样将其转换为SourceClass类型的集合，这里是使用asm的方式
 			for (String memberClassName : memberClassNames) {
 				try {
 					members.add(asSourceClass(memberClassName, DEFAULT_EXCLUSION_FILTER));

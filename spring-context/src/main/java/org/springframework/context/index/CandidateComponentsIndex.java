@@ -59,9 +59,13 @@ public class CandidateComponentsIndex {
 
 	private static MultiValueMap<String, Entry> parseIndex(List<Properties> content) {
 		MultiValueMap<String, Entry> index = new LinkedMultiValueMap<>();
+		// 遍历Properties集合
 		for (Properties entry : content) {
+			// 遍历Properties中的key value
 			entry.forEach((type, values) -> {
+				// 将value按照,分隔为数组
 				String[] stereotypes = ((String) values).split(",");
+				// 遍历value数组，向MultiValueMap中添加对应值，以value为key，type包装成一个Entry作为value
 				for (String stereotype : stereotypes) {
 					index.add(stereotype, new Entry((String) type));
 				}
@@ -79,8 +83,10 @@ public class CandidateComponentsIndex {
 	 * or an empty set if none has been found for the specified {@code basePackage}
 	 */
 	public Set<String> getCandidateTypes(String basePackage, String stereotype) {
+		// 根据原型获取候选的类型集合
 		List<Entry> candidates = this.index.get(stereotype);
 		if (candidates != null) {
+			// 对候选集合根据包名进行筛选，并且映射为类型的全限定名，收集为set返回
 			return candidates.parallelStream()
 					.filter(t -> t.match(basePackage))
 					.map(t -> t.type)

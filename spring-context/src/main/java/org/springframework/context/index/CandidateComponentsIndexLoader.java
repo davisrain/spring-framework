@@ -59,6 +59,7 @@ public final class CandidateComponentsIndexLoader {
 	public static final String IGNORE_INDEX = "spring.index.ignore";
 
 
+	// 获取spring.properties中配置的spring.index.ignore属性，默认为false
 	private static final boolean shouldIgnoreIndex = SpringProperties.getFlag(IGNORE_INDEX);
 
 	private static final Log logger = LogFactory.getLog(CandidateComponentsIndexLoader.class);
@@ -96,20 +97,26 @@ public final class CandidateComponentsIndexLoader {
 		}
 
 		try {
+			// 获取类路径下的MEAT-INF/spring.components文件
 			Enumeration<URL> urls = classLoader.getResources(COMPONENTS_RESOURCE_LOCATION);
+			// 如果没有元素，返回null
 			if (!urls.hasMoreElements()) {
 				return null;
 			}
+			// 否则进行迭代
 			List<Properties> result = new ArrayList<>();
 			while (urls.hasMoreElements()) {
 				URL url = urls.nextElement();
+				// 将文件解析为Properties对象，添加进集合中
 				Properties properties = PropertiesLoaderUtils.loadProperties(new UrlResource(url));
 				result.add(properties);
 			}
 			if (logger.isDebugEnabled()) {
 				logger.debug("Loaded " + result.size() + "] index(es)");
 			}
+			// 获取属性的总数
 			int totalCount = result.stream().mapToInt(Properties::size).sum();
+			// 如果总数大于0的话，创建一个CandidateComponentsIndex返回，否则返回null
 			return (totalCount > 0 ? new CandidateComponentsIndex(result) : null);
 		}
 		catch (IOException ex) {

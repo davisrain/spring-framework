@@ -472,7 +472,7 @@ public class AntPathMatcher implements PathMatcher {
 	 * @return the tokenized path parts
 	 */
 	protected String[] tokenizePath(String path) {
-		// 根据/符号将path分隔成数组，并且忽略到空的元素，且不对每个分隔出来的元素调用trim方法
+		// 根据/符号将path分隔成数组，并且忽略空字符串元素，且不对每个分隔出来的元素调用trim方法
 		return StringUtils.tokenizeToStringArray(path, this.pathSeparator, this.trimTokens, true);
 	}
 

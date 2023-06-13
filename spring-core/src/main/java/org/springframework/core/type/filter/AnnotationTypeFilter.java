@@ -80,8 +80,11 @@ public class AnnotationTypeFilter extends AbstractTypeHierarchyTraversingFilter 
 	public AnnotationTypeFilter(
 			Class<? extends Annotation> annotationType, boolean considerMetaAnnotations, boolean considerInterfaces) {
 
+		// 根据注解类型上是否标注了@Inherited注解来判断是否要考虑父类
 		super(annotationType.isAnnotationPresent(Inherited.class), considerInterfaces);
+		// 设置注解类型
 		this.annotationType = annotationType;
+		// 设置是否要考虑元注解
 		this.considerMetaAnnotations = considerMetaAnnotations;
 	}
 
@@ -96,7 +99,9 @@ public class AnnotationTypeFilter extends AbstractTypeHierarchyTraversingFilter 
 
 	@Override
 	protected boolean matchSelf(MetadataReader metadataReader) {
+		// 获取metadataReader中的AnnotationMetadata
 		AnnotationMetadata metadata = metadataReader.getAnnotationMetadata();
+		// 判断类上是否标注了AnnotationTypeFilter持有的注解类型 或者 考虑元注解的情况下，是否进行了元标注，如果是，直接返回true，表示匹配
 		return metadata.hasAnnotation(this.annotationType.getName()) ||
 				(this.considerMetaAnnotations && metadata.hasMetaAnnotation(this.annotationType.getName()));
 	}
