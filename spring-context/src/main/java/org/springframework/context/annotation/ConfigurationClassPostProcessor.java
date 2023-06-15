@@ -317,7 +317,8 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			}
 		}
 
-		// 如果environment为null的话，创建一个StandardEnvironment对象赋值
+		// 如果environment为null的话，创建一个StandardEnvironment对象赋值。该bean在实例化的时候，因为实现了EnvironmentAware接口，
+		// 因此会调用setEnvironment方法将BeanFactory的environment设置进来
 		if (this.environment == null) {
 			this.environment = new StandardEnvironment();
 		}
@@ -333,49 +334,80 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		// 创建一个set用于保存已经解析过的ConfigurationClass
 		Set<ConfigurationClass> alreadyParsed = new HashSet<>(configCandidates.size());
 		do {
-			// 调用解析器进行解析
+			// 调用解析器进行解析，解析完成之后会将解析到的ConfigurationClass都保存在parser的configurationClasses字段中
+			// 对应的@PropertySource注解解析出的内容PropertySource会添加到environment中。
+			// 对应的@ComponentScan注解会将指定包下的满足includeFilter条件的类转换成ScannedGenericBeanDefinition添加到registry中
+			// 对应的@ImportResource注解包含的内容被自身的ConfigurationClass持有，等待后续解析
+			// @Import注解中包含的ImportBeanDefinitionRegistrar类型的类也被自身ConfigurationClass持有，等待后续解析
+			// 类中包含的@Bean方法也被自身ConfigurationClass持有，等待后续解析
 			parser.parse(candidates);
+			// 对parser持有的ConfigurationClass集合进行验证。
+			// 检查标注有@Configuration注解且proxyBeanMethods属性为true的ConfigurationClass是否是可继承的；
+			// 以及其持有的@Bean方法是否是可重写的
 			parser.validate();
 
+			// 获取parser持有的ConfigurationClass集合
 			Set<ConfigurationClass> configClasses = new LinkedHashSet<>(parser.getConfigurationClasses());
+			// 从中删除已经解析过的ConfigurationClass
 			configClasses.removeAll(alreadyParsed);
 
 			// Read the model and create bean definitions based on its content
+			// 如果自身持有的ConfigurationClassBeanDefinitionReader为null的话，创建一个对应的实例赋值
 			if (this.reader == null) {
+				// 这个位置传入的beanNameGenerator是FullyQualifiedAnnotationBeanNameGenerator
 				this.reader = new ConfigurationClassBeanDefinitionReader(
 						registry, this.sourceExtractor, this.resourceLoader, this.environment,
 						this.importBeanNameGenerator, parser.getImportRegistry());
 			}
+			// 调用reader根据ConfigurationClass加载BeanDefinition
 			this.reader.loadBeanDefinitions(configClasses);
+			// 并且将解析过的configClasses放入alreadyParsed集合
 			alreadyParsed.addAll(configClasses);
 
+			// 将候选集合中的BeanDefinitionHolder都清空掉
 			candidates.clear();
+			// 判断一轮解析过后，容器中的BeanDefinition的数量是否大于 原本的候选bd的数量
+			// 如果大于，说明在上一轮解析过程中，为容器生成了许多新的BeanDefinition，
+			// 需要判断这些新生成的BeanDefinition是否有ConfigurationClass类型的，将其解析
 			if (registry.getBeanDefinitionCount() > candidateNames.length) {
+				// 重新从容器中获取新的候选bdName数组
 				String[] newCandidateNames = registry.getBeanDefinitionNames();
+				// 将老的候选bd的name统计起来
 				Set<String> oldCandidateNames = new HashSet<>(Arrays.asList(candidateNames));
 				Set<String> alreadyParsedClasses = new HashSet<>();
+				// 将已经解析过的类的类名统计起来
 				for (ConfigurationClass configurationClass : alreadyParsed) {
 					alreadyParsedClasses.add(configurationClass.getMetadata().getClassName());
 				}
+				// 遍历新的候选名字
 				for (String candidateName : newCandidateNames) {
+					// 如果老的候选名字集合中不包含它
 					if (!oldCandidateNames.contains(candidateName)) {
+						// 获取到对应的bd
 						BeanDefinition bd = registry.getBeanDefinition(candidateName);
+						// 如果检查到该bd是ConfigurationClass 并且 已经解析过的ConfigurationClass的类名中不包括它，
+						// 说明它需要被解析，加入到候选集合
 						if (ConfigurationClassUtils.checkConfigurationClassCandidate(bd, this.metadataReaderFactory) &&
 								!alreadyParsedClasses.contains(bd.getBeanClassName())) {
 							candidates.add(new BeanDefinitionHolder(bd, candidateName));
 						}
 					}
 				}
+				// 将新的候选名称 赋值给 候选名称
 				candidateNames = newCandidateNames;
 			}
 		}
+		// 如果候选集合为空的话，结束循环，说明解析完成
 		while (!candidates.isEmpty());
 
 		// Register the ImportRegistry as a bean in order to support ImportAware @Configuration classes
+		// 如果容器中不存在name为IMPORT_REGISTRY_BEAN_NAME的bean，那么将parser中的importStack注册进去。
+		// 里面保存了被导入类和导入它的类的关系
 		if (sbr != null && !sbr.containsSingleton(IMPORT_REGISTRY_BEAN_NAME)) {
 			sbr.registerSingleton(IMPORT_REGISTRY_BEAN_NAME, parser.getImportRegistry());
 		}
 
+		// 如果metadataReaderFactory是带缓存的，清空缓存
 		if (this.metadataReaderFactory instanceof CachingMetadataReaderFactory) {
 			// Clear cache in externally provided MetadataReaderFactory; this is a no-op
 			// for a shared cache since it'll be cleared by the ApplicationContext.

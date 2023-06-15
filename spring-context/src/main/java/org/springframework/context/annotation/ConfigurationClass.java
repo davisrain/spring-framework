@@ -212,10 +212,14 @@ final class ConfigurationClass {
 	public void validate(ProblemReporter problemReporter) {
 		// A configuration class may not be final (CGLIB limitation) unless it declares proxyBeanMethods=false
 		Map<String, Object> attributes = this.metadata.getAnnotationAttributes(Configuration.class.getName());
+		// 根据注解元数据获取标注在类上的@Configuration注解的属性
+		// 如果属性不为null，并且proxyBeanMethods属性为true的话，说明要进行动态代理，增强@Bean方法的行为
 		if (attributes != null && (Boolean) attributes.get("proxyBeanMethods")) {
+			// 但是如果该类是final的话，就不能被继承，报错
 			if (this.metadata.isFinal()) {
 				problemReporter.error(new FinalConfigurationProblem());
 			}
+			// 然后检验持有的@Bean方法
 			for (BeanMethod beanMethod : this.beanMethods) {
 				beanMethod.validate(problemReporter);
 			}
@@ -224,6 +228,7 @@ final class ConfigurationClass {
 
 	@Override
 	public boolean equals(@Nullable Object other) {
+		// 判断相等的条件是两个对象内存地址一致 或者 比较的对象也是ConfigurationClass，且他们的metadata的类名是一样的
 		return (this == other || (other instanceof ConfigurationClass &&
 				getMetadata().getClassName().equals(((ConfigurationClass) other).getMetadata().getClassName())));
 	}

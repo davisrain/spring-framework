@@ -57,12 +57,16 @@ abstract class ParserStrategyUtils {
 
 		Assert.notNull(clazz, "Class must not be null");
 		Assert.isAssignable(assignableTo, clazz);
+		// 如果类是接口类型，报错，无法实例化
 		if (clazz.isInterface()) {
 			throw new BeanInstantiationException(clazz, "Specified class is an interface");
 		}
+		// 根据registry的类型获取类加载器
 		ClassLoader classLoader = (registry instanceof ConfigurableBeanFactory ?
 				((ConfigurableBeanFactory) registry).getBeanClassLoader() : resourceLoader.getClassLoader());
+		// 然后创建实例，转型为assignableTo的类型
 		T instance = (T) createInstance(clazz, environment, resourceLoader, registry, classLoader);
+		// 调用aware接口相关的方法
 		ParserStrategyUtils.invokeAwareMethods(instance, environment, resourceLoader, registry, classLoader);
 		return instance;
 	}
@@ -71,18 +75,23 @@ abstract class ParserStrategyUtils {
 			ResourceLoader resourceLoader, BeanDefinitionRegistry registry,
 			@Nullable ClassLoader classLoader) {
 
+		// 获取类的构造器
 		Constructor<?>[] constructors = clazz.getDeclaredConstructors();
+		// 如果只有一个构造器且参数大于0
 		if (constructors.length == 1 && constructors[0].getParameterCount() > 0) {
 			try {
 				Constructor<?> constructor = constructors[0];
+				// 解析构造器所需的参数
 				Object[] args = resolveArgs(constructor.getParameterTypes(),
 						environment, resourceLoader, registry, classLoader);
+				// 通过构造器实例化类
 				return BeanUtils.instantiateClass(constructor, args);
 			}
 			catch (Exception ex) {
 				throw new BeanInstantiationException(clazz, "No suitable constructor found", ex);
 			}
 		}
+		// 否则调用默认的无参构造器创建实例
 		return BeanUtils.instantiateClass(clazz);
 	}
 
@@ -103,6 +112,7 @@ abstract class ParserStrategyUtils {
 			Environment environment, ResourceLoader resourceLoader,
 			BeanDefinitionRegistry registry, @Nullable ClassLoader classLoader) {
 
+		// 如果参数类型是以下情况，返回对应的值
 		if (parameterType == Environment.class) {
 			return environment;
 		}
@@ -121,6 +131,7 @@ abstract class ParserStrategyUtils {
 	private static void invokeAwareMethods(Object parserStrategyBean, Environment environment,
 			ResourceLoader resourceLoader, BeanDefinitionRegistry registry, @Nullable ClassLoader classLoader) {
 
+		// 如果实例时Aware类型的，根据Aware的实际类型，调用不同的方法将元素设置进去
 		if (parserStrategyBean instanceof Aware) {
 			if (parserStrategyBean instanceof BeanClassLoaderAware && classLoader != null) {
 				((BeanClassLoaderAware) parserStrategyBean).setBeanClassLoader(classLoader);
