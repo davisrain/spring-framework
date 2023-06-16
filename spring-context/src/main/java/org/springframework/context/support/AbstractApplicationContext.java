@@ -535,18 +535,21 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				invokeBeanFactoryPostProcessors(beanFactory);
 
 				// Register bean processors that intercept bean creation.
+				// 将容器中含有的BeanPostProcessor的bd实例化为bean，给beanFactory持有
 				registerBeanPostProcessors(beanFactory);
 
 				// Initialize message source for this context.
 				initMessageSource();
 
 				// Initialize event multicaster for this context.
+				// 初始化一个SimpleApplicationEventMulticaster用于事件分发
 				initApplicationEventMulticaster();
 
 				// Initialize other special beans in specific context subclasses.
 				onRefresh();
 
 				// Check for listener beans and register them.
+				// 将上下文和容器中存在的ApplicationListener都注册给事件多播器，并且推送上下文中的earlyApplicationEvent
 				registerListeners();
 
 				// Instantiate all remaining (non-lazy-init) singletons.
@@ -843,18 +846,22 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	protected void registerListeners() {
 		// Register statically specified listeners first.
+		// 将上下文持有的ApplicationListener添加进事件多播器
 		for (ApplicationListener<?> listener : getApplicationListeners()) {
 			getApplicationEventMulticaster().addApplicationListener(listener);
 		}
 
 		// Do not initialize FactoryBeans here: We need to leave all regular beans
 		// uninitialized to let post-processors apply to them!
+		// 获取容器中所有ApplicationListener类型的beanNames
 		String[] listenerBeanNames = getBeanNamesForType(ApplicationListener.class, true, false);
 		for (String listenerBeanName : listenerBeanNames) {
+			// 然后将这些beanName都添加进事件多播器中
 			getApplicationEventMulticaster().addApplicationListenerBean(listenerBeanName);
 		}
 
 		// Publish early application events now that we finally have a multicaster...
+		// 如果上下文中存在earlyApplicationEvent，那么使用事件多播器进行推送
 		Set<ApplicationEvent> earlyEventsToProcess = this.earlyApplicationEvents;
 		this.earlyApplicationEvents = null;
 		if (!CollectionUtils.isEmpty(earlyEventsToProcess)) {
@@ -893,9 +900,12 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		beanFactory.setTempClassLoader(null);
 
 		// Allow for caching all bean definition metadata, not expecting further changes.
+		// 冻结配置，将configurationFrozen标志置为true，并且将beanDefinitionNames复制给frozenBeanDefinitionNames。
+		// 表示对bd的配置已经冻结了，后续不再会改变
 		beanFactory.freezeConfiguration();
 
 		// Instantiate all remaining (non-lazy-init) singletons.
+		// 初始化所有剩余的不是lazyInit的单例
 		beanFactory.preInstantiateSingletons();
 	}
 

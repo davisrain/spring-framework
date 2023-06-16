@@ -95,6 +95,8 @@ class ConfigurationClassEnhancer {
 	 * @return the enhanced subclass
 	 */
 	public Class<?> enhance(Class<?> configClass, @Nullable ClassLoader classLoader) {
+		// 如果要被代理的类已经是属于EnhancedConfiguration类型了，那么直接返回。说明它已经被增强过了，
+		// 产生的原因可能是容器中注册了多个ConfigurationClassPostProcessor
 		if (EnhancedConfiguration.class.isAssignableFrom(configClass)) {
 			if (logger.isDebugEnabled()) {
 				logger.debug(String.format("Ignoring request to enhance %s as it has " +
@@ -106,11 +108,13 @@ class ConfigurationClassEnhancer {
 			}
 			return configClass;
 		}
+		// 对configClass进行cglib代理
 		Class<?> enhancedClass = createClass(newEnhancer(configClass, classLoader));
 		if (logger.isTraceEnabled()) {
 			logger.trace(String.format("Successfully enhanced %s; enhanced class name is: %s",
 					configClass.getName(), enhancedClass.getName()));
 		}
+		// 返回代理类
 		return enhancedClass;
 	}
 
@@ -118,10 +122,14 @@ class ConfigurationClassEnhancer {
 	 * Creates a new CGLIB {@link Enhancer} instance.
 	 */
 	private Enhancer newEnhancer(Class<?> configSuperClass, @Nullable ClassLoader classLoader) {
+		// 创建一个Enhancer
 		Enhancer enhancer = new Enhancer();
+		// 将父类设置为要被代理的类
 		enhancer.setSuperclass(configSuperClass);
+		// 设置要实现的接口EnhancedConfiguration
 		enhancer.setInterfaces(new Class<?>[] {EnhancedConfiguration.class});
 		enhancer.setUseFactory(false);
+		// 设置命名策略为SpringNamingPolicy
 		enhancer.setNamingPolicy(SpringNamingPolicy.INSTANCE);
 		enhancer.setStrategy(new BeanFactoryAwareGeneratorStrategy(classLoader));
 		enhancer.setCallbackFilter(CALLBACK_FILTER);

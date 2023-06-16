@@ -87,7 +87,8 @@ abstract class ConfigurationClassUtils {
 
 		// 获取bd的beanClassName
 		String className = beanDef.getBeanClassName();
-		// 如果不存在className 或者 bd的factoryMethodName不为null的话，直接返回false，
+		// 如果不存在className 或者
+		// bd的factoryMethodName不为null的话(说明是@Bean方法生成的ConfigurationClassBeanDefinition)，直接返回false，
 		// 说明不是ConfigurationClassCandidate
 		if (className == null || beanDef.getFactoryMethodName() != null) {
 			return false;

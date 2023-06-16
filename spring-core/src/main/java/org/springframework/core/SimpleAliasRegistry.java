@@ -54,19 +54,26 @@ public class SimpleAliasRegistry implements AliasRegistry {
 		Assert.hasText(name, "'name' must not be empty");
 		Assert.hasText(alias, "'alias' must not be empty");
 		synchronized (this.aliasMap) {
+			// 如果别名和name一样
 			if (alias.equals(name)) {
+				// 从aliasMap中删除别名，因为别名和真是name一致了，忽略
 				this.aliasMap.remove(alias);
 				if (logger.isDebugEnabled()) {
 					logger.debug("Alias definition '" + alias + "' ignored since it points to same name");
 				}
 			}
+			// 如果不一致的话
 			else {
+				// 根据别名从map中获取已经注册的名称
 				String registeredName = this.aliasMap.get(alias);
+				// 如果已注册的名称不为null
 				if (registeredName != null) {
+					// 判断其和这次要注册的name是否一致，如果一致的话，直接返回，没必要重复注册
 					if (registeredName.equals(name)) {
 						// An existing alias - no need to re-register
 						return;
 					}
+					// 如果不允许别名重写的话，报错
 					if (!allowAliasOverriding()) {
 						throw new IllegalStateException("Cannot define alias '" + alias + "' for name '" +
 								name + "': It is already registered for name '" + registeredName + "'.");
@@ -76,7 +83,9 @@ public class SimpleAliasRegistry implements AliasRegistry {
 								registeredName + "' with new target name '" + name + "'");
 					}
 				}
+				// 检查有没有别名循环依赖
 				checkForAliasCircle(name, alias);
+				// 将alias作为key，name作为value，放入map中
 				this.aliasMap.put(alias, name);
 				if (logger.isTraceEnabled()) {
 					logger.trace("Alias definition '" + alias + "' registered for name '" + name + "'");
@@ -100,7 +109,10 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	 * @since 4.2.1
 	 */
 	public boolean hasAlias(String name, String alias) {
+		// 根据别名获取已注册的name
 		String registeredName = this.aliasMap.get(alias);
+		// 如果已注册的名称和name相同 或者 (存在已注册名称 并且 将已注册的名称作为别名递归查找看是否等于name)
+		// 如果返回true，表示name有对应alias的别名
 		return ObjectUtils.nullSafeEquals(registeredName, name) || (registeredName != null
 				&& hasAlias(name, registeredName));
 	}
@@ -194,6 +206,7 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	 * @see #hasAlias
 	 */
 	protected void checkForAliasCircle(String name, String alias) {
+		// 将别名作为name，name作为别名去map中查找。检查name是否是alias的别名，如果是的话，那么就形成了循环依赖，报错
 		if (hasAlias(alias, name)) {
 			throw new IllegalStateException("Cannot register alias '" + alias +
 					"' for name '" + name + "': Circular reference - '" +

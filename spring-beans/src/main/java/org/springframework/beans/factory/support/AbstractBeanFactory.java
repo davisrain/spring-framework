@@ -404,11 +404,15 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	@Override
 	public boolean containsBean(String name) {
+		// 将name进行转换为beanName
 		String beanName = transformedBeanName(name);
+		// 如果单例map中存在beanName或者beanDefinitionMap中存在beanName
 		if (containsSingleton(beanName) || containsBeanDefinition(beanName)) {
+			// 如果name不是以&开头的 或者 name对应的bean是FactoryBean，返回true，表示容器中包含这个bean
 			return (!BeanFactoryUtils.isFactoryDereference(name) || isFactoryBean(name));
 		}
 		// Not found -> check parent.
+		// 如果没有找到的话，去父容器中查找
 		BeanFactory parentBeanFactory = getParentBeanFactory();
 		return (parentBeanFactory != null && parentBeanFactory.containsBean(originalBeanName(name)));
 	}
@@ -1083,6 +1087,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		Object beanInstance = getSingleton(beanName, false);
 		// 如果不为null，判断是否是FactoryBean类型的
 		if (beanInstance != null) {
+			// 如果是，返回true
 			return (beanInstance instanceof FactoryBean);
 		}
 		// No singleton instance found -> check bean definition.
@@ -1202,6 +1207,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @return the transformed bean name
 	 */
 	protected String transformedBeanName(String name) {
+		// 将name前&符号去掉，并且从aliasMap中将别名转换为实际的name
 		return canonicalName(BeanFactoryUtils.transformedBeanName(name));
 	}
 
@@ -1523,19 +1529,27 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	private Class<?> doResolveBeanClass(RootBeanDefinition mbd, Class<?>... typesToMatch)
 			throws ClassNotFoundException {
 
+		// 获取beanFactory持有的beanClassLoader
 		ClassLoader beanClassLoader = getBeanClassLoader();
+		// 将beanClassLoader赋值给dynamicLoader
 		ClassLoader dynamicLoader = beanClassLoader;
 		boolean freshResolve = false;
 
+		// 如果typeToMatch参数不为空
 		if (!ObjectUtils.isEmpty(typesToMatch)) {
 			// When just doing type checks (i.e. not creating an actual instance yet),
 			// use the specified temporary class loader (e.g. in a weaving scenario).
+			// 获取临时的类加载器
 			ClassLoader tempClassLoader = getTempClassLoader();
+			// 如果临时类加载器不为null
 			if (tempClassLoader != null) {
+				// 将其赋值给dynamicLoader
 				dynamicLoader = tempClassLoader;
 				freshResolve = true;
+				// 如果临时类加载器是DecoratingClassLoader类型的
 				if (tempClassLoader instanceof DecoratingClassLoader) {
 					DecoratingClassLoader dcl = (DecoratingClassLoader) tempClassLoader;
+					// 将typesToMatch的类名添加到dcl的excludeClasses集合中
 					for (Class<?> typeToMatch : typesToMatch) {
 						dcl.excludeClass(typeToMatch.getName());
 					}
@@ -1543,6 +1557,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 		}
 
+		// 获取beanClassName
 		String className = mbd.getBeanClassName();
 		if (className != null) {
 			Object evaluated = evaluateBeanDefinitionString(className, mbd);
@@ -1590,17 +1605,20 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 */
 	@Nullable
 	protected Object evaluateBeanDefinitionString(@Nullable String value, @Nullable BeanDefinition beanDefinition) {
+		// 如果beanExpressionResolver为null的话，直接返回value
 		if (this.beanExpressionResolver == null) {
 			return value;
 		}
 
 		Scope scope = null;
 		if (beanDefinition != null) {
+			// 获取scopeName，然后从已注册的scopeMap中获取对应的Scope
 			String scopeName = beanDefinition.getScope();
 			if (scopeName != null) {
 				scope = getRegisteredScope(scopeName);
 			}
 		}
+		// 调用beanExpressionResolver的evaluate方法进行评估
 		return this.beanExpressionResolver.evaluate(value, new BeanExpressionContext(this, scope));
 	}
 

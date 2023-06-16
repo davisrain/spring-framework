@@ -257,6 +257,8 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			processConfigBeanDefinitions((BeanDefinitionRegistry) beanFactory);
 		}
 
+		// 对ConfigurationClass进行增强，即标注了@Configuration注解且注解属性proxyBeanMethods为true的ConfigurationClass，
+		// 使用动态代理增强其bean方法，让bean方法每次都返回同一个bean
 		enhanceConfigurationClasses(beanFactory);
 		beanFactory.addBeanPostProcessor(new ImportAwareBeanPostProcessor(beanFactory));
 	}
@@ -423,27 +425,38 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	 */
 	public void enhanceConfigurationClasses(ConfigurableListableBeanFactory beanFactory) {
 		Map<String, AbstractBeanDefinition> configBeanDefs = new LinkedHashMap<>();
+		// 遍历容器中持有的所有的BeanDefinitionNames
 		for (String beanName : beanFactory.getBeanDefinitionNames()) {
+			// 根据beanName获取对应的bd
 			BeanDefinition beanDef = beanFactory.getBeanDefinition(beanName);
+			// 查看bd中CONFIGURATION_CLASS_ATTRIBUTE属性，判断其是否是一个ConfigurationClass
 			Object configClassAttr = beanDef.getAttribute(ConfigurationClassUtils.CONFIGURATION_CLASS_ATTRIBUTE);
 			AnnotationMetadata annotationMetadata = null;
 			MethodMetadata methodMetadata = null;
+			// 如果bd属于AnnotatedBeanDefinition类型的
 			if (beanDef instanceof AnnotatedBeanDefinition) {
 				AnnotatedBeanDefinition annotatedBeanDefinition = (AnnotatedBeanDefinition) beanDef;
+				// 获取其注解元数据AnnotationMetadata
 				annotationMetadata = annotatedBeanDefinition.getMetadata();
+				// 并且尝试获取其factoryMethodMetadata
 				methodMetadata = annotatedBeanDefinition.getFactoryMethodMetadata();
 			}
+			// (如果bd是ConfigurationClass 或者 方法元数据不为null) 并且bd是AbstractBeanDefinition类型的
 			if ((configClassAttr != null || methodMetadata != null) && beanDef instanceof AbstractBeanDefinition) {
 				// Configuration class (full or lite) or a configuration-derived @Bean method
 				// -> eagerly resolve bean class at this point, unless it's a 'lite' configuration
 				// or component class without @Bean methods.
 				AbstractBeanDefinition abd = (AbstractBeanDefinition) beanDef;
+				// 如果bd的beanClass不是Class类型的
 				if (!abd.hasBeanClass()) {
+					// 判断ConfigurationClass是否是lite类型并且对应的类中存在@Bean方法
 					boolean liteConfigurationCandidateWithoutBeanMethods =
 							(ConfigurationClassUtils.CONFIGURATION_CLASS_LITE.equals(configClassAttr) &&
 								annotationMetadata != null && !ConfigurationClassUtils.hasBeanMethods(annotationMetadata));
+					// 如果不是的话
 					if (!liteConfigurationCandidateWithoutBeanMethods) {
 						try {
+							// 解析对应的beanClass
 							abd.resolveBeanClass(this.beanClassLoader);
 						}
 						catch (Throwable ex) {
@@ -453,7 +466,9 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 					}
 				}
 			}
+			// 如果ConfigurationClass是full类型的
 			if (ConfigurationClassUtils.CONFIGURATION_CLASS_FULL.equals(configClassAttr)) {
+				// 如果bd不是AbstractBeanDefinition类型的，报错
 				if (!(beanDef instanceof AbstractBeanDefinition)) {
 					throw new BeanDefinitionStoreException("Cannot enhance @Configuration bean definition '" +
 							beanName + "' since it is not stored in an AbstractBeanDefinition subclass");
@@ -464,27 +479,36 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 							"is a non-static @Bean method with a BeanDefinitionRegistryPostProcessor " +
 							"return type: Consider declaring such methods as 'static'.");
 				}
+				// 将其bd根据beanName添加到map中
 				configBeanDefs.put(beanName, (AbstractBeanDefinition) beanDef);
 			}
 		}
+		// 如果没有需要增强的bd，直接返回
 		if (configBeanDefs.isEmpty()) {
 			// nothing to enhance -> return immediately
 			return;
 		}
 
+		// 创建一个ConfigurationClassEnhancer
 		ConfigurationClassEnhancer enhancer = new ConfigurationClassEnhancer();
+		// 遍历需要增强的bd
 		for (Map.Entry<String, AbstractBeanDefinition> entry : configBeanDefs.entrySet()) {
 			AbstractBeanDefinition beanDef = entry.getValue();
 			// If a @Configuration class gets proxied, always proxy the target class
+			// 向bd中设置属性PRESERVE_TARGET_CLASS_ATTRIBUTE为true
 			beanDef.setAttribute(AutoProxyUtils.PRESERVE_TARGET_CLASS_ATTRIBUTE, Boolean.TRUE);
 			// Set enhanced subclass of the user-specified bean class
+			// 获取bd的beanClass，用于对该类进行动态代理
 			Class<?> configClass = beanDef.getBeanClass();
+			// 调用enhancer对beanClass进行动态代理，返回代理类
 			Class<?> enhancedClass = enhancer.enhance(configClass, this.beanClassLoader);
+			// 如果代理类不等于被代理类的话
 			if (configClass != enhancedClass) {
 				if (logger.isTraceEnabled()) {
 					logger.trace(String.format("Replacing bean definition '%s' existing class '%s' with " +
 							"enhanced class '%s'", entry.getKey(), configClass.getName(), enhancedClass.getName()));
 				}
+				// 将bd中的beanClass替换为代理类
 				beanDef.setBeanClass(enhancedClass);
 			}
 		}
