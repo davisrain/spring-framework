@@ -609,18 +609,23 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @see #AUTOWIRE_BY_TYPE
 	 */
 	public int getResolvedAutowireMode() {
+		// 如果自动注入的类型是自动探测
 		if (this.autowireMode == AUTOWIRE_AUTODETECT) {
 			// Work out whether to apply setter autowiring or constructor autowiring.
 			// If it has a no-arg constructor it's deemed to be setter autowiring,
 			// otherwise we'll try constructor autowiring.
+			// 那么判断beanClass的构造器
 			Constructor<?>[] constructors = getBeanClass().getConstructors();
 			for (Constructor<?> constructor : constructors) {
+				// 如果存在无参构造器，那么就按类型注入
 				if (constructor.getParameterCount() == 0) {
 					return AUTOWIRE_BY_TYPE;
 				}
 			}
+			// 否则按构造器注入
 			return AUTOWIRE_CONSTRUCTOR;
 		}
+		// 如果不是自动探测的，那么返回其自身的autowireMode
 		else {
 			return this.autowireMode;
 		}
@@ -1145,12 +1150,15 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @throws BeanDefinitionValidationException in case of validation failure
 	 */
 	protected void prepareMethodOverride(MethodOverride mo) throws BeanDefinitionValidationException {
+		// 统计beanClass，以及其接口和父类中对应方法名的数量
 		int count = ClassUtils.getMethodCountForName(getBeanClass(), mo.getMethodName());
+		// 如果count等于0，报错
 		if (count == 0) {
 			throw new BeanDefinitionValidationException(
 					"Invalid method override: no method with name '" + mo.getMethodName() +
 					"' on class [" + getBeanClassName() + "]");
 		}
+		// 如果count等于1，说明只存在一个方法，将重载标志设置为false
 		else if (count == 1) {
 			// Mark override as not overloaded, to avoid the overhead of arg type checking.
 			mo.setOverloaded(false);

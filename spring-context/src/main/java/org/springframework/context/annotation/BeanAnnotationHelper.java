@@ -42,19 +42,24 @@ abstract class BeanAnnotationHelper {
 	}
 
 	public static String determineBeanNameFor(Method beanMethod) {
+		// 尝试从缓存中获取beanMethod对应的beanName
 		String beanName = beanNameCache.get(beanMethod);
+		// 如果缓存不存在
 		if (beanName == null) {
 			// By default, the bean name is the name of the @Bean-annotated method
+			// 默认去方法名作为beanName
 			beanName = beanMethod.getName();
 			// Check to see if the user has explicitly set a custom bean name...
 			AnnotationAttributes bean =
 					AnnotatedElementUtils.findMergedAnnotationAttributes(beanMethod, Bean.class, false, false);
+			// 判断@Bean注解是否存在，如果存在，判断其name属性是否有值，如果有的话，将name属性的第一个元素作为beanName
 			if (bean != null) {
 				String[] names = bean.getStringArray("name");
 				if (names.length > 0) {
 					beanName = names[0];
 				}
 			}
+			// 将解析出来的beanName放入缓存
 			beanNameCache.put(beanMethod, beanName);
 		}
 		return beanName;

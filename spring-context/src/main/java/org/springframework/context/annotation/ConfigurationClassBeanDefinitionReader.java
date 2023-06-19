@@ -293,6 +293,7 @@ class ConfigurationClassBeanDefinitionReader {
 
 		// 根据@Bean注解的autowire属性设置bd的autowireMode值
 		Autowire autowire = bean.getEnum("autowire");
+		// 如果autowire模式是byName或byType的，才会修改bd的autowireMode，否则还是默认的按constructor来
 		if (autowire.isAutowire()) {
 			beanDef.setAutowireMode(autowire.value());
 		}

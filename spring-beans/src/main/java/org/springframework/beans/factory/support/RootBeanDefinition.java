@@ -332,10 +332,12 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	 */
 	@Nullable
 	public Class<?> getTargetType() {
+		// 如果resolvedTargetType不为null的话，直接返回
 		if (this.resolvedTargetType != null) {
 			return this.resolvedTargetType;
 		}
 		ResolvableType targetType = this.targetType;
+		// 否则尝试返回targetType的resolved字段，如果targetType为null，直接返回null
 		return (targetType != null ? targetType.resolve() : null);
 	}
 

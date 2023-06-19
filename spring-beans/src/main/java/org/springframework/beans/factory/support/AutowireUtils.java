@@ -178,13 +178,18 @@ abstract class AutowireUtils {
 		Assert.notNull(method, "Method must not be null");
 		Assert.notNull(args, "Argument array must not be null");
 
+		// 获取方法声明的泛型变量
 		TypeVariable<Method>[] declaredTypeVariables = method.getTypeParameters();
+		// 获取方法的泛型返回类型
 		Type genericReturnType = method.getGenericReturnType();
+		// 获取方法的泛型参数类型
 		Type[] methodParameterTypes = method.getGenericParameterTypes();
+		// 判断传入的参数个数是否和方法的参数个数相等
 		Assert.isTrue(args.length == methodParameterTypes.length, "Argument array does not match parameter count");
 
 		// Ensure that the type variable (e.g., T) is declared directly on the method
 		// itself (e.g., via <T>), not on the enclosing class or interface.
+		// 判断泛型变量是直接声明在方法上的 而不是声明在类或接口上
 		boolean locallyDeclaredTypeVariableMatchesReturnType = false;
 		for (TypeVariable<Method> currentTypeVariable : declaredTypeVariables) {
 			if (currentTypeVariable.equals(genericReturnType)) {
@@ -193,11 +198,16 @@ abstract class AutowireUtils {
 			}
 		}
 
+		// 如果泛型变量是声明在方法上的
 		if (locallyDeclaredTypeVariableMatchesReturnType) {
+			// 遍历方法的泛型参数
 			for (int i = 0; i < methodParameterTypes.length; i++) {
 				Type methodParameterType = methodParameterTypes[i];
+				// 并且获取对应下标的传入的参数
 				Object arg = args[i];
+				// 如果它和返回值类型相等了
 				if (methodParameterType.equals(genericReturnType)) {
+					// 如果对应的arg是TypedStringValue类型的
 					if (arg instanceof TypedStringValue) {
 						TypedStringValue typedValue = ((TypedStringValue) arg);
 						if (typedValue.hasTargetType()) {

@@ -60,12 +60,18 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 	@Override
 	public Object instantiate(RootBeanDefinition bd, @Nullable String beanName, BeanFactory owner) {
 		// Don't override the class with CGLIB if no overrides.
+		// 如果bd中不包含MethodOverrides，那么就不需要通过cglib代理来实现方法重写
 		if (!bd.hasMethodOverrides()) {
 			Constructor<?> constructorToUse;
+			// 根据bd的constructorArgumentLock来加锁
 			synchronized (bd.constructorArgumentLock) {
+				// 获取解析过的构造器或工厂方法
 				constructorToUse = (Constructor<?>) bd.resolvedConstructorOrFactoryMethod;
+				// 如果要使用的构造器为null
 				if (constructorToUse == null) {
+					// 获取bd的beanClass
 					final Class<?> clazz = bd.getBeanClass();
+					// 如果class是接口类型的，报错
 					if (clazz.isInterface()) {
 						throw new BeanInstantiationException(clazz, "Specified class is an interface");
 					}
@@ -75,8 +81,10 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 									(PrivilegedExceptionAction<Constructor<?>>) clazz::getDeclaredConstructor);
 						}
 						else {
+							// 获取类中声明的无参构造方法
 							constructorToUse = clazz.getDeclaredConstructor();
 						}
+						// 将其赋值给bd的resolvedConstructorOrFactoryMethod字段
 						bd.resolvedConstructorOrFactoryMethod = constructorToUse;
 					}
 					catch (Throwable ex) {
@@ -84,6 +92,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 					}
 				}
 			}
+			// 使用无参构造器进行实例化
 			return BeanUtils.instantiateClass(constructorToUse);
 		}
 		else {

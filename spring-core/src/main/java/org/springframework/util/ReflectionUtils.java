@@ -419,24 +419,31 @@ public abstract class ReflectionUtils {
 		doWithMethods(leafClass, method -> {
 			boolean knownSignature = false;
 			Method methodBeingOverriddenWithCovariantReturnType = null;
+			// 遍历已经存在的方法，和当前方法做比较
 			for (Method existingMethod : methods) {
+				// 如果有存在的方法的方法签名和当前方法相同
 				if (method.getName().equals(existingMethod.getName()) &&
 						method.getParameterCount() == existingMethod.getParameterCount() &&
 						Arrays.equals(method.getParameterTypes(), existingMethod.getParameterTypes())) {
 					// Is this a covariant return type situation?
+					// 但是返回值不同，但返回值是可赋值的关系，说明这是协变返回类型。那么我们需要删除返回值范围更大的方法，保留范围更小的方法
 					if (existingMethod.getReturnType() != method.getReturnType() &&
 							existingMethod.getReturnType().isAssignableFrom(method.getReturnType())) {
 						methodBeingOverriddenWithCovariantReturnType = existingMethod;
 					}
+					// 其他情况，将knownSignature置为true，表示当前方法的签名已经存在
 					else {
 						knownSignature = true;
 					}
+					// 跳出循环
 					break;
 				}
 			}
+			// 如果存在协变返回类型的方法，将返回值范围更大的方法从集合中删除
 			if (methodBeingOverriddenWithCovariantReturnType != null) {
 				methods.remove(methodBeingOverriddenWithCovariantReturnType);
 			}
+			// 如果是没有见过的方法签名 且 方法不是被cglib重新命名过的，加入集合
 			if (!knownSignature && !isCglibRenamedMethod(method)) {
 				methods.add(method);
 			}
@@ -558,11 +565,13 @@ public abstract class ReflectionUtils {
 	 */
 	public static boolean isCglibRenamedMethod(Method renamedMethod) {
 		String name = renamedMethod.getName();
+		// 如果方法名是以CGLIB$开头的
 		if (name.startsWith(CGLIB_RENAMED_METHOD_PREFIX)) {
 			int i = name.length() - 1;
 			while (i >= 0 && Character.isDigit(name.charAt(i))) {
 				i--;
 			}
+			// 并且CGLIB$后只存在数字，返回true，否则返回false
 			return (i > CGLIB_RENAMED_METHOD_PREFIX.length() && (i < name.length() - 1) && name.charAt(i) == '$');
 		}
 		return false;

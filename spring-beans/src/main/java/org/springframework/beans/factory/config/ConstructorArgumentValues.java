@@ -162,14 +162,17 @@ public class ConstructorArgumentValues {
 	@Nullable
 	public ValueHolder getIndexedArgumentValue(int index, @Nullable Class<?> requiredType, @Nullable String requiredName) {
 		Assert.isTrue(index >= 0, "Index must not be negative");
+		// 根据index获取对应的ValueHolder
 		ValueHolder valueHolder = this.indexedArgumentValues.get(index);
 		if (valueHolder != null &&
 				(valueHolder.getType() == null || (requiredType != null &&
 						ClassUtils.matchesTypeName(requiredType, valueHolder.getType()))) &&
 				(valueHolder.getName() == null || (requiredName != null &&
 						(requiredName.isEmpty() || requiredName.equals(valueHolder.getName()))))) {
+			// 如果valueHolder存在 且 type为null或者type于requireType相匹配 并且 name为null或者name与requiredName相等，返回valueHolder
 			return valueHolder;
 		}
+		// 否则返回null
 		return null;
 	}
 
@@ -281,13 +284,16 @@ public class ConstructorArgumentValues {
 			@Nullable Set<ValueHolder> usedValueHolders) {
 
 		for (ValueHolder valueHolder : this.genericArgumentValues) {
+			// 如果usedValueHolders中已经包含了，跳过
 			if (usedValueHolders != null && usedValueHolders.contains(valueHolder)) {
 				continue;
 			}
+			// 如果name不匹配，跳过
 			if (valueHolder.getName() != null && (requiredName == null ||
 					(!requiredName.isEmpty() && !requiredName.equals(valueHolder.getName())))) {
 				continue;
 			}
+			// 如果类型不匹配，跳过
 			if (valueHolder.getType() != null && (requiredType == null ||
 					!ClassUtils.matchesTypeName(requiredType, valueHolder.getType()))) {
 				continue;
@@ -298,6 +304,7 @@ public class ConstructorArgumentValues {
 			}
 			return valueHolder;
 		}
+		// 如果都没有找到，返回null
 		return null;
 	}
 
@@ -355,7 +362,9 @@ public class ConstructorArgumentValues {
 			@Nullable String requiredName, @Nullable Set<ValueHolder> usedValueHolders) {
 
 		Assert.isTrue(index >= 0, "Index must not be negative");
+		// 尝试从indexed参数里取值
 		ValueHolder valueHolder = getIndexedArgumentValue(index, requiredType, requiredName);
+		// 如果没有取到，尝试去generic参数里取值
 		if (valueHolder == null) {
 			valueHolder = getGenericArgumentValue(requiredType, requiredName, usedValueHolders);
 		}

@@ -243,13 +243,17 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			String name, @Nullable Class<T> requiredType, @Nullable Object[] args, boolean typeCheckOnly)
 			throws BeansException {
 
+		// 将name前的&符号去掉，并且将别名映射为真实的beanName
 		String beanName = transformedBeanName(name);
 		Object bean;
 
 		// Eagerly check singleton cache for manually registered singletons.
+		// 尝试从singleton缓存中根据beanName获取bean
 		Object sharedInstance = getSingleton(beanName);
+		// 如果获取到的bean不为null 并且 传入的参数args为null
 		if (sharedInstance != null && args == null) {
 			if (logger.isTraceEnabled()) {
+				// 如果当前bean正在创建中，打印对应的日志
 				if (isSingletonCurrentlyInCreation(beanName)) {
 					logger.trace("Returning eagerly cached instance of singleton bean '" + beanName +
 							"' that is not fully initialized yet - a consequence of a circular reference");
@@ -258,56 +262,76 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					logger.trace("Returning cached instance of singleton bean '" + beanName + "'");
 				}
 			}
+			// 根据beanInstance去获取对应的bean
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		}
 
 		else {
 			// Fail if we're already creating this bean instance:
 			// We're assumably within a circular reference.
+			// 如果beanName正处于创建中，且是prototype类型的，报错
 			if (isPrototypeCurrentlyInCreation(beanName)) {
 				throw new BeanCurrentlyInCreationException(beanName);
 			}
 
 			// Check if bean definition exists in this factory.
+			// 获取父容器
 			BeanFactory parentBeanFactory = getParentBeanFactory();
+			// 如果父容器不为null 并且 自身并不存在beanName对应的BeanDefinition，尝试去父容器中查找
 			if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
 				// Not found -> check parent.
+				// 如果name是别名，将其映射为真实的beanName，并且保留&符号
 				String nameToLookup = originalBeanName(name);
+				// 如果父容器是AbstractBeanFactory类型的，调用父容器的doGetBean查找
 				if (parentBeanFactory instanceof AbstractBeanFactory) {
 					return ((AbstractBeanFactory) parentBeanFactory).doGetBean(
 							nameToLookup, requiredType, args, typeCheckOnly);
 				}
+				// 如果args不为null，调用父容器的getBean(beanName, args)方法
 				else if (args != null) {
 					// Delegation to parent with explicit args.
 					return (T) parentBeanFactory.getBean(nameToLookup, args);
 				}
+				// 如果requiredType不为null，调用父容器的getBean(beanName, requireType)方法
 				else if (requiredType != null) {
 					// No args -> delegate to standard getBean method.
 					return parentBeanFactory.getBean(nameToLookup, requiredType);
 				}
 				else {
+					// 否则调用父容器的getBean(beanName)方法
 					return (T) parentBeanFactory.getBean(nameToLookup);
 				}
 			}
 
+			// 如果typeCheckOnly为false的话
 			if (!typeCheckOnly) {
+				// 将这个beanName标记为已经创建过的，即将beanName添加进alreadyCreated集合中，
+				// 并且将mergedBeanDefinitions中该beanName的缓存置为过期状态
 				markBeanAsCreated(beanName);
 			}
 
 			try {
+				// 根据beanName获取合并的RootBeanDefinition
 				RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
+				// 检查MergedBeanDefinition是不是抽象的，如果是的话，报错
 				checkMergedBeanDefinition(mbd, beanName, args);
 
 				// Guarantee initialization of beans that the current bean depends on.
+				// 获取mbd依赖的所有bean的beanName，确保依赖的bean已经被初始化了
 				String[] dependsOn = mbd.getDependsOn();
+				// 如果依赖的beanName不为null的话
 				if (dependsOn != null) {
+					// 遍历这些beanName
 					for (String dep : dependsOn) {
+						// 判断是否存在循环依赖的关系，如果是，报错
 						if (isDependent(beanName, dep)) {
 							throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 									"Circular depends-on relationship between '" + beanName + "' and '" + dep + "'");
 						}
+						// 将依赖关系注册进dependentBeanMap和dependenciesForBeanMap中
 						registerDependentBean(dep, beanName);
 						try {
+							// 然后根据dep，即依赖的beanName，调用getBean方法，保证对应的bean已经初始化
 							getBean(dep);
 						}
 						catch (NoSuchBeanDefinitionException ex) {
@@ -318,7 +342,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 
 				// Create bean instance.
+				// 如果mbd是singleton类型的
 				if (mbd.isSingleton()) {
+					// 调用getSingleton方法，传入beanName和一个ObjectFactory的lambda表达式，并将返回值赋值给sharedInstance
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
 							return createBean(beanName, mbd, args);
@@ -327,13 +353,15 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 							// Explicitly remove instance from singleton cache: It might have been put there
 							// eagerly by the creation process, to allow for circular reference resolution.
 							// Also remove any beans that received a temporary reference to the bean.
+							// 如果创建时发生了异常，调用destroySingleton方法清除beanName相关的数据
 							destroySingleton(beanName);
 							throw ex;
 						}
 					});
+					// 然后根据sharedInstance获取最终的bean
 					bean = getObjectForBeanInstance(sharedInstance, name, beanName, mbd);
 				}
-
+				// 如果mbd是prototype类型的
 				else if (mbd.isPrototype()) {
 					// It's a prototype -> create a new instance.
 					Object prototypeInstance = null;
@@ -933,9 +961,13 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		// Remove from old position, if any
 		this.beanPostProcessors.remove(beanPostProcessor);
 		// Track whether it is instantiation/destruction aware
+		// 如果有bean后置处理器是InstantiationAwareBeanPostProcessor类型的，
+		// 将beanFactory的hasInstantiationAwareBeanPostProcessors标志置为true
 		if (beanPostProcessor instanceof InstantiationAwareBeanPostProcessor) {
 			this.hasInstantiationAwareBeanPostProcessors = true;
 		}
+		// 如果有bean后置处理器是DestructionAwareBeanPostProcessor类型的，
+		// 将beanFactory的hasDestructionAwareBeanPostProcessors标志置为true
 		if (beanPostProcessor instanceof DestructionAwareBeanPostProcessor) {
 			this.hasDestructionAwareBeanPostProcessors = true;
 		}
@@ -1217,10 +1249,14 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @return the original bean name
 	 */
 	protected String originalBeanName(String name) {
+		// 将name去除&，以及将别名映射为真实beanName
 		String beanName = transformedBeanName(name);
+		// 如果原本的名称是以&开头的
 		if (name.startsWith(FACTORY_BEAN_PREFIX)) {
+			// 那么在beanName前加上&
 			beanName = FACTORY_BEAN_PREFIX + beanName;
 		}
+		// 返回
 		return beanName;
 	}
 
@@ -1844,13 +1880,17 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			Object beanInstance, String name, String beanName, @Nullable RootBeanDefinition mbd) {
 
 		// Don't let calling code try to dereference the factory if the bean isn't a factory.
+		// 如果name以&开头，说明时获取FactoryBean对象本身
 		if (BeanFactoryUtils.isFactoryDereference(name)) {
+			// 如果beanInstance是NullBean，直接返回
 			if (beanInstance instanceof NullBean) {
 				return beanInstance;
 			}
+			// 如果beanInstance不是FactoryBean类型的，报错
 			if (!(beanInstance instanceof FactoryBean)) {
 				throw new BeanIsNotAFactoryException(beanName, beanInstance.getClass());
 			}
+			// 如果mbd不为null，将其isFactoryBean属性设置为true
 			if (mbd != null) {
 				mbd.isFactoryBean = true;
 			}
@@ -1860,25 +1900,33 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		// Now we have the bean instance, which may be a normal bean or a FactoryBean.
 		// If it's a FactoryBean, we use it to create a bean instance, unless the
 		// caller actually wants a reference to the factory.
+		// 如果走到这一步，说明name中不含&，则是返回普通的bean对象，如果beanInstance不是FactoryBean类型的，直接返回。
 		if (!(beanInstance instanceof FactoryBean)) {
 			return beanInstance;
 		}
 
+		// 如果beanInstance是FactoryBean类型的，那么调用其getObject方法返回实际的bean对象
 		Object object = null;
+		// 如果mbd不为null，将其isFactorBean设置为true
 		if (mbd != null) {
 			mbd.isFactoryBean = true;
 		}
+		// 如果mbd为null，尝试从FactoryBeanObject缓存中获取实际的bean
 		else {
 			object = getCachedObjectForFactoryBean(beanName);
 		}
+		// 如果object仍为null，调用FactoryBean.getObject获取
 		if (object == null) {
 			// Return bean instance from factory.
 			FactoryBean<?> factory = (FactoryBean<?>) beanInstance;
 			// Caches object obtained from FactoryBean if it is a singleton.
+			// 如果mbd为null并且容器中存在beanName对应的bd，获取mergedBeanDefinition
 			if (mbd == null && containsBeanDefinition(beanName)) {
 				mbd = getMergedLocalBeanDefinition(beanName);
 			}
+			// 判断mbd是否是合成的
 			boolean synthetic = (mbd != null && mbd.isSynthetic());
+			// 从factoryBean中获取实际的bean
 			object = getObjectFromFactoryBean(factory, beanName, !synthetic);
 		}
 		return object;
