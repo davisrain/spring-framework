@@ -372,28 +372,40 @@ public class MethodParameter {
 	 * @since 5.2
 	 */
 	public MethodParameter nested(@Nullable Integer typeIndex) {
+		// 获取自身持有的nestedMethodParameter
 		MethodParameter nestedParam = this.nestedMethodParameter;
+		// 如果nestedParam本身就不为null，并且没有指定类型索引，那么直接返回nestedParam
 		if (nestedParam != null && typeIndex == null) {
 			return nestedParam;
 		}
+		// 否则将嵌套层级+1
 		nestedParam = nested(this.nestingLevel + 1, typeIndex);
+		// 如果没有执行类型索引，将更深层次的param赋值给nestedMethodParameter属性
 		if (typeIndex == null) {
 			this.nestedMethodParameter = nestedParam;
 		}
+		// 并且返回更深层次的methodParameter
 		return nestedParam;
 	}
 
 	private MethodParameter nested(int nestingLevel, @Nullable Integer typeIndex) {
+		// 将自身的所有属性clone一遍，生成一个新的methodParameter
 		MethodParameter copy = clone();
+		// 然后将这个复制对象的嵌套层级设置为新的传入的嵌套层级
 		copy.nestingLevel = nestingLevel;
+		// 如果自身的typeIndexPerLevel不为null的话
 		if (this.typeIndexesPerLevel != null) {
+			// 复制一个map复制给copy，实现深拷贝
 			copy.typeIndexesPerLevel = new HashMap<>(this.typeIndexesPerLevel);
 		}
+		// 如果typeIndex不为null，将其设置进copy的typeIndexesPerLevel这个map中
 		if (typeIndex != null) {
 			copy.getTypeIndexesPerLevel().put(copy.nestingLevel, typeIndex);
 		}
+		// 将copy的parameterType和genericParameterType都置为null
 		copy.parameterType = null;
 		copy.genericParameterType = null;
+		// 返回copy对象
 		return copy;
 	}
 
@@ -488,16 +500,20 @@ public class MethodParameter {
 	 * @return the parameter type (never {@code null})
 	 */
 	public Class<?> getParameterType() {
+		// 尝试返回参数类型
 		Class<?> paramType = this.parameterType;
 		if (paramType != null) {
 			return paramType;
 		}
+		// 如果包含这个方法参数的类和声明这个方法参数的类不一致的话
 		if (getContainingClass() != getDeclaringClass()) {
 			paramType = ResolvableType.forMethodParameter(this, null, 1).resolve();
 		}
+		// 如果paramType仍为null，根据paramIndex计算自身的parameterType
 		if (paramType == null) {
 			paramType = computeParameterType();
 		}
+		// 将解析出来的paramType赋值给自身的parameterType
 		this.parameterType = paramType;
 		return paramType;
 	}
@@ -543,6 +559,7 @@ public class MethodParameter {
 	}
 
 	private Class<?> computeParameterType() {
+		// 如果参数index小于0，表示的是方法的返回值
 		if (this.parameterIndex < 0) {
 			Method method = getMethod();
 			if (method == null) {
@@ -553,6 +570,7 @@ public class MethodParameter {
 			}
 			return method.getReturnType();
 		}
+		// 否则返回对应index 的方法参数类型
 		return this.executable.getParameterTypes()[this.parameterIndex];
 	}
 
@@ -563,27 +581,40 @@ public class MethodParameter {
 	 * @see #getNestingLevel()
 	 */
 	public Class<?> getNestedParameterType() {
+		// 如果嵌套层级大于1
 		if (this.nestingLevel > 1) {
+			// 获取方法参数对应的泛型参数类型
 			Type type = getGenericParameterType();
 			for (int i = 2; i <= this.nestingLevel; i++) {
+				// 如果type是ParameterizedType类型的
 				if (type instanceof ParameterizedType) {
+					// 获取其包含的泛型类型数组
 					Type[] args = ((ParameterizedType) type).getActualTypeArguments();
+					// 获取每一层级的类型index
+					// 比如Map<String, Set<Integer>>这个泛型参数类型，当level为2时，
+					// 会解析出[String, Set<Integer>]包含两个元素的泛型类型数组，此时根据level的值获取到应该取的类型的index,
+					// 即methodParameter的typeIndexesPerLevel这个Map中对应的value，如果为null的话，默认取最后一个类型，即Set<Integer>
 					Integer index = getTypeIndexForLevel(i);
+					// 如果index为null的话，默认取每一层泛型类型数组的最后一个
 					type = args[index != null ? index : args.length - 1];
 				}
 				// TODO: Object.class if unresolvable
 			}
+			// 如果循环后的类型是Class类型的，直接返回
 			if (type instanceof Class) {
 				return (Class<?>) type;
 			}
+			// 如果循环后的类型的ParameterizedType类型的，返回其rawType
 			else if (type instanceof ParameterizedType) {
 				Type arg = ((ParameterizedType) type).getRawType();
 				if (arg instanceof Class) {
 					return (Class<?>) arg;
 				}
 			}
+			// 否则返回Object.class
 			return Object.class;
 		}
+		// 如果嵌套层级等于1，直接返回其parameterType
 		else {
 			return getParameterType();
 		}

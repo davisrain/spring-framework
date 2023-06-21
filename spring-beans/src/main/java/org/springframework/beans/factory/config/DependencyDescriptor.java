@@ -102,6 +102,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 		super(methodParameter);
 
 		this.declaringClass = methodParameter.getDeclaringClass();
+		// 如果methodParameter中的executable是方法而不是构造器的话，获取方法名
 		if (methodParameter.getMethod() != null) {
 			this.methodName = methodParameter.getMethod().getName();
 		}
@@ -272,7 +273,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 */
 	public Object resolveCandidate(String beanName, Class<?> requiredType, BeanFactory beanFactory)
 			throws BeansException {
-
+		// 直接根据beanName从beanFactory中获取对应的bean实例
 		return beanFactory.getBean(beanName);
 	}
 
@@ -281,9 +282,13 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * Increase this descriptor's nesting level.
 	 */
 	public void increaseNestingLevel() {
+		// 嵌套层级+1
 		this.nestingLevel++;
+		// 将resolvableType置为null
 		this.resolvableType = null;
+		// 如果方法参数不为null的话
 		if (this.methodParameter != null) {
+			// 调用方法参数的nested方法，增加嵌套层级
 			this.methodParameter = this.methodParameter.nested();
 		}
 	}
@@ -383,30 +388,45 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * @return the declared type (never {@code null})
 	 */
 	public Class<?> getDependencyType() {
+		// 如果持有的field不为null
 		if (this.field != null) {
+			// 并且嵌套层级大于1
 			if (this.nestingLevel > 1) {
+				// 获取字段的泛型类型
 				Type type = this.field.getGenericType();
+				// 按照嵌套层级遍历
 				for (int i = 2; i <= this.nestingLevel; i++) {
+					// 如果泛型类型是ParametrizedType类型的，每次都获取下一层泛型中的最后一个类型
+					// 比如Map<String, Set<Integer>>：
+					// i = 2时，获取到的是Set<Integer>
+					// i = 3时，获取到的是Integer
 					if (type instanceof ParameterizedType) {
 						Type[] args = ((ParameterizedType) type).getActualTypeArguments();
 						type = args[args.length - 1];
 					}
 				}
+				// 如果循环之后的type是class类型的，直接返回
 				if (type instanceof Class) {
 					return (Class<?>) type;
 				}
+				// 如果循环之后的type是ParameterizedType类型的
 				else if (type instanceof ParameterizedType) {
+					// 获取它的rawType，如果rawType是class类型的，直接返回
 					Type arg = ((ParameterizedType) type).getRawType();
 					if (arg instanceof Class) {
 						return (Class<?>) arg;
 					}
 				}
+				// 否则返回Object.class
 				return Object.class;
 			}
+			// 如果嵌套层级不大于1
 			else {
+				// 直接返回field的type
 				return this.field.getType();
 			}
 		}
+		// 如果持有的field为null，说明注入点是方法参数，获取持有的methodParameter解析type
 		else {
 			return obtainMethodParameter().getNestedParameterType();
 		}

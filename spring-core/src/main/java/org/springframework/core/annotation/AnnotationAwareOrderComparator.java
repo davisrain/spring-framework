@@ -96,11 +96,16 @@ public class AnnotationAwareOrderComparator extends OrderComparator {
 	@Override
 	@Nullable
 	public Integer getPriority(Object obj) {
+		// 如果传入的对象是Class类型的
 		if (obj instanceof Class) {
+			// 调用OrderUtils.getPriority方法获取优先级
 			return OrderUtils.getPriority((Class<?>) obj);
 		}
+		// 否则获取其类对象，调用OrderUtils.getPriority方法获取优先级
 		Integer priority = OrderUtils.getPriority(obj.getClass());
+		// 如果优先级不存在，且对象是DecoratingProxy类型的
 		if (priority == null  && obj instanceof DecoratingProxy) {
+			// 那么递归调用getPriority方法，以被装饰的类对象为参数
 			return getPriority(((DecoratingProxy) obj).getDecoratedClass());
 		}
 		return priority;

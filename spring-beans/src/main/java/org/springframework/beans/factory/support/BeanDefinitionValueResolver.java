@@ -108,29 +108,41 @@ class BeanDefinitionValueResolver {
 	public Object resolveValueIfNecessary(Object argName, @Nullable Object value) {
 		// We must check each value to see whether it requires a runtime reference
 		// to another bean to be resolved.
+		// 如果value是RuntimeBeanReference类型的
 		if (value instanceof RuntimeBeanReference) {
 			RuntimeBeanReference ref = (RuntimeBeanReference) value;
+			// 调用resolveReference方法进行解析，返回解析到的bean对象
 			return resolveReference(argName, ref);
 		}
+		// 如果value是RuntimeBeanNameReference类型的
 		else if (value instanceof RuntimeBeanNameReference) {
+			// 获取refName
 			String refName = ((RuntimeBeanNameReference) value).getBeanName();
+			// 然后进行表达式解析
 			refName = String.valueOf(doEvaluate(refName));
+			// 如果容器中不包含该refName对应的bean，报错
 			if (!this.beanFactory.containsBean(refName)) {
 				throw new BeanDefinitionStoreException(
 						"Invalid bean name '" + refName + "' in bean reference for " + argName);
 			}
+			// 返回beanName
 			return refName;
 		}
+		// 如果value是BeanDefinitionHolder类型的
 		else if (value instanceof BeanDefinitionHolder) {
 			// Resolve BeanDefinitionHolder: contains BeanDefinition with name and aliases.
 			BeanDefinitionHolder bdHolder = (BeanDefinitionHolder) value;
+			// 解析内部bean，创建一个实际的bean对象返回
 			return resolveInnerBean(argName, bdHolder.getBeanName(), bdHolder.getBeanDefinition());
 		}
+		// 如果value是BeanDefinition类型的
 		else if (value instanceof BeanDefinition) {
 			// Resolve plain BeanDefinition, without contained name: use dummy name.
 			BeanDefinition bd = (BeanDefinition) value;
+			// 根据规则创建一个innerBeanName给该bd使用
 			String innerBeanName = "(inner bean)" + BeanFactoryUtils.GENERATED_BEAN_NAME_SEPARATOR +
 					ObjectUtils.getIdentityHexString(bd);
+			// 解析内部bean，创建一个实际的bean对象返回
 			return resolveInnerBean(argName, innerBeanName, bd);
 		}
 		else if (value instanceof DependencyDescriptor) {
@@ -302,8 +314,11 @@ class BeanDefinitionValueResolver {
 	private Object resolveReference(Object argName, RuntimeBeanReference ref) {
 		try {
 			Object bean;
+			// 获取对应的beanType
 			Class<?> beanType = ref.getBeanType();
+			// 判断该beanReference是否是显式的指向parentBeanFactory的
 			if (ref.isToParent()) {
+				// 如果是，尝试从parentBeanFactory中获取bean
 				BeanFactory parent = this.beanFactory.getParentBeanFactory();
 				if (parent == null) {
 					throw new BeanCreationException(
@@ -311,29 +326,40 @@ class BeanDefinitionValueResolver {
 							"Cannot resolve reference to bean " + ref +
 									" in parent factory: no parent factory available");
 				}
+				// 如果类型不为null，尝试通过类型获取
 				if (beanType != null) {
 					bean = parent.getBean(beanType);
 				}
+				// 如果类型为null，通过beanName进行获取
 				else {
+					// 对ref中的beanName进行解析，以防止其beanName中含有表达式，然后在父类工厂中根据解析后的beanName进行查找bean
 					bean = parent.getBean(String.valueOf(doEvaluate(ref.getBeanName())));
 				}
 			}
+			// 如果ref不是指向parentBeanFactory的
 			else {
 				String resolvedName;
+				// 如果beanType不为null
 				if (beanType != null) {
+					//TODO 获取其解析后的beanName
 					NamedBeanHolder<?> namedBean = this.beanFactory.resolveNamedBean(beanType);
 					bean = namedBean.getBeanInstance();
 					resolvedName = namedBean.getBeanName();
 				}
+				// 如果beanType为null，根据beanName进行解析
 				else {
+					// 得到解析后的name，根据解析后的name去容器中获取bean对象
 					resolvedName = String.valueOf(doEvaluate(ref.getBeanName()));
 					bean = this.beanFactory.getBean(resolvedName);
 				}
+				// 向beanFactory中注册beanName和ref对应的beanName的依赖关系
 				this.beanFactory.registerDependentBean(resolvedName, this.beanName);
 			}
+			// 如果bean是NullBean类型的，置为null
 			if (bean instanceof NullBean) {
 				bean = null;
 			}
+			// 返回bean
 			return bean;
 		}
 		catch (BeansException ex) {
@@ -354,15 +380,19 @@ class BeanDefinitionValueResolver {
 	private Object resolveInnerBean(Object argName, String innerBeanName, BeanDefinition innerBd) {
 		RootBeanDefinition mbd = null;
 		try {
+			// 根据innerBd获取mergeBeanDefinition
 			mbd = this.beanFactory.getMergedBeanDefinition(innerBeanName, innerBd, this.beanDefinition);
 			// Check given bean name whether it is unique. If not already unique,
 			// add counter - increasing the counter until the name is unique.
+			// 判断innerBeanName是否是唯一的，如果不是，再后面添加数字
 			String actualInnerBeanName = innerBeanName;
 			if (mbd.isSingleton()) {
 				actualInnerBeanName = adaptInnerBeanName(innerBeanName);
 			}
+			// 将innerBeanName和beanName注册进containedBeanMap中以表达包含关系，以及依赖map中，记录依赖关系
 			this.beanFactory.registerContainedBean(actualInnerBeanName, this.beanName);
 			// Guarantee initialization of beans that the inner bean depends on.
+			// 保证mbd所依赖的bean都先初始化了，并且注册他们的依赖关系
 			String[] dependsOn = mbd.getDependsOn();
 			if (dependsOn != null) {
 				for (String dependsOnBean : dependsOn) {
@@ -371,15 +401,19 @@ class BeanDefinitionValueResolver {
 				}
 			}
 			// Actually create the inner bean instance now...
+			// 调用创建bean的逻辑将innerBd创建为bean对象
 			Object innerBean = this.beanFactory.createBean(actualInnerBeanName, mbd, null);
+			// 如果它是FactoryBean类型的，调用getObject获取实际的bean对象
 			if (innerBean instanceof FactoryBean) {
 				boolean synthetic = mbd.isSynthetic();
 				innerBean = this.beanFactory.getObjectFromFactoryBean(
 						(FactoryBean<?>) innerBean, actualInnerBeanName, !synthetic);
 			}
+			// 如果创建出来的bean是NullBean类型的，赋值为null
 			if (innerBean instanceof NullBean) {
 				innerBean = null;
 			}
+			// 返回创建出来的内部bean
 			return innerBean;
 		}
 		catch (BeansException ex) {

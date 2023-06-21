@@ -159,6 +159,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	 */
 	@SuppressWarnings("unchecked")
 	public AutowiredAnnotationBeanPostProcessor() {
+		// 该类初始化的时候会添加Autowired.class Value.class Inject.class这三个类型到autowiredAnnotationTypes属性中
 		this.autowiredAnnotationTypes.add(Autowired.class);
 		this.autowiredAnnotationTypes.add(Value.class);
 		try {
@@ -259,19 +260,27 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 			throws BeanCreationException {
 
 		// Let's check for lookup methods here...
+		// 从缓存中查找beanName对应的lookupMethods，如果缓存中不存在，进行解析放入缓存
 		if (!this.lookupMethodsChecked.contains(beanName)) {
+			// 如果beanClass是@Lookup注解的候选类
 			if (AnnotationUtils.isCandidateClass(beanClass, Lookup.class)) {
 				try {
 					Class<?> targetClass = beanClass;
 					do {
+						// 尝试去当前类中查找标注了@Lookup注解的方法，并且实例化一个LookupOverride对象放入其beanName对应的mbd中
 						ReflectionUtils.doWithLocalMethods(targetClass, method -> {
+							// 查找方法上标注的@Lookup注解
 							Lookup lookup = method.getAnnotation(Lookup.class);
+							// 如果存在
 							if (lookup != null) {
 								Assert.state(this.beanFactory != null, "No BeanFactory available");
+								// 根据方法和注解的value属性创建一个LookupOverride对象
 								LookupOverride override = new LookupOverride(method, lookup.value());
 								try {
+									// 然后查找到beanName对应的mbd
 									RootBeanDefinition mbd = (RootBeanDefinition)
 											this.beanFactory.getMergedBeanDefinition(beanName);
+									// 将其放入到mbd的methodOverrides属性中持有
 									mbd.getMethodOverrides().addOverride(override);
 								}
 								catch (NoSuchBeanDefinitionException ex) {
@@ -280,8 +289,10 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 								}
 							}
 						});
+						// 然后查找其父类是否存在被@Lookup注解标注的方法
 						targetClass = targetClass.getSuperclass();
 					}
+					// 当targetClass是null或者targetClass是Object.class的时候，结束循环
 					while (targetClass != null && targetClass != Object.class);
 
 				}
@@ -289,18 +300,23 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 					throw new BeanCreationException(beanName, "Lookup method resolution failed", ex);
 				}
 			}
+			// 然后将beanName缓存到lookupMethodsChecked缓存中，代表该beanName已经解析过lookup方法了
 			this.lookupMethodsChecked.add(beanName);
 		}
 
 		// Quick check on the concurrent map first, with minimal locking.
+		// 查看对应的beanClass在缓存中是否有对应的候选构造器，如果没有，进行解析
 		Constructor<?>[] candidateConstructors = this.candidateConstructorsCache.get(beanClass);
 		if (candidateConstructors == null) {
 			// Fully synchronized resolution now...
+			// 这里对candidateConstructorsCache加锁，防止有多个线程同时去对候选构造器进行解析
 			synchronized (this.candidateConstructorsCache) {
+				// 并且这里采用了double-check，保证了只有一个线程对其解析
 				candidateConstructors = this.candidateConstructorsCache.get(beanClass);
 				if (candidateConstructors == null) {
 					Constructor<?>[] rawCandidates;
 					try {
+						// 获取beanClass中声明的构造器数组
 						rawCandidates = beanClass.getDeclaredConstructors();
 					}
 					catch (Throwable ex) {
@@ -311,22 +327,32 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 					List<Constructor<?>> candidates = new ArrayList<>(rawCandidates.length);
 					Constructor<?> requiredConstructor = null;
 					Constructor<?> defaultConstructor = null;
+					// 如果是kotlin语言，找到primaryConstructor
 					Constructor<?> primaryConstructor = BeanUtils.findPrimaryConstructor(beanClass);
+					// 记录非合成的构造器的数量
 					int nonSyntheticConstructors = 0;
+					// 遍历上一步取到的声明的构造器数组
 					for (Constructor<?> candidate : rawCandidates) {
+						// 如果构造器不是合成的，即编译器自动生成的，将计数器+1
 						if (!candidate.isSynthetic()) {
 							nonSyntheticConstructors++;
 						}
 						else if (primaryConstructor != null) {
 							continue;
 						}
+						// 查找构造器上是否标注了autowired相关的注解
 						MergedAnnotation<?> ann = findAutowiredAnnotation(candidate);
+						// 如果不存在autowired相关的注解
 						if (ann == null) {
+							// 尝试获取cglib代理前的类
 							Class<?> userClass = ClassUtils.getUserClass(beanClass);
+							// 如果发现userClass和beanClass不相等，那么说明beanClass已经被cglib代理过了，我们获取到没有被代理的父类
 							if (userClass != beanClass) {
 								try {
+									// 尝试获取父类中相同参数的构造器
 									Constructor<?> superCtor =
 											userClass.getDeclaredConstructor(candidate.getParameterTypes());
+									// 然后从父类构造器上获取autowired相关的注解
 									ann = findAutowiredAnnotation(superCtor);
 								}
 								catch (NoSuchMethodException ex) {
@@ -334,35 +360,47 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 								}
 							}
 						}
+						// 如果找到了对应的注解
 						if (ann != null) {
+							// 如果此时requiredConstructor已经不为null了，报错
 							if (requiredConstructor != null) {
 								throw new BeanCreationException(beanName,
 										"Invalid autowire-marked constructor: " + candidate +
 										". Found constructor with 'required' Autowired annotation already: " +
 										requiredConstructor);
 							}
+							// 判断注解的required属性
 							boolean required = determineRequiredStatus(ann);
+							// 如果发现注解的required属性是true
 							if (required) {
+								// 并且此时候选集合不为空的话，报错
 								if (!candidates.isEmpty()) {
 									throw new BeanCreationException(beanName,
 											"Invalid autowire-marked constructors: " + candidates +
 											". Found constructor with 'required' Autowired annotation: " +
 											candidate);
 								}
+								// 将candidate赋值给requiredConstructor
 								requiredConstructor = candidate;
 							}
+							// 然后将candidate加入到候选集合中
 							candidates.add(candidate);
 						}
+						// 如果没有找到autowired相关的注解，但该构造器的参数为0，将其赋值给defaultConstructor，说明是默认的构造器
 						else if (candidate.getParameterCount() == 0) {
 							defaultConstructor = candidate;
 						}
 					}
+					// 如果最后候选集合不为空的话
 					if (!candidates.isEmpty()) {
 						// Add default constructor to list of optional constructors, as fallback.
+						// 如果不存在required属性为true的构造器
 						if (requiredConstructor == null) {
+							// 并且存在默认构造器，将其也添加到候选集合中
 							if (defaultConstructor != null) {
 								candidates.add(defaultConstructor);
 							}
+							// 如果候选集合数量为1的话，并且没有默认的构造器，那么该构造器就可以作为注入构造器使用
 							else if (candidates.size() == 1 && logger.isInfoEnabled()) {
 								logger.info("Inconsistent constructor declaration on bean with name '" + beanName +
 										"': single autowire-marked constructor flagged as optional - " +
@@ -370,25 +408,32 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 										"default constructor to fall back to: " + candidates.get(0));
 							}
 						}
+						// 将候选集合转换为数组
 						candidateConstructors = candidates.toArray(new Constructor<?>[0]);
 					}
+					// 如果声明的构造器只有一个 且是有参构造器的话，将其作为最后候选的构造器
 					else if (rawCandidates.length == 1 && rawCandidates[0].getParameterCount() > 0) {
 						candidateConstructors = new Constructor<?>[] {rawCandidates[0]};
 					}
+					// 如果不是合成的构造器数量为2，并且primary和default构造器都存在，并且二者不相等，那么将二者作为候选构造器
 					else if (nonSyntheticConstructors == 2 && primaryConstructor != null &&
 							defaultConstructor != null && !primaryConstructor.equals(defaultConstructor)) {
 						candidateConstructors = new Constructor<?>[] {primaryConstructor, defaultConstructor};
 					}
+					// 如果不是合成的构造器数量为1，且primary构造器不为null，将其作为最后的候选构造器
 					else if (nonSyntheticConstructors == 1 && primaryConstructor != null) {
 						candidateConstructors = new Constructor<?>[] {primaryConstructor};
 					}
+					// 否则创建一个空的数组
 					else {
 						candidateConstructors = new Constructor<?>[0];
 					}
+					// 将候选构造器放入缓存
 					this.candidateConstructorsCache.put(beanClass, candidateConstructors);
 				}
 			}
 		}
+		// 如果数组长度大于0，返回数组，否则返回null
 		return (candidateConstructors.length > 0 ? candidateConstructors : null);
 	}
 
@@ -519,9 +564,12 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 	@Nullable
 	private MergedAnnotation<?> findAutowiredAnnotation(AccessibleObject ao) {
+		// 根据构造器创建一个TypeMappedAnnotations
 		MergedAnnotations annotations = MergedAnnotations.from(ao);
+		// 然后遍历自身持有的autowiredAnnotationTypes，查看MergeAnnotations中是否包含有对应的注解
 		for (Class<? extends Annotation> type : this.autowiredAnnotationTypes) {
 			MergedAnnotation<?> annotation = annotations.get(type);
+			// 一旦注解存在，直接返回
 			if (annotation.isPresent()) {
 				return annotation;
 			}
@@ -540,6 +588,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	@SuppressWarnings({"deprecation", "cast"})
 	protected boolean determineRequiredStatus(MergedAnnotation<?> ann) {
 		// The following (AnnotationAttributes) cast is required on JDK 9+.
+		// 如果注解中存在required属性，且值为true，返回true，否则返回false
 		return determineRequiredStatus((AnnotationAttributes)
 				ann.asMap(mergedAnnotation -> new AnnotationAttributes(mergedAnnotation.getType())));
 	}

@@ -120,6 +120,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	/** ClassLoader to resolve bean class names with, if necessary. */
 	@Nullable
+	// 在refresh的prepareBeanFactory方法中会添加一个classloader进来作为beanClassLoader
 	private ClassLoader beanClassLoader = ClassUtils.getDefaultClassLoader();
 
 	/** ClassLoader to temporarily resolve bean class names with, if necessary. */
@@ -131,6 +132,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	/** Resolution strategy for expressions in bean definition values. */
 	@Nullable
+	// 在refresh的prepareBeanFactory方法中会添加一个StandardBeanExpressionResolver进来，并且该类初始化的时候需要传入一个classLoader，
+	// 传入的就是beanFactory持有的beanClassLoader
 	private BeanExpressionResolver beanExpressionResolver;
 
 	/** Spring ConversionService to use instead of PropertyEditors. */
@@ -138,6 +141,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	private ConversionService conversionService;
 
 	/** Custom PropertyEditorRegistrars to apply to the beans of this factory. */
+	// 在refresh阶段的prepareBeanFactory中会添加一个ResourceEditorRegistrar到集合中
 	private final Set<PropertyEditorRegistrar> propertyEditorRegistrars = new LinkedHashSet<>(4);
 
 	/** Custom PropertyEditors to apply to the beans of this factory. */
@@ -148,6 +152,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	private TypeConverter typeConverter;
 
 	/** String resolvers to apply e.g. to annotation attribute values. */
+	// 在BeanFactoryPostProcessor中会添加元素进来。
+	// 如果没有在该阶段添加的话，那么在refresh的阶段的finishBeanFactoryInitialization方法中会
+	// 添加一个strVal -> getEnvironment().resolvePlaceHolder(strVal)的lambda表达式进集合中
 	private final List<StringValueResolver> embeddedValueResolvers = new CopyOnWriteArrayList<>();
 
 	/** BeanPostProcessors to apply. */
@@ -942,16 +949,21 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	@Override
 	@Nullable
 	public String resolveEmbeddedValue(@Nullable String value) {
+		// 如果value为null，直接返回null
 		if (value == null) {
 			return null;
 		}
 		String result = value;
+		// 如果没有通过beanFactoryPostProcessor添加embeddedValueResolver到beanFactory中的话，
+		// 那么在applicationContext refresh的时候会默认添加 strVal -> getEnvironment().resolvePlaceHolder(strVal) 到embeddedValueResolvers中
 		for (StringValueResolver resolver : this.embeddedValueResolvers) {
 			result = resolver.resolveStringValue(result);
+			// 如果result解析出来的结果为null，返回null
 			if (result == null) {
 				return null;
 			}
 		}
+		// 遍历完成后将result返回
 		return result;
 	}
 
@@ -1269,7 +1281,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @param bw the BeanWrapper to initialize
 	 */
 	protected void initBeanWrapper(BeanWrapper bw) {
+		// 将自身持有的ConversionService设置进去
 		bw.setConversionService(getConversionService());
+		// 注册自定义的propertyEditor到beanWrapper中
 		registerCustomEditors(bw);
 	}
 
@@ -1282,14 +1296,18 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @param registry the PropertyEditorRegistry to initialize
 	 */
 	protected void registerCustomEditors(PropertyEditorRegistry registry) {
+		// 判断propertyEditorRegistry是否是PropertyEditorRegistrySupport类型的
 		PropertyEditorRegistrySupport registrySupport =
 				(registry instanceof PropertyEditorRegistrySupport ? (PropertyEditorRegistrySupport) registry : null);
+		// 如果是，将其configValueEditorsActive属性设置为true
 		if (registrySupport != null) {
 			registrySupport.useConfigValueEditors();
 		}
+		// 如果自身持有的propertyEditorRegistrars集合不是空的，那么遍历该集合内的容器
 		if (!this.propertyEditorRegistrars.isEmpty()) {
 			for (PropertyEditorRegistrar registrar : this.propertyEditorRegistrars) {
 				try {
+					// 调用每一个registrar的registerCustomEditors方法将propertyEditor注册进registry中
 					registrar.registerCustomEditors(registry);
 				}
 				catch (BeanCreationException ex) {
@@ -1311,7 +1329,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 			}
 		}
+		// 如果自身持有的customerEditors集合不为空
 		if (!this.customEditors.isEmpty()) {
+			// 遍历customerEditors，将每一个propertyEditor注册进registry中
 			this.customEditors.forEach((requiredType, editorClass) ->
 					registry.registerCustomEditor(requiredType, BeanUtils.instantiateClass(editorClass)));
 		}

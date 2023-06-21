@@ -138,6 +138,7 @@ public abstract class OrderUtils {
 	 */
 	@Nullable
 	public static Integer getPriority(Class<?> type) {
+		// 获取其类上标注的@Priority注解的value属性并返回
 		return MergedAnnotations.from(type, SearchStrategy.TYPE_HIERARCHY).get(JAVAX_PRIORITY_ANNOTATION)
 				.getValue(MergedAnnotation.VALUE, Integer.class).orElse(null);
 	}

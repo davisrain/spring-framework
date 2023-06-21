@@ -104,7 +104,9 @@ final class SerializableTypeWrapper {
 	 */
 	@Nullable
 	static Type forTypeProvider(TypeProvider provider) {
+		// 从provider的getType方法获取type
 		Type providedType = provider.getType();
+		// 如果type为null 或者 是可序列化的，直接返回
 		if (providedType == null || providedType instanceof Serializable) {
 			// No serializable type wrapping necessary (e.g. for java.lang.Class)
 			return providedType;
@@ -116,12 +118,17 @@ final class SerializableTypeWrapper {
 		}
 
 		// Obtain a serializable type proxy for the given provider...
+		// 尝试从缓存中获取对应的Type实例
 		Type cached = cache.get(providedType);
+		// 如果缓存中存在，直接返回
 		if (cached != null) {
 			return cached;
 		}
+		// 如果缓存中不存在，遍历支持的可序列的类型
 		for (Class<?> type : SUPPORTED_SERIALIZABLE_TYPES) {
+			// 如果type是其中一种类型的实例
 			if (type.isInstance(providedType)) {
+				// 使用jdk动态代理，将其代理为可序列化的type，放入缓存并返回
 				ClassLoader classLoader = provider.getClass().getClassLoader();
 				Class<?>[] interfaces = new Class<?>[] {type, SerializableTypeProxy.class, Serializable.class};
 				InvocationHandler handler = new TypeProxyInvocationHandler(provider);

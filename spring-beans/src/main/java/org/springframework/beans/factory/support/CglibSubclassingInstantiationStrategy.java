@@ -113,13 +113,16 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 		 * @return new instance of the dynamically generated subclass
 		 */
 		public Object instantiate(@Nullable Constructor<?> ctor, Object... args) {
+			// 根据自身持有的bd来获取一个cglib代理的增强子类
 			Class<?> subclass = createEnhancedSubclass(this.beanDefinition);
 			Object instance;
+			// 如果传入的构造器为null，使用默认的无参构造器实例化它
 			if (ctor == null) {
 				instance = BeanUtils.instantiateClass(subclass);
 			}
 			else {
 				try {
+					// 否则使用子类中对应的构造器进行实例化
 					Constructor<?> enhancedSubclassConstructor = subclass.getConstructor(ctor.getParameterTypes());
 					instance = enhancedSubclassConstructor.newInstance(args);
 				}
@@ -130,10 +133,12 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 			}
 			// SPR-10785: set callbacks directly on the instance instead of in the
 			// enhanced class (via the Enhancer) in order to avoid memory leaks.
+			// 将cglib所用的callbacks直接保存在实例中 而不是 通过enhancer增强的类中，去避免内存泄漏
 			Factory factory = (Factory) instance;
 			factory.setCallbacks(new Callback[] {NoOp.INSTANCE,
 					new LookupOverrideMethodInterceptor(this.beanDefinition, this.owner),
 					new ReplaceOverrideMethodInterceptor(this.beanDefinition, this.owner)});
+			// 返回创建的实例
 			return instance;
 		}
 
@@ -142,15 +147,22 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 		 * definition, using CGLIB.
 		 */
 		private Class<?> createEnhancedSubclass(RootBeanDefinition beanDefinition) {
+			// 初始化一个enhancer
 			Enhancer enhancer = new Enhancer();
+			// 设置要代理的类为bd的beanClass
 			enhancer.setSuperclass(beanDefinition.getBeanClass());
+			// 设置命名策略
 			enhancer.setNamingPolicy(SpringNamingPolicy.INSTANCE);
+			// 如果beanFactory是ConfigurableBeanFactory类型的，设置它的字节码生成策略，使用beanClassLoader作为类加载器
 			if (this.owner instanceof ConfigurableBeanFactory) {
 				ClassLoader cl = ((ConfigurableBeanFactory) this.owner).getBeanClassLoader();
 				enhancer.setStrategy(new ClassLoaderAwareGeneratorStrategy(cl));
 			}
+			// 设置callbackFilter
 			enhancer.setCallbackFilter(new MethodOverrideCallbackFilter(beanDefinition));
+			// 设置callbackTypes
 			enhancer.setCallbackTypes(CALLBACK_TYPES);
+			// 创建代理类
 			return enhancer.createClass();
 		}
 	}
@@ -199,10 +211,12 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 
 		@Override
 		public int accept(Method method) {
+			// 根据方法找到其在bd中对应的MethodOverride
 			MethodOverride methodOverride = getBeanDefinition().getMethodOverrides().getOverride(method);
 			if (logger.isTraceEnabled()) {
 				logger.trace("MethodOverride for " + method + ": " + methodOverride);
 			}
+			// 根据methodOverride的类型来判断要运用哪一个callback
 			if (methodOverride == null) {
 				return PASSTHROUGH;
 			}

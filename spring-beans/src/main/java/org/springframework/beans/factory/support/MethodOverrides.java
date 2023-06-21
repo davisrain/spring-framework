@@ -93,6 +93,7 @@ public class MethodOverrides {
 	@Nullable
 	public MethodOverride getOverride(Method method) {
 		MethodOverride match = null;
+		// 遍历持有的MethodOverride，找到和传入方法相匹配的那一个
 		for (MethodOverride candidate : this.overrides) {
 			if (candidate.matches(method)) {
 				match = candidate;

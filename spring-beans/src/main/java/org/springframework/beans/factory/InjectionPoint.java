@@ -120,15 +120,21 @@ public class InjectionPoint {
 	 * Obtain the annotations associated with the wrapped field or method/constructor parameter.
 	 */
 	public Annotation[] getAnnotations() {
+		// 如果是字段类型的依赖
 		if (this.field != null) {
+			// 获取其字段注解数组
 			Annotation[] fieldAnnotations = this.fieldAnnotations;
+			// 如果持有的字段注解数组为null
 			if (fieldAnnotations == null) {
+				// 调用反射方法获取并设置持有
 				fieldAnnotations = this.field.getAnnotations();
 				this.fieldAnnotations = fieldAnnotations;
 			}
 			return fieldAnnotations;
 		}
+		// 如果是方法参数类型的依赖
 		else {
+			// 调用methodParameter的getParameterAnnotations方法获取对应的注解数组
 			return obtainMethodParameter().getParameterAnnotations();
 		}
 	}

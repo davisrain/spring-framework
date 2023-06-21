@@ -346,14 +346,21 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 */
 	@Override
 	@Nullable
+	// 判断给定的DependencyDescriptor上是否声明了一个@Value注解
 	public Object getSuggestedValue(DependencyDescriptor descriptor) {
+		// 根据descriptor上的标注的注解数组找到@Value注解的value属性值
 		Object value = findValue(descriptor.getAnnotations());
+		// 如果value属性值为null的话
 		if (value == null) {
+			// 获取到descriptor持有的methodParameter
 			MethodParameter methodParam = descriptor.getMethodParameter();
+			// 如果methodParameter不为null，说明是方法参数类型的依赖注入
 			if (methodParam != null) {
+				// 尝试从标注在方法上的注解中查找@Value注解的value属性值
 				value = findValue(methodParam.getMethodAnnotations());
 			}
 		}
+		// 最后返回value的属性值
 		return value;
 	}
 
@@ -362,10 +369,16 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 */
 	@Nullable
 	protected Object findValue(Annotation[] annotationsToSearch) {
+		// 如果要搜索的注解数组长度大于0
 		if (annotationsToSearch.length > 0) {   // qualifier annotations have to be local
+			// 查找标注在这个AnnotatedElement对象上的注解中的@Value注解的属性map。
+			// 该方法获取的注解属性，classValuesAsString和nestedAnnotationsAsMap属性都为false，
 			AnnotationAttributes attr = AnnotatedElementUtils.getMergedAnnotationAttributes(
+					// 根据注解数组创建一个AnnotatedElement的子类
 					AnnotatedElementUtils.forAnnotations(annotationsToSearch), this.valueAnnotationType);
+			// 如果对应的属性map不为null的话
 			if (attr != null) {
+				// 调用方法提取value属性值
 				return extractValue(attr);
 			}
 		}
