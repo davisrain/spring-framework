@@ -138,17 +138,24 @@ public class StandardBeanExpressionResolver implements BeanExpressionResolver {
 	@Override
 	@Nullable
 	public Object evaluate(@Nullable String value, BeanExpressionContext evalContext) throws BeansException {
+		// 如果value为空字符串，直接返回
 		if (!StringUtils.hasLength(value)) {
 			return value;
 		}
 		try {
+			// 尝试从缓存中获取对应的value的表达式
 			Expression expr = this.expressionCache.get(value);
+			// 如果缓存未命中
 			if (expr == null) {
+				// 使用持有的SpelExpressionParser来解析expression
 				expr = this.expressionParser.parseExpression(value, this.beanExpressionParserContext);
+				// 将解析出来的表达式放入缓存中
 				this.expressionCache.put(value, expr);
 			}
+			// 根据BeanExpressionContext来获取对应的EvaluationContext
 			StandardEvaluationContext sec = this.evaluationCache.get(evalContext);
 			if (sec == null) {
+				// 如果缓存不存在，就创建一个StandardEvaluationContext
 				sec = new StandardEvaluationContext(evalContext);
 				sec.addPropertyAccessor(new BeanExpressionContextAccessor());
 				sec.addPropertyAccessor(new BeanFactoryAccessor());
@@ -163,6 +170,7 @@ public class StandardBeanExpressionResolver implements BeanExpressionResolver {
 				customizeEvaluationContext(sec);
 				this.evaluationCache.put(evalContext, sec);
 			}
+			// 然后调用expression的getValue方法获取对应的值
 			return expr.getValue(sec);
 		}
 		catch (Throwable ex) {

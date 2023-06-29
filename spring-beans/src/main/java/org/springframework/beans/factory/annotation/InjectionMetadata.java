@@ -126,11 +126,15 @@ public class InjectionMetadata {
 	 * @since 3.2.13
 	 */
 	public void clear(@Nullable PropertyValues pvs) {
+		// 获取其检查过的元素
 		Collection<InjectedElement> checkedElements = this.checkedElements;
+		// 如果检查过的元素存在，使用它进行遍历，否则直接使用injectedElements进行遍历
 		Collection<InjectedElement> elementsToIterate =
 				(checkedElements != null ? checkedElements : this.injectedElements);
+		// 如果要遍历的集合不为空
 		if (!elementsToIterate.isEmpty()) {
 			for (InjectedElement element : elementsToIterate) {
+				// 遍历集合调用每个element的clearPropertySkipping方法
 				element.clearPropertySkipping(pvs);
 			}
 		}
@@ -157,6 +161,7 @@ public class InjectionMetadata {
 	 * @see #needsRefresh(Class)
 	 */
 	public static boolean needsRefresh(@Nullable InjectionMetadata metadata, Class<?> clazz) {
+		// 如果元数据不存在 或者 元数据需要更新了(即元数据中的targetClass和传入的clazz不相等)，返回true
 		return (metadata == null || metadata.needsRefresh(clazz));
 	}
 
@@ -281,11 +286,14 @@ public class InjectionMetadata {
 		 * @since 3.2.13
 		 */
 		protected void clearPropertySkipping(@Nullable PropertyValues pvs) {
+			// 如果pvs为null，直接返回
 			if (pvs == null) {
 				return;
 			}
 			synchronized (pvs) {
+				// 如果skip属性为false 并且 存在pd 并且pvs是属于MutablePropertyValues类型的
 				if (Boolean.FALSE.equals(this.skip) && this.pd != null && pvs instanceof MutablePropertyValues) {
+					// 调用pvs的clearProcessedProperty方法，根据pd的name
 					((MutablePropertyValues) pvs).clearProcessedProperty(this.pd.getName());
 				}
 			}

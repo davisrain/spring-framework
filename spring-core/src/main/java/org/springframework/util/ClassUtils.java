@@ -394,18 +394,27 @@ public abstract class ClassUtils {
 	 * @param classLoader the ClassLoader to potentially cache metadata in
 	 * (may be {@code null} which indicates the system class loader)
 	 */
+	// 类卸载的条件：1.该类的所有实例已经被回收 2.该类的class对象没有被引用 3.加载该类的类加载器已经被回收
+
+	// 如果加载clazz的类加载器是classLoader的父加载器的话，那么一定不会出现classLoader还存在，而clazz类已经被卸载的情况。
+	// 因为已知类卸载的条件，如果加载clazz的类加载器要被回收，说明没有被其他对象引用，但是classLoader存在，
+	// 那么classLoader一定还被某个类加载器的parent字段引用，因此前后矛盾，所以此时clazz用作被classLoader加载的类中的缓存是安全的。
 	public static boolean isCacheSafe(Class<?> clazz, @Nullable ClassLoader classLoader) {
 		Assert.notNull(clazz, "Class must not be null");
 		try {
+			// 获取加载clazz的类加载器，赋值给target
 			ClassLoader target = clazz.getClassLoader();
 			// Common cases
+			// 如果二者相等， 或者target是bootstrap类加载器，直接返回true
 			if (target == classLoader || target == null) {
 				return true;
 			}
+			// 如果classloader为null的话，返回false
 			if (classLoader == null) {
 				return false;
 			}
 			// Check for match in ancestors -> positive
+			// 如果target是传入的classloader的父加载器的话，返回true，表示是缓存安全的。
 			ClassLoader current = classLoader;
 			while (current != null) {
 				current = current.getParent();
@@ -414,6 +423,7 @@ public abstract class ClassUtils {
 				}
 			}
 			// Check for match in children -> negative
+			// 如果传入的classloader是target的父加载器的话，返回false，表示是缓存不安全的
 			while (target != null) {
 				target = target.getParent();
 				if (target == classLoader) {
@@ -427,6 +437,7 @@ public abstract class ClassUtils {
 
 		// Fallback for ClassLoaders without parent/child relationship:
 		// safe if same Class can be loaded from given ClassLoader
+		// 如果两个类加载器没有父子关系，那么判断clazz是否能被classloader加载，如果是，是安全的，否则是不安全的
 		return (classLoader != null && isLoadable(clazz, classLoader));
 	}
 
@@ -438,6 +449,7 @@ public abstract class ClassUtils {
 	 */
 	private static boolean isLoadable(Class<?> clazz, ClassLoader classLoader) {
 		try {
+			// 即判断clazz和classloader根据类名加载出的类是否一致
 			return (clazz == classLoader.loadClass(clazz.getName()));
 			// Else: different class with same name found
 		}
@@ -1360,6 +1372,7 @@ public abstract class ClassUtils {
 		if (Modifier.isPublic(method.getModifiers()) || Modifier.isProtected(method.getModifiers())) {
 			return true;
 		}
+		// 如果上面步骤都没有返回，说明方法是package的。
 		// 如果targetClass为null  或者 targetClass和方法的声明类在同一个包下，返回true
 		return (targetClass == null ||
 				getPackageName(method.getDeclaringClass()).equals(getPackageName(targetClass)));

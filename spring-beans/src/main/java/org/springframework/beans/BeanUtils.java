@@ -486,12 +486,16 @@ public abstract class BeanUtils {
 	@Nullable
 	public static PropertyDescriptor findPropertyForMethod(Method method, Class<?> clazz) throws BeansException {
 		Assert.notNull(method, "Method must not be null");
+		// 根据clazz获取对应的CachedIntrospectionResults，然后拿到results中持有的的propertyDescriptors这个map中的所有value组成的数组
 		PropertyDescriptor[] pds = getPropertyDescriptors(clazz);
+		// 遍历获取到PropertyDescriptor数组
 		for (PropertyDescriptor pd : pds) {
+			// 如果发现传入的method等于某个pd的读方法或者写方法，返回该pd
 			if (method.equals(pd.getReadMethod()) || method.equals(pd.getWriteMethod())) {
 				return pd;
 			}
 		}
+		// 否则返回null
 		return null;
 	}
 

@@ -576,15 +576,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// Allow post-processors to modify the merged bean definition.
+		// 允许postProcessor去修改这个mergedBeanDefinition
 		synchronized (mbd.postProcessingLock) {
+			// 如果该mbd的postProcessed属性为false，表示还没有被处理过
 			if (!mbd.postProcessed) {
 				try {
+					// 调用MergedBeanDefinitionPostProcessor类型的BeanPostProcessor对mergedBeanDefinition进行处理。
+					// 最主要的就是CommonAnnotationBeanPostProcessor类，该类继承了InitDestroyAnnotationBeanPostProcessor
+					// 还有AutowiredAnnotationBeanPostProcessor类也实现了该接口
 					applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
 				}
 				catch (Throwable ex) {
 					throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 							"Post-processing of merged bean definition failed", ex);
 				}
+				// 处理完成后将该mbd的postProcessed置为true
 				mbd.postProcessed = true;
 			}
 		}
@@ -592,7 +598,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Eagerly cache singletons to be able to resolve circular references
 		// even when triggered by lifecycle interfaces like BeanFactoryAware.
 		// 如果mbd是单例 并且 allowCircularReferences标志为true 并且 beanName还在singletonsCurrentlyInCreation中，表示该bean
-		// 还处于创建状态，只不过遇见了循环依赖，需要提前暴露出来。这个时候bean还没有初始化
+		// 还处于创建状态。由于需要解析循环依赖的原因，需要将还未初始化的bean提前暴露出来，将其加入到beanFactory的三级缓存中
 		boolean earlySingletonExposure = (mbd.isSingleton() && this.allowCircularReferences &&
 				isSingletonCurrentlyInCreation(beanName));
 		if (earlySingletonExposure) {
@@ -1160,9 +1166,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @see MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition
 	 */
 	protected void applyMergedBeanDefinitionPostProcessors(RootBeanDefinition mbd, Class<?> beanType, String beanName) {
+		// 遍历所持有的所有BeanPostProcessor
 		for (BeanPostProcessor bp : getBeanPostProcessors()) {
+			// 如果bp是MergedBeanDefinitionPostProcessor类型的
+			// 典型的如CommonAnnotationBeanPostProcessor就是这个类型的，该类继承了InitDestroyAnnotationBeanPostProcessor
+			// 还有AutowiredAnnotationBeanPostProcessor也实现了该接口
 			if (bp instanceof MergedBeanDefinitionPostProcessor) {
 				MergedBeanDefinitionPostProcessor bdp = (MergedBeanDefinitionPostProcessor) bp;
+				// 调用其postProcessMergedBeanDefinition方法对mbd进行处理
 				bdp.postProcessMergedBeanDefinition(mbd, beanType, beanName);
 			}
 		}

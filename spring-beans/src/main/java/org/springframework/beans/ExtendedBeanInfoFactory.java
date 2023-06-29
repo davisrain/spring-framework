@@ -53,7 +53,9 @@ public class ExtendedBeanInfoFactory implements BeanInfoFactory, Ordered {
 	 * returning bean property or indexed property setter methods.
 	 */
 	private boolean supports(Class<?> beanClass) {
+		// 遍历beanClass中的方法
 		for (Method method : beanClass.getMethods()) {
+			// 如果存在一个方法满足是ExtendedBeanInfo的候选写入方法，返回true
 			if (ExtendedBeanInfo.isCandidateWriteMethod(method)) {
 				return true;
 			}

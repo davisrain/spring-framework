@@ -45,6 +45,7 @@ public class SimpleAutowireCandidateResolver implements AutowireCandidateResolve
 
 	@Override
 	public boolean isRequired(DependencyDescriptor descriptor) {
+		// 调用descriptor的isRequired来判断其是否是必须的
 		return descriptor.isRequired();
 	}
 

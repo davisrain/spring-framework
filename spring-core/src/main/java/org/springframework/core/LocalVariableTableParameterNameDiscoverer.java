@@ -68,6 +68,7 @@ public class LocalVariableTableParameterNameDiscoverer implements ParameterNameD
 	@Override
 	@Nullable
 	public String[] getParameterNames(Method method) {
+		// 如果是被桥接的方法，找到其原始方法
 		Method originalMethod = BridgeMethodResolver.findBridgedMethod(method);
 		return doGetParameterNames(originalMethod);
 	}
@@ -80,7 +81,9 @@ public class LocalVariableTableParameterNameDiscoverer implements ParameterNameD
 
 	@Nullable
 	private String[] doGetParameterNames(Executable executable) {
+		// 获取声明该方法的类型
 		Class<?> declaringClass = executable.getDeclaringClass();
+		// 尝试从缓存中获取该类型中 方法和方法名对应的map
 		Map<Executable, String[]> map = this.parameterNamesCache.computeIfAbsent(declaringClass, this::inspectClass);
 		return (map != NO_DEBUG_INFO_MAP ? map.get(executable) : null);
 	}
@@ -91,6 +94,7 @@ public class LocalVariableTableParameterNameDiscoverer implements ParameterNameD
 	 * lack of debug information.
 	 */
 	private Map<Executable, String[]> inspectClass(Class<?> clazz) {
+		// 获取类型对应的class文件的字节流
 		InputStream is = clazz.getResourceAsStream(ClassUtils.getClassFileName(clazz));
 		if (is == null) {
 			// We couldn't load the class file, which is not fatal as it
@@ -102,8 +106,10 @@ public class LocalVariableTableParameterNameDiscoverer implements ParameterNameD
 			return NO_DEBUG_INFO_MAP;
 		}
 		try {
+			// 使用asm的classReader解析字节流
 			ClassReader classReader = new ClassReader(is);
 			Map<Executable, String[]> map = new ConcurrentHashMap<>(32);
+			// 然后调用创建一个ParameterNameDiscoveringVisitor的classVisitor对classReader进行读取
 			classReader.accept(new ParameterNameDiscoveringVisitor(clazz, map), 0);
 			return map;
 		}

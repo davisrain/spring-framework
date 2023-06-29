@@ -168,18 +168,27 @@ public final class CachedIntrospectionResults {
 	 * @throws BeansException in case of introspection failure
 	 */
 	static CachedIntrospectionResults forClass(Class<?> beanClass) throws BeansException {
+		// 尝试从强引用缓存中获取内省结果
 		CachedIntrospectionResults results = strongClassCache.get(beanClass);
+		// 如果缓存命中，直接返回
 		if (results != null) {
 			return results;
 		}
+		// 尝试从软引用缓存中获取内省结果
 		results = softClassCache.get(beanClass);
+		// 如果缓存命中，直接返回
 		if (results != null) {
 			return results;
 		}
 
+		// 如果两个缓存都未命中，根据beanClass创建一个CachedIntrospectionResults
 		results = new CachedIntrospectionResults(beanClass);
+		// 下面的步骤用于判断使用哪个缓存
 		ConcurrentMap<Class<?>, CachedIntrospectionResults> classCacheToUse;
 
+		// 如果beanClass对于加载CachedIntrospectionResults这个类的类加载器来说是缓存安全的话 或者
+		// 加载beanClass的类加载器包含在持有的可接受的类加载器集合中，或者是他们的子加载器
+		// 以上两种情况使用强引用
 		if (ClassUtils.isCacheSafe(beanClass, CachedIntrospectionResults.class.getClassLoader()) ||
 				isClassLoaderAccepted(beanClass.getClassLoader())) {
 			classCacheToUse = strongClassCache;
@@ -188,10 +197,13 @@ public final class CachedIntrospectionResults {
 			if (logger.isDebugEnabled()) {
 				logger.debug("Not strongly caching class [" + beanClass.getName() + "] because it is not cache-safe");
 			}
+			// 否则使用软引用
 			classCacheToUse = softClassCache;
 		}
 
+		// 将其放入缓存，并返回原本存在于缓存中的对象
 		CachedIntrospectionResults existing = classCacheToUse.putIfAbsent(beanClass, results);
+		// 如果已经存在的不为null，返回存在的，否则返回本次计算的结果
 		return (existing != null ? existing : results);
 	}
 
@@ -241,12 +253,17 @@ public final class CachedIntrospectionResults {
 	 * @throws IntrospectionException from the underlying {@link Introspector}
 	 */
 	private static BeanInfo getBeanInfo(Class<?> beanClass) throws IntrospectionException {
+		// 遍历所持有的beanInfoFactory
 		for (BeanInfoFactory beanInfoFactory : beanInfoFactories) {
+			// 调用beanInfoFactory的getBeanInfo方法根据beanClass获取beanInfo
 			BeanInfo beanInfo = beanInfoFactory.getBeanInfo(beanClass);
+			// 一旦beanInfo不为null，直接返回
 			if (beanInfo != null) {
 				return beanInfo;
 			}
 		}
+		// 如果遍历完所有的beanInfoFactory都没有生成对应的beanInfo，那么根据spring.beaninfo.ignore参数，
+		// 决定调用调用Introspector的哪个方法
 		return (shouldIntrospectorIgnoreBeaninfoClasses ?
 				Introspector.getBeanInfo(beanClass, Introspector.IGNORE_ALL_BEANINFO) :
 				Introspector.getBeanInfo(beanClass));
@@ -273,25 +290,33 @@ public final class CachedIntrospectionResults {
 			if (logger.isTraceEnabled()) {
 				logger.trace("Getting BeanInfo for class [" + beanClass.getName() + "]");
 			}
+			// 根据beanClass获取beanInfo
 			this.beanInfo = getBeanInfo(beanClass);
 
 			if (logger.isTraceEnabled()) {
 				logger.trace("Caching PropertyDescriptors for class [" + beanClass.getName() + "]");
 			}
+			// 创建一个map用于保存propertyDescriptors
 			this.propertyDescriptors = new LinkedHashMap<>();
 
 			// This call is slow so we do it once.
+			// 获取beanInfo持有的propertyDescriptor数组
 			PropertyDescriptor[] pds = this.beanInfo.getPropertyDescriptors();
+			// 遍历pds
 			for (PropertyDescriptor pd : pds) {
+				// 如果beanClass是Class.class类型 并且 !(pd的name是字符串name 或者 (pd的name是以Name结尾的 并且 pd的属性类型是String.class))。
+				// 这个if条件的逻辑就是对于Class.class类型，只有所有跟name的变体属性可以进行处理，其他属性都直接跳过
 				if (Class.class == beanClass && !("name".equals(pd.getName()) ||
 						(pd.getName().endsWith("Name") && String.class == pd.getPropertyType()))) {
 					// Only allow all name variants of Class properties
 					continue;
 				}
+				// 对于URL.class类型来说，content属性不进行处理，跳过
 				if (URL.class == beanClass && "content".equals(pd.getName())) {
 					// Only allow URL attribute introspection, not content resolution
 					continue;
 				}
+				// 如果pd中不存在写方法 并且 对于属性类型来说，只有读方法是非法的，那么就跳过这个属性
 				if (pd.getWriteMethod() == null && isInvalidReadOnlyPropertyType(pd.getPropertyType())) {
 					// Ignore read-only properties such as ClassLoader - no need to bind to those
 					continue;
@@ -302,7 +327,9 @@ public final class CachedIntrospectionResults {
 							(pd.getPropertyEditorClass() != null ?
 									"; editor [" + pd.getPropertyEditorClass().getName() + "]" : ""));
 				}
+				// 根据beanClass和pd构建一个genericTypeAwarePropertyDescriptor
 				pd = buildGenericTypeAwarePropertyDescriptor(beanClass, pd);
+				// 然后将name作为key，pd作为value存入到propertyDescriptors这个map中
 				this.propertyDescriptors.put(pd.getName(), pd);
 			}
 
@@ -344,6 +371,8 @@ public final class CachedIntrospectionResults {
 	}
 
 	private boolean isInvalidReadOnlyPropertyType(@Nullable Class<?> returnType) {
+		// 如果returnType不为null 并且 (returnType是AutoClosable的 或者 returnType是ClassLoader的 或者 returnType是ProtectionDomain类型的)，返回true
+		// 表示这种情况下只有读方法是非法的
 		return (returnType != null && (AutoCloseable.class.isAssignableFrom(returnType) ||
 				ClassLoader.class.isAssignableFrom(returnType) ||
 				ProtectionDomain.class.isAssignableFrom(returnType)));
@@ -372,11 +401,13 @@ public final class CachedIntrospectionResults {
 	}
 
 	PropertyDescriptor[] getPropertyDescriptors() {
+		// 获取自身持有的propertyDescriptor的map的value值，将其转换为数组返回
 		return this.propertyDescriptors.values().toArray(EMPTY_PROPERTY_DESCRIPTOR_ARRAY);
 	}
 
 	private PropertyDescriptor buildGenericTypeAwarePropertyDescriptor(Class<?> beanClass, PropertyDescriptor pd) {
 		try {
+			// 根据pd中的beanClass name readMethod writeMethod propertyEditorClass创建一个GenericTypeAwarePropertyDescriptor
 			return new GenericTypeAwarePropertyDescriptor(beanClass, pd.getName(), pd.getReadMethod(),
 					pd.getWriteMethod(), pd.getPropertyEditorClass());
 		}

@@ -71,8 +71,11 @@ final class GenericTypeAwarePropertyDescriptor extends PropertyDescriptor {
 		super(propertyName, null, null);
 		this.beanClass = beanClass;
 
+		// 如果readMethod不为null的话，获取其被桥接的方法(如果该方法是一个桥接方法的话)，否则用null赋值
 		Method readMethodToUse = (readMethod != null ? BridgeMethodResolver.findBridgedMethod(readMethod) : null);
+		// 如果writeMethod不为null的话，获取其被桥接的方法(如果该方法是一个桥接方法的话)，否则用null赋值
 		Method writeMethodToUse = (writeMethod != null ? BridgeMethodResolver.findBridgedMethod(writeMethod) : null);
+		// 如果要使用的写方法不存在 且 要使用的读方法存在
 		if (writeMethodToUse == null && readMethodToUse != null) {
 			// Fallback: Original JavaBeans introspection might not have found matching setter
 			// method due to lack of bridge method resolution, in case of the getter using a

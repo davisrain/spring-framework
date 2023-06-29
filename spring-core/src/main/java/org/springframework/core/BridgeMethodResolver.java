@@ -107,7 +107,7 @@ public final class BridgeMethodResolver {
 	 * checks and can be used quickly filter for a set of possible matches.
 	 */
 	private static boolean isBridgedCandidateFor(Method candidateMethod, Method bridgeMethod) {
-		// 当候选方法不是桥接方法，且候选方法不等于提供的桥接方法，且方法名和参数名都相等的时候，返回true，加入候选
+		// 当候选方法不是桥接方法，且候选方法不等于提供的桥接方法，且方法名和参数个数都相等的时候，返回true，加入候选
 		return (!candidateMethod.isBridge() && !candidateMethod.equals(bridgeMethod) &&
 				candidateMethod.getName().equals(bridgeMethod.getName()) &&
 				candidateMethod.getParameterCount() == bridgeMethod.getParameterCount());
@@ -273,9 +273,11 @@ public final class BridgeMethodResolver {
 	 * @return whether signatures match as described
 	 */
 	public static boolean isVisibilityBridgeMethodPair(Method bridgeMethod, Method bridgedMethod) {
+		// 如果桥接方法 等于 被桥接方法，直接返回true
 		if (bridgeMethod == bridgedMethod) {
 			return true;
 		}
+		// 如果桥接方法的返回值类型 参数个数 和参数类型都和被桥接方法相等，说明它们是一对改变可见性的桥接方法
 		return (bridgeMethod.getReturnType().equals(bridgedMethod.getReturnType()) &&
 				bridgeMethod.getParameterCount() == bridgedMethod.getParameterCount() &&
 				Arrays.equals(bridgeMethod.getParameterTypes(), bridgedMethod.getParameterTypes()));

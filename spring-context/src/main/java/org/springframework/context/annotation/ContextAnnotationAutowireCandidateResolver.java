@@ -51,26 +51,36 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 	@Override
 	@Nullable
 	public Object getLazyResolutionProxyIfNecessary(DependencyDescriptor descriptor, @Nullable String beanName) {
+		// 判断descriptor是否是懒加载的，如果是，构建懒解析的代理，否则返回null
 		return (isLazy(descriptor) ? buildLazyResolutionProxy(descriptor, beanName) : null);
 	}
 
 	protected boolean isLazy(DependencyDescriptor descriptor) {
+		// 获取依赖描述上标注的所有注解并遍历
 		for (Annotation ann : descriptor.getAnnotations()) {
+			// 根据对应的注解获取@Lazy注解
 			Lazy lazy = AnnotationUtils.getAnnotation(ann, Lazy.class);
+			// 如果存在@Lazy注解并且value属性是true，那么返回true
 			if (lazy != null && lazy.value()) {
 				return true;
 			}
 		}
+		// 如果上述没有判断出来，尝试获取依赖描述的方法参数
 		MethodParameter methodParam = descriptor.getMethodParameter();
 		if (methodParam != null) {
+			// 获取方法参数对应的方法，如果是构造器的话，返回null
 			Method method = methodParam.getMethod();
+			// 如果是构造器 或者 方法的返回值是void(说明是set方法)
 			if (method == null || void.class == method.getReturnType()) {
+				// 获取方法上标注的@Lazy注解
 				Lazy lazy = AnnotationUtils.getAnnotation(methodParam.getAnnotatedElement(), Lazy.class);
+				// 然后进行判断
 				if (lazy != null && lazy.value()) {
 					return true;
 				}
 			}
 		}
+		// 如果上面的都步骤都没有返回的话，返回false
 		return false;
 	}
 

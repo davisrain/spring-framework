@@ -166,17 +166,22 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * type declaration in Kotlin.
 	 */
 	public boolean isRequired() {
+		// 如果自身的required为false的话，直接返回false
 		if (!this.required) {
 			return false;
 		}
 
+		// 如果field不为null
 		if (this.field != null) {
+			// 如果field是Optional类型的 或者 标注了@Nullable注解 返回false。表示不是必须的
 			return !(this.field.getType() == Optional.class || hasNullableAnnotation() ||
 					(KotlinDetector.isKotlinReflectPresent() &&
 							KotlinDetector.isKotlinType(this.field.getDeclaringClass()) &&
 							KotlinDelegate.isNullable(this.field)));
 		}
+		// 如果是方法参数
 		else {
+			// 判断方法参数是否是optional的 或者 是否标注了@Nullable注解
 			return !obtainMethodParameter().isOptional();
 		}
 	}
@@ -327,10 +332,15 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * @since 5.1.4
 	 */
 	public TypeDescriptor getTypeDescriptor() {
+		// 尝试获取自身持有的typeDescriptor类型
 		TypeDescriptor typeDescriptor = this.typeDescriptor;
+		// 如果为null的话，进行解析
 		if (typeDescriptor == null) {
 			typeDescriptor = (this.field != null ?
+					// 如果DependencyDescriptor是field类型的，那么获取其resolvableType dependencyType 还有注解，
+					// 创建一个TypeDescriptor
 					new TypeDescriptor(getResolvableType(), getDependencyType(), getAnnotations()) :
+					// 如果是MethodParameter类型的，调用参数类型为MethodParameter类型的TypeDescriptor的构造器
 					new TypeDescriptor(obtainMethodParameter()));
 			this.typeDescriptor = typeDescriptor;
 		}

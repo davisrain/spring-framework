@@ -115,6 +115,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 	public Object instantiate(RootBeanDefinition bd, @Nullable String beanName, BeanFactory owner,
 			final Constructor<?> ctor, Object... args) {
 
+		// 如果不存在方法重写，@Lookup或者MethodReplacer之类的，直接实例化
 		if (!bd.hasMethodOverrides()) {
 			if (System.getSecurityManager() != null) {
 				// use own privileged to change accessibility (when security is on)
@@ -125,6 +126,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 			}
 			return BeanUtils.instantiateClass(ctor, args);
 		}
+		// 否则实例化其cglib的代理对象
 		else {
 			return instantiateWithMethodInjection(bd, beanName, owner, ctor, args);
 		}

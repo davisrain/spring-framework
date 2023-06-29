@@ -144,14 +144,23 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 */
 	@Override
 	public boolean isAutowireCandidate(BeanDefinitionHolder bdHolder, DependencyDescriptor descriptor) {
+		// 调用父类的isAutowireCandidate方法
 		boolean match = super.isAutowireCandidate(bdHolder, descriptor);
+		// 如果父类方法返回true
 		if (match) {
+			// 如果依赖描述中的字段和方法参数上标注了@Qualifier注解，那么进行检查
 			match = checkQualifiers(bdHolder, descriptor.getAnnotations());
+			// 如果匹配
 			if (match) {
+				// 获取依赖描述中的方法参数
 				MethodParameter methodParam = descriptor.getMethodParameter();
+				// 如果存在方法参数
 				if (methodParam != null) {
+					// 获取对应的方法，如果方法参数中的executable是构造器类型的话，这里会返回null
 					Method method = methodParam.getMethod();
+					// 如果方法不存在 或者 返回返回值是void
 					if (method == null || void.class == method.getReturnType()) {
+						// 那么检查方法上标注的注解中的@Qualifier注解
 						match = checkQualifiers(bdHolder, methodParam.getMethodAnnotations());
 					}
 				}
@@ -164,36 +173,48 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * Match the given qualifier annotations against the candidate bean definition.
 	 */
 	protected boolean checkQualifiers(BeanDefinitionHolder bdHolder, Annotation[] annotationsToSearch) {
+		// 如果注解数组为空的话，直接返回true
 		if (ObjectUtils.isEmpty(annotationsToSearch)) {
 			return true;
 		}
+		// 创建一个SimpleTypeConverter
 		SimpleTypeConverter typeConverter = new SimpleTypeConverter();
+		// 遍历注解数组
 		for (Annotation annotation : annotationsToSearch) {
 			Class<? extends Annotation> type = annotation.annotationType();
 			boolean checkMeta = true;
 			boolean fallbackToMeta = false;
+			// 如果注解类型是@Qualifier类型的或者@javax.inject.Qualifier类型的，或者注解类型上标注了对应的注解类型，返回true
 			if (isQualifier(type)) {
+				// 调用checkQualifier方法，如果检查不通过，将fallbackToMeta参数置为true
 				if (!checkQualifier(bdHolder, annotation, typeConverter)) {
 					fallbackToMeta = true;
 				}
+				// 如果检查通过，将checkMeta置为false
 				else {
 					checkMeta = false;
 				}
 			}
+			// 如果checkMeta标志为true
 			if (checkMeta) {
 				boolean foundMeta = false;
+				// 获取注解类型上标注的元注解
 				for (Annotation metaAnn : type.getAnnotations()) {
 					Class<? extends Annotation> metaType = metaAnn.annotationType();
+					// 判断元注解是否是@Qualifier
 					if (isQualifier(metaType)) {
+						// 如果是，将foundMeta标志置为true
 						foundMeta = true;
 						// Only accept fallback match if @Qualifier annotation has a value...
 						// Otherwise it is just a marker for a custom qualifier annotation.
+						// 如果fallbackToMeta标志位true并且注解的value属性里没有值 或者 检查不通过，返回false
 						if ((fallbackToMeta && StringUtils.isEmpty(AnnotationUtils.getValue(metaAnn))) ||
 								!checkQualifier(bdHolder, metaAnn, typeConverter)) {
 							return false;
 						}
 					}
 				}
+				// 如果fallbackToMeta为true foundMeta为false，返回false
 				if (fallbackToMeta && !foundMeta) {
 					return false;
 				}
@@ -223,29 +244,38 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 		Class<? extends Annotation> type = annotation.annotationType();
 		RootBeanDefinition bd = (RootBeanDefinition) bdHolder.getBeanDefinition();
 
+		// 尝试从bd根据注解类型名称获取AutowireCandidateQualifier
 		AutowireCandidateQualifier qualifier = bd.getQualifier(type.getName());
+		// 如果为null的话，尝试根据类型的短名称获取
 		if (qualifier == null) {
 			qualifier = bd.getQualifier(ClassUtils.getShortName(type));
 		}
+		// 如果仍然为null
 		if (qualifier == null) {
 			// First, check annotation on qualified element, if any
+			// 尝试从qualifiedElement上获取对应类型的注解
 			Annotation targetAnnotation = getQualifiedElementAnnotation(bd, type);
 			// Then, check annotation on factory method, if applicable
+			// 如果不存在，尝试从factoryMethod上获取对应类型的注解
 			if (targetAnnotation == null) {
 				targetAnnotation = getFactoryMethodAnnotation(bd, type);
 			}
+			// 如果仍不存在，尝试从被装饰的bd的factoryMethod上获取对应类型的注解
 			if (targetAnnotation == null) {
 				RootBeanDefinition dbd = getResolvedDecoratedDefinition(bd);
 				if (dbd != null) {
 					targetAnnotation = getFactoryMethodAnnotation(dbd, type);
 				}
 			}
+			// 如果仍然为null
 			if (targetAnnotation == null) {
 				// Look for matching annotation on the target class
 				if (getBeanFactory() != null) {
 					try {
+						// 从beanFactory中获取到beanName对应的beanType
 						Class<?> beanType = getBeanFactory().getType(bdHolder.getBeanName());
 						if (beanType != null) {
+							// 然后尝试从beanType上获取对应类型的注解
 							targetAnnotation = AnnotationUtils.getAnnotation(ClassUtils.getUserClass(beanType), type);
 						}
 					}
@@ -253,48 +283,63 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 						// Not the usual case - simply forget about the type check...
 					}
 				}
+				// 如果仍为null 并且 bd存在beanClass
 				if (targetAnnotation == null && bd.hasBeanClass()) {
+					// 尝试从beanClass上获取对应类型的注解
 					targetAnnotation = AnnotationUtils.getAnnotation(ClassUtils.getUserClass(bd.getBeanClass()), type);
 				}
 			}
+			// 如果目标注解不为null 并且 等于传入的参数注解，返回true
 			if (targetAnnotation != null && targetAnnotation.equals(annotation)) {
 				return true;
 			}
 		}
 
+		// 获取注解对应的属性
 		Map<String, Object> attributes = AnnotationUtils.getAnnotationAttributes(annotation);
+		// 如果属性map为空 并且 qualifier为null，直接返回false
 		if (attributes.isEmpty() && qualifier == null) {
 			// If no attributes, the qualifier must be present
 			return false;
 		}
+		// 遍历注解对应的属性map
 		for (Map.Entry<String, Object> entry : attributes.entrySet()) {
 			String attributeName = entry.getKey();
 			Object expectedValue = entry.getValue();
 			Object actualValue = null;
 			// Check qualifier first
+			// 如果qualifier不为null的话，尝试根据属性名获取实际的value
 			if (qualifier != null) {
 				actualValue = qualifier.getAttribute(attributeName);
 			}
+			// 如果实例的value为null，尝试从bd中直接根据属性名获取实际value
 			if (actualValue == null) {
 				// Fall back on bean definition attribute
 				actualValue = bd.getAttribute(attributeName);
 			}
+			// 如果实例的value仍为null 并且 属性名等于value字符串 并且 期待的value是String类型的 并且 期待的value和beanName匹配
 			if (actualValue == null && attributeName.equals(AutowireCandidateQualifier.VALUE_KEY) &&
 					expectedValue instanceof String && bdHolder.matchesName((String) expectedValue)) {
 				// Fall back on bean name (or alias) match
+				// 继续遍历循环
 				continue;
 			}
+			// 如果实例的value为null 并且 qualifier不为null的话
 			if (actualValue == null && qualifier != null) {
 				// Fall back on default, but only if the qualifier is present
+				// 获取默认值作为实际的value
 				actualValue = AnnotationUtils.getDefaultValue(annotation, attributeName);
 			}
+			// 如果实例的value不为null，将其进行类型转换
 			if (actualValue != null) {
 				actualValue = typeConverter.convertIfNecessary(actualValue, expectedValue.getClass());
 			}
+			// 如果期待的value和实际的value不相等，返回false
 			if (!expectedValue.equals(actualValue)) {
 				return false;
 			}
 		}
+		// 否则返回true
 		return true;
 	}
 
@@ -318,10 +363,13 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 */
 	@Override
 	public boolean isRequired(DependencyDescriptor descriptor) {
+		// 如果父类方法返回的是false，直接返回false
 		if (!super.isRequired(descriptor)) {
 			return false;
 		}
+		// 否则获取其依赖描述上的@Autowired注解
 		Autowired autowired = descriptor.getAnnotation(Autowired.class);
+		// 如果注解不存在返回true，否则返回注解的required属性
 		return (autowired == null || autowired.required());
 	}
 

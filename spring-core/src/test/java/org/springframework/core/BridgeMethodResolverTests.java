@@ -16,6 +16,7 @@
 
 package org.springframework.core;
 
+import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.util.*;
@@ -388,6 +389,7 @@ class BridgeMethodResolverTests {
 		public String someReturnValMethod(Object otherArg) {
 			return "";
 		}
+
 
 		public void someReturnValMethod(String theArg) {
 

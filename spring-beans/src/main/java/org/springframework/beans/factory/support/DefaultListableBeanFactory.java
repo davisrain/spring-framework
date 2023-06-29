@@ -1326,16 +1326,18 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			if (value != null) {
 				// 如果value是String类型的
 				if (value instanceof String) {
-					// 对value进行解析，比如解析它的占位符
+					// 对value进行解析，比如解析它的占位符，即被${}包裹的形式
 					String strVal = resolveEmbeddedValue((String) value);
 					// 如果beanName不为null并且存在beanName对应的bean或bd的话，根据beanName获取到MergedBeanDefinition
 					BeanDefinition bd = (beanName != null && containsBean(beanName) ?
 							getMergedBeanDefinition(beanName) : null);
-					//
+					// 使用beanFactory持有的beanExpressionResolver来解析spel表达式，即被#{}包裹的形式
 					value = evaluateBeanDefinitionString(strVal, bd);
 				}
+				// 获取对应的类型转换器
 				TypeConverter converter = (typeConverter != null ? typeConverter : getTypeConverter());
 				try {
+					// 调用类型转换器将得到的value转换为实际需要的类型
 					return converter.convertIfNecessary(value, type, descriptor.getTypeDescriptor());
 				}
 				catch (UnsupportedOperationException ex) {

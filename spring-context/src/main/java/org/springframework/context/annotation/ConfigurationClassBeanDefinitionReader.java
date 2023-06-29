@@ -523,6 +523,8 @@ class ConfigurationClassBeanDefinitionReader {
 
 		@Override
 		public boolean isFactoryMethod(Method candidate) {
+			// 如果候选方法名称和factoryMethodName一致 并且 候选方法上标注了@Bean注解 并且 候选方法解析出来的beanName同bd中持有的beanName一致的话，返回true。
+			// 表示该候选方法是工厂方法
 			return (super.isFactoryMethod(candidate) && BeanAnnotationHelper.isBeanAnnotated(candidate) &&
 					BeanAnnotationHelper.determineBeanNameFor(candidate).equals(this.derivedBeanName));
 		}
