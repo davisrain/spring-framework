@@ -620,63 +620,87 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	@SuppressWarnings("unchecked")
 	@Nullable
 	protected Object getPropertyValue(PropertyTokenHolder tokens) throws BeansException {
+		// 获取tokens中的canonicalName作为属性名
 		String propertyName = tokens.canonicalName;
+		// 获取tokens中的actualName作为实际名
 		String actualName = tokens.actualName;
+		// 通过实际名字获取属性处理器PropertyHandler，获取到的是一个持有actualName属性名对应的pd的BeanPropertyHandler对象
 		PropertyHandler ph = getLocalPropertyHandler(actualName);
+		// 如果属性处理器为null 或者 不可读，报错
 		if (ph == null || !ph.isReadable()) {
 			throw new NotReadablePropertyException(getRootClass(), this.nestedPath + propertyName);
 		}
 		try {
+			// 调用ph持有的pd的读方法，获取到对应属性的值
 			Object value = ph.getValue();
+			// 如果tokens中含有keys
 			if (tokens.keys != null) {
+				// 如果获取到的对应属性值为null
 				if (value == null) {
+					// 如果isAutoGrowNestedPaths为true，将value设置为默认值
 					if (isAutoGrowNestedPaths()) {
 						value = setDefaultValue(new PropertyTokenHolder(tokens.actualName));
 					}
+					// 否则，报错
 					else {
 						throw new NullValueInNestedPathException(getRootClass(), this.nestedPath + propertyName,
 								"Cannot access indexed value of property referenced in indexed " +
 										"property path '" + propertyName + "': returned null");
 					}
 				}
+				// 构建一个StringBuilder作为indexedPropertyName
 				StringBuilder indexedPropertyName = new StringBuilder(tokens.actualName);
 				// apply indexes and map keys
+				// 然后遍历keys，应用索引或者map类型的key
 				for (int i = 0; i < tokens.keys.length; i++) {
 					String key = tokens.keys[i];
+					// 如果value为null的话，报错
 					if (value == null) {
 						throw new NullValueInNestedPathException(getRootClass(), this.nestedPath + propertyName,
 								"Cannot access indexed value of property referenced in indexed " +
 										"property path '" + propertyName + "': returned null");
 					}
+					// 如果value是数组类型的
 					else if (value.getClass().isArray()) {
+						// 将key解析为int类型
 						int index = Integer.parseInt(key);
+						// 如果index大于等于了数组的长度，并且isAutoGrowNestedPaths为true，扩展数组，并向扩展后的位置填入默认值
 						value = growArrayIfNecessary(value, index, indexedPropertyName.toString());
+						// 获取对应下标的元素
 						value = Array.get(value, index);
 					}
+					// 如果value是List类型的
 					else if (value instanceof List) {
 						int index = Integer.parseInt(key);
 						List<Object> list = (List<Object>) value;
+						// 如果index超出了list的size，且isAutoGrowNestedPaths为true，扩展list
 						growCollectionIfNecessary(list, index, indexedPropertyName.toString(), ph, i + 1);
+						// 获取对应下标的元素
 						value = list.get(index);
 					}
+					// 如果value是set类型的
 					else if (value instanceof Set) {
 						// Apply index to Iterator in case of a Set.
 						Set<Object> set = (Set<Object>) value;
 						int index = Integer.parseInt(key);
+						// 如果index小于0或者index大于等于了set的size，报错
 						if (index < 0 || index >= set.size()) {
 							throw new InvalidPropertyException(getRootClass(), this.nestedPath + propertyName,
 									"Cannot get element with index " + index + " from Set of size " +
 											set.size() + ", accessed using property path '" + propertyName + "'");
 						}
+						// 遍历set
 						Iterator<Object> it = set.iterator();
 						for (int j = 0; it.hasNext(); j++) {
 							Object elem = it.next();
+							// 当遍历到第index元素的时候，赋值给value，并跳出循环
 							if (j == index) {
 								value = elem;
 								break;
 							}
 						}
 					}
+					// 如果value是map类型的
 					else if (value instanceof Map) {
 						Map<Object, Object> map = (Map<Object, Object>) value;
 						Class<?> mapKeyType = ph.getResolvableType().getNested(i + 1).asMap().resolveGeneric(0);
@@ -686,11 +710,13 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 						Object convertedMapKey = convertIfNecessary(null, null, key, mapKeyType, typeDescriptor);
 						value = map.get(convertedMapKey);
 					}
+					// 如果value属于其他属性，报错
 					else {
 						throw new InvalidPropertyException(getRootClass(), this.nestedPath + propertyName,
 								"Property referenced in indexed property path '" + propertyName +
 										"' is neither an array nor a List nor a Set nor a Map; returned value was [" + value + "]");
 					}
+					// 向indexedPropertyName中拼接 前缀 + key + 后缀
 					indexedPropertyName.append(PROPERTY_KEY_PREFIX).append(key).append(PROPERTY_KEY_SUFFIX);
 				}
 			}
@@ -800,9 +826,11 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	 * @return last component of the path (the property on the target bean)
 	 */
 	protected String getFinalPath(AbstractNestablePropertyAccessor pa, String nestedPath) {
+		// 如果传入的pa参数就等于自身，直接返回nestedPath
 		if (pa == this) {
 			return nestedPath;
 		}
+		// 否则返回最后一个分隔符分隔出的路径
 		return nestedPath.substring(PropertyAccessorUtils.getLastNestedPropertySeparatorIndex(nestedPath) + 1);
 	}
 
@@ -812,14 +840,21 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	 * @return a property accessor for the target bean
 	 */
 	protected AbstractNestablePropertyAccessor getPropertyAccessorForPropertyPath(String propertyPath) {
+		// 找到属性路径中第一个分隔符.的位置
 		int pos = PropertyAccessorUtils.getFirstNestedPropertySeparatorIndex(propertyPath);
 		// Handle nested properties recursively.
+		// 如果分隔符存在
 		if (pos > -1) {
+			// 获取分隔符前面的内容作为嵌套的属性
 			String nestedProperty = propertyPath.substring(0, pos);
+			// 获取分隔符后面的内容作为嵌套的路径
 			String nestedPath = propertyPath.substring(pos + 1);
+			// 根据嵌套的属性获取对应的propertyAccessor
 			AbstractNestablePropertyAccessor nestedPa = getNestedPropertyAccessor(nestedProperty);
+			// 然后递归调用nestPa去解析嵌套的路径
 			return nestedPa.getPropertyAccessorForPropertyPath(nestedPath);
 		}
+		// 如果分隔符不存在，直接返回自身
 		else {
 			return this;
 		}
@@ -834,12 +869,16 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	 * @return the PropertyAccessor instance, either cached or newly created
 	 */
 	private AbstractNestablePropertyAccessor getNestedPropertyAccessor(String nestedProperty) {
+		// 如果自身nestedPropertyAccessors为null的话，初始化为一个HashMap
 		if (this.nestedPropertyAccessors == null) {
 			this.nestedPropertyAccessors = new HashMap<>();
 		}
 		// Get value of bean property.
+		// 将嵌套的属性解析为PropertyTokenHolder对象
 		PropertyTokenHolder tokens = getPropertyNameTokens(nestedProperty);
+		// 获取tokens中的canonicalName
 		String canonicalName = tokens.canonicalName;
+		// 根据tokens获取属性名对应的属性值
 		Object value = getPropertyValue(tokens);
 		if (value == null || (value instanceof Optional && !((Optional<?>) value).isPresent())) {
 			if (isAutoGrowNestedPaths()) {
@@ -934,29 +973,45 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 		List<String> keys = new ArrayList<>(2);
 		int searchIndex = 0;
 		while (searchIndex != -1) {
+			// 获取属性名从searchIndex开始的 属性key前缀字符('[') 的位置
 			int keyStart = propertyName.indexOf(PROPERTY_KEY_PREFIX, searchIndex);
+			// 然后将searchIndex置为-1
 			searchIndex = -1;
+			// 如果找到了属性key前缀字符('[')
 			if (keyStart != -1) {
+				// 尝试从 属性key前缀字符('[') 之后开始查找 属性key后缀字符(']')
 				int keyEnd = getPropertyNameKeyEnd(propertyName, keyStart + PROPERTY_KEY_PREFIX.length());
+				// 如果找到了 属性key后缀字符(']')
 				if (keyEnd != -1) {
+					// 如果此时actualName为null
 					if (actualName == null) {
+						// 那么截取属性名开始到 属性key前缀字符('[')的字符串，作为实际的名字
 						actualName = propertyName.substring(0, keyStart);
 					}
+					// 然后截取被属性key前后缀包裹的字符串作为key
 					String key = propertyName.substring(keyStart + PROPERTY_KEY_PREFIX.length(), keyEnd);
+					// 如果key的长度大于1，并且被单引号包裹 或者 被双引号包裹
 					if (key.length() > 1 && (key.startsWith("'") && key.endsWith("'")) ||
 							(key.startsWith("\"") && key.endsWith("\""))) {
+						// 将单引号 或者 双引号去除掉
 						key = key.substring(1, key.length() - 1);
 					}
+					// 将key加入到keys集合中
 					keys.add(key);
+					// 将搜索的下标设置为 属性key后缀字符(']') 之后的位置，继续进行遍历
 					searchIndex = keyEnd + PROPERTY_KEY_SUFFIX.length();
 				}
 			}
 		}
+		// 如果actualName不为null的话，使用actualName，否则直接使用propertyName作为参数创建一个PropertyTokenHolder对象
 		PropertyTokenHolder tokens = new PropertyTokenHolder(actualName != null ? actualName : propertyName);
+		// 如果keys集合不为空的话
 		if (!keys.isEmpty()) {
+			// 将tokens中的canonicalName后拼接上 [key1][key2]... 这样的字符串
 			tokens.canonicalName += PROPERTY_KEY_PREFIX +
 					StringUtils.collectionToDelimitedString(keys, PROPERTY_KEY_SUFFIX + PROPERTY_KEY_PREFIX) +
 					PROPERTY_KEY_SUFFIX;
+			// 将tokens的keys属性赋值为解析出来的keys
 			tokens.keys = StringUtils.toStringArray(keys);
 		}
 		return tokens;
@@ -965,18 +1020,25 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	private int getPropertyNameKeyEnd(String propertyName, int startIndex) {
 		int unclosedPrefixes = 0;
 		int length = propertyName.length();
+		// 从startIndex开始遍历propertyName对应的字符
 		for (int i = startIndex; i < length; i++) {
+			// 判断下标对应的字符
 			switch (propertyName.charAt(i)) {
+				// 如果仍然是 属性key前缀字符('[')
 				case PropertyAccessor.PROPERTY_KEY_PREFIX_CHAR:
 					// The property name contains opening prefix(es)...
+					// 将unclosedPrefixes计数器+1，统计没有关闭的前缀的个数
 					unclosedPrefixes++;
 					break;
+					// 如果字符是 属性key后缀字符(']')
 				case PropertyAccessor.PROPERTY_KEY_SUFFIX_CHAR:
+					// 此时没有关闭的前缀字符个数为0，直接返回下标i
 					if (unclosedPrefixes == 0) {
 						// No unclosed prefix(es) in the property name (left) ->
 						// this is the suffix we are looking for.
 						return i;
 					}
+					// 否则将unclosedPrefixes计数器-1
 					else {
 						// This suffix does not close the initial prefix but rather
 						// just one that occurred within the property name.
@@ -985,6 +1047,7 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 					break;
 			}
 		}
+		// 如果没有找到对应的 属性key后缀字符(']')，返回-1
 		return -1;
 	}
 

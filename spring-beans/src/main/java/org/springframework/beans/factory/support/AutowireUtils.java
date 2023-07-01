@@ -86,16 +86,21 @@ abstract class AutowireUtils {
 	 * @return whether the bean property is excluded
 	 */
 	public static boolean isExcludedFromDependencyCheck(PropertyDescriptor pd) {
+		// 获取pd中持有的写方法
 		Method wm = pd.getWriteMethod();
+		// 如果不存在写方法，那么返回false，不用排除
 		if (wm == null) {
 			return false;
 		}
+		// 如果写方法的声明类名称中不包含$$，说明不是cglib代理类中的方法，所以返回false，不用排除
 		if (!wm.getDeclaringClass().getName().contains("$$")) {
 			// Not a CGLIB method so it's OK.
 			return false;
 		}
 		// It was declared by CGLIB, but we might still want to autowire it
 		// if it was actually declared by the superclass.
+		// 如果声明写方法的类是cglib代理后的类，那么判断其父类，即被代理类中，是否存在签名一致的方法。
+		// 如果不存在的话，说明该方法是代理类自己生成的，返回true，需要被排除。否则不排除
 		Class<?> superclass = wm.getDeclaringClass().getSuperclass();
 		return !ClassUtils.hasMethod(superclass, wm);
 	}

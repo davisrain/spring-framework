@@ -470,12 +470,66 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 				}
 			});
 
+			// 将找到的这些element添加到集合顶部
 			elements.addAll(0, currElements);
+			// 将targetClass转换为它的父类
 			targetClass = targetClass.getSuperclass();
 		}
+		// 如果targetClass为null或者Object.class了，结束循环
 		while (targetClass != null && targetClass != Object.class);
 
+		// 根据elements和clazz创建一个InjectionMetadata返回
 		return InjectionMetadata.forElements(elements, clazz);
+	}
+
+
+	static class Foo<T> {
+
+		private String name;
+
+		private T t;
+
+		@Resource
+		public void setName(String name) {
+			this.name = name;
+		}
+
+		@Resource
+		public void setT(T t) {
+			this.t = t;
+		}
+	}
+
+	public static class MyFoo extends Foo<Integer> {
+
+		// 这个地方其实会生成一个桥接方法，用于扩充方法的访问范围。因为Foo中的setName方法是public的，而Foo这个类是package的，
+		// 而子类MyFoo则是public的，因此setName其实可以通过子类在任意地方访问到，因此需要在子类中通过编译器生成一个桥接方法将父类的setName重写，
+		// 用于桥接父类的setName方法。该方法的内容就是调用父类的setName方法。
+		// 而进行@Resource注解解析时候，会考虑到这种情况，所以会单独让这种情况生成的一对桥接方法通过检验，进行解析。否则的话，由于方法重写，
+		// 父类setName方法上的@Resource注解就不会解析了。
+//		public void setName(String name) {
+//      	super.setName(name);
+//		}
+
+		// 由于泛型擦除的存在，这里也会生成一个桥接方法，用于桥接setT(Integer t)，因为动态分派的时候是根据方法签名来的，而T类型在运行时会被擦除成Object.class，
+		// 因此需要一个签名相同的方法来实现动态分派，该方法的内容就是将参数转型，然后调用setT(Integer t)方法。
+		// 而这一对桥接方法在解析@Resource注解时就不会通过检验，直接会跳过。
+//		public void setT(Object t) {
+//			String temp = (String) t;
+//			setT(temp);
+//		}
+
+		// 如果重写了父类的@Resource方法，那么该@Resource注解就无效了，如果想要生效，需要在子类重写方法上再添加@Resource注解
+		public void setT(Integer t) {
+			// 该方法的字节码会调用父类中编译器自动生成的静态方法access$002(org.springframework.context.annotation.CommonAnnotationBeanPostProcessor$Foo, java.lang.Object)
+			// 将this引用和参数t传入，对父类变量的赋值是在该方法中进行的。该方法其实是让子类访问到父类的私有变量的后门，同理，内部类访问到外部类的私有变量也是通过这种方式。
+			// 如果父类的t字段声明为protected的，那么就不会在父类中生成access方法了
+			super.t = t;
+		}
+	}
+
+	public static void main(String[] args) {
+		new CommonAnnotationBeanPostProcessor().buildResourceMetadata(MyFoo.class);
 	}
 
 	/**
@@ -659,31 +713,50 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 
 		public ResourceElement(Member member, AnnotatedElement ae, @Nullable PropertyDescriptor pd) {
 			super(member, pd);
+			// 获取标注的@Resource注解
 			Resource resource = ae.getAnnotation(Resource.class);
+			// 获取注解的name属性
 			String resourceName = resource.name();
+			// 获取注解的type属性
 			Class<?> resourceType = resource.type();
+			// 如果resourceName为空字符串，isDefaultName置为true，表示使用默认名称
 			this.isDefaultName = !StringUtils.hasLength(resourceName);
 			if (this.isDefaultName) {
+				// 获取member的name
 				resourceName = this.member.getName();
+				// 如果member是方法的话 且 是setter方法 并且 方法名长度大于3
 				if (this.member instanceof Method && resourceName.startsWith("set") && resourceName.length() > 3) {
+					// 将set后面的内容作为资源名称，并且将首字母小写
 					resourceName = Introspector.decapitalize(resourceName.substring(3));
 				}
 			}
+			// 如果embeddedValueResolver不为null的话，解析resourceName中的占位符
 			else if (embeddedValueResolver != null) {
 				resourceName = embeddedValueResolver.resolveStringValue(resourceName);
 			}
+
+			// 如果resourceType不是Object类型的
 			if (Object.class != resourceType) {
+				// 检查ResourceType
 				checkResourceType(resourceType);
 			}
+			// 如果没有指定ResourceType，则模式是Object.class
 			else {
 				// No resource type specified... check field/method.
+				// 通过field或者method获取对应的resourceType
 				resourceType = getResourceType();
 			}
+			// 如果resourceName不为null，将其赋值给name，否则name等于空字符串
 			this.name = (resourceName != null ? resourceName : "");
+			// 将resourceType赋值给lookupType
 			this.lookupType = resourceType;
+			// 获取注解的lookup属性
 			String lookupValue = resource.lookup();
+			// 如果lookup属性不是空字符串，将其赋值给mappedName，否则将注解的mappedName属性赋值给自身的mappedName字段
 			this.mappedName = (StringUtils.hasLength(lookupValue) ? lookupValue : resource.mappedName());
+			// 获取目标上标注的@Lazy注解
 			Lazy lazy = ae.getAnnotation(Lazy.class);
+			// 如果存在@Lazy注解，将其value值赋值给lazyLookup字段
 			this.lazyLookup = (lazy != null && lazy.value());
 		}
 

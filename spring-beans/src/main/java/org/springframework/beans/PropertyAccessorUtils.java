@@ -87,14 +87,21 @@ public abstract class PropertyAccessorUtils {
 	 */
 	private static int getNestedPropertySeparatorIndex(String propertyPath, boolean last) {
 		boolean inKey = false;
+		// 获取属性路径的长度
 		int length = propertyPath.length();
+		// 如果last为true，下标从length-1开头，否则从0开始
 		int i = (last ? length - 1 : 0);
+		// 根据last决定是从头开始找第一个 还是从末尾开始找最后一个
 		while (last ? i >= 0 : i < length) {
+			// 获取对应下标的字符
 			switch (propertyPath.charAt(i)) {
+				// 如果字符等于[ 或者 ]，将inkey赋值为!inkey，跳出switch，进入下次循环
 				case PropertyAccessor.PROPERTY_KEY_PREFIX_CHAR:
 				case PropertyAccessor.PROPERTY_KEY_SUFFIX_CHAR:
 					inKey = !inKey;
 					break;
+					// 当遇到分隔符.的时候，如果是inkey为true，代表字符处于[]包裹之中，忽略到分隔符.
+				// 如果inkey为false，那么返回下标i，表示找到了分隔符的位置
 				case PropertyAccessor.NESTED_PROPERTY_SEPARATOR_CHAR:
 					if (!inKey) {
 						return i;
@@ -107,6 +114,7 @@ public abstract class PropertyAccessorUtils {
 				i++;
 			}
 		}
+		// 如果循环完成都没有找到分隔符，返回-1
 		return -1;
 	}
 

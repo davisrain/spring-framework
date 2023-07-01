@@ -486,17 +486,25 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 	private InjectionMetadata findAutowiringMetadata(String beanName, Class<?> clazz, @Nullable PropertyValues pvs) {
 		// Fall back to class name as cache key, for backwards compatibility with custom callers.
+		// 如果beanName不是空字符串，用其作为缓存键，否则使用类的全限定名作为缓存键
 		String cacheKey = (StringUtils.hasLength(beanName) ? beanName : clazz.getName());
 		// Quick check on the concurrent map first, with minimal locking.
+		// 尝试从缓存中获取InjectionMetadata
 		InjectionMetadata metadata = this.injectionMetadataCache.get(cacheKey);
+		// 如果缓存未命中 或者 metadata的targetClass和clazz不相等，进行metadata的获取操作
 		if (InjectionMetadata.needsRefresh(metadata, clazz)) {
+			// 加锁
 			synchronized (this.injectionMetadataCache) {
+				// double check，防止有多个线程执行了获取逻辑
 				metadata = this.injectionMetadataCache.get(cacheKey);
 				if (InjectionMetadata.needsRefresh(metadata, clazz)) {
+					// 如果缓存中存在metadata，只是需要刷新，那么将pvs中对应的processProperty清理掉
 					if (metadata != null) {
 						metadata.clear(pvs);
 					}
+					// 构建autowiring的InjectionMetadata
 					metadata = buildAutowiringMetadata(clazz);
+					// 将构建好的metadata放入缓存中
 					this.injectionMetadataCache.put(cacheKey, metadata);
 				}
 			}
@@ -505,60 +513,82 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	}
 
 	private InjectionMetadata buildAutowiringMetadata(Class<?> clazz) {
+		// 判断clazz是否是autowiredAnnotationTypes中的注解类型的候选标注类，如果不是，直接返回空的InjectionMetadata
 		if (!AnnotationUtils.isCandidateClass(clazz, this.autowiredAnnotationTypes)) {
 			return InjectionMetadata.EMPTY;
 		}
 
 		List<InjectionMetadata.InjectedElement> elements = new ArrayList<>();
+		// 将clazz赋值给targetClass，后续会继续遍历targetClass的父类
 		Class<?> targetClass = clazz;
 
 		do {
 			final List<InjectionMetadata.InjectedElement> currElements = new ArrayList<>();
 
+			// 遍历targetClass中的field
 			ReflectionUtils.doWithLocalFields(targetClass, field -> {
+				// 查找字段上标注的autowiredAnnotationTypes中包含的注解类型对应的注解
 				MergedAnnotation<?> ann = findAutowiredAnnotation(field);
+				// 如果注解存在
 				if (ann != null) {
+					// 判断字段是否是static的，如果是，直接跳过
 					if (Modifier.isStatic(field.getModifiers())) {
 						if (logger.isInfoEnabled()) {
 							logger.info("Autowired annotation is not supported on static fields: " + field);
 						}
 						return;
 					}
+					// 判断注解的required属性，如果注解不包含required属性或者require属性的值为true，方法返回true，表示该属性的注入是必须的
 					boolean required = determineRequiredStatus(ann);
+					// 根据field和required属性构建一个AutowiredFieldElement放入集合中
 					currElements.add(new AutowiredFieldElement(field, required));
 				}
 			});
 
+			// 遍历targetClass的method
 			ReflectionUtils.doWithLocalMethods(targetClass, method -> {
+				// 获取桥接方法的被桥接方法，如果方法不是桥接方法，返回方法本身
 				Method bridgedMethod = BridgeMethodResolver.findBridgedMethod(method);
+				// 如果不是用于扩展可见性的桥接方法对的话，直接跳过
 				if (!BridgeMethodResolver.isVisibilityBridgeMethodPair(method, bridgedMethod)) {
 					return;
 				}
+				// 找到对应方法上标注的@Autowired @Value 或 @Inject注解
 				MergedAnnotation<?> ann = findAutowiredAnnotation(bridgedMethod);
+				// 如果注解存在 且 方法没有被clazz重写，执行if里面的逻辑
 				if (ann != null && method.equals(ClassUtils.getMostSpecificMethod(method, clazz))) {
+					// 如果方法是static的，直接返回
 					if (Modifier.isStatic(method.getModifiers())) {
 						if (logger.isInfoEnabled()) {
 							logger.info("Autowired annotation is not supported on static methods: " + method);
 						}
 						return;
 					}
+					// 如果方法的参数个数为0
 					if (method.getParameterCount() == 0) {
 						if (logger.isInfoEnabled()) {
 							logger.info("Autowired annotation should only be used on methods with parameters: " +
 									method);
 						}
 					}
+					// 判定注解中required属性的值
 					boolean required = determineRequiredStatus(ann);
+					// 找到方法对应的clazz中的propertyDescriptor
 					PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, clazz);
+					// 创建一个AutowiredMethodElement放入集合中
 					currElements.add(new AutowiredMethodElement(method, required, pd));
 				}
 			});
 
+			// 将当前elements的集合添加到总集合的顶端
 			elements.addAll(0, currElements);
+			// 并且将targetClass赋值为其父类
 			targetClass = targetClass.getSuperclass();
 		}
+		// 如果targetClass为null或者等于Object.class，就结束循环
 		while (targetClass != null && targetClass != Object.class);
 
+		// 根据elements集合和clazz生成一个InjectionMetadata返回
 		return InjectionMetadata.forElements(elements, clazz);
 	}
 

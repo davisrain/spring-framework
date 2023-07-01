@@ -227,7 +227,9 @@ public class BeanWrapperImpl extends AbstractNestablePropertyAccessor implements
 	@Override
 	@Nullable
 	protected BeanPropertyHandler getLocalPropertyHandler(String propertyName) {
+		// 根据传入的属性名获取到CachedIntrospectionResults中持有的PropertyDescriptor
 		PropertyDescriptor pd = getCachedIntrospectionResults().getPropertyDescriptor(propertyName);
+		// 如果pd存在，初始化一个BeanPropertyHandler返回，否则返回null
 		return (pd != null ? new BeanPropertyHandler(pd) : null);
 	}
 
@@ -250,13 +252,18 @@ public class BeanWrapperImpl extends AbstractNestablePropertyAccessor implements
 
 	@Override
 	public PropertyDescriptor getPropertyDescriptor(String propertyName) throws InvalidPropertyException {
+		// 将propertyName作为属性路径解析出对应的嵌套PropertyAccessor，并强转为BeanWrapperImpl
 		BeanWrapperImpl nestedBw = (BeanWrapperImpl) getPropertyAccessorForPropertyPath(propertyName);
+		// 获取到最后一个分隔符之后的内容
 		String finalPath = getFinalPath(nestedBw, propertyName);
+		// 通过嵌套的bw获取 最后一个分隔符后的内容 对应的 属性描述符
 		PropertyDescriptor pd = nestedBw.getCachedIntrospectionResults().getPropertyDescriptor(finalPath);
+		// 如果pd为null，报错
 		if (pd == null) {
 			throw new InvalidPropertyException(getRootClass(), getNestedPath() + propertyName,
 					"No property '" + propertyName + "' found");
 		}
+		// 返回pd
 		return pd;
 	}
 
@@ -266,7 +273,9 @@ public class BeanWrapperImpl extends AbstractNestablePropertyAccessor implements
 		private final PropertyDescriptor pd;
 
 		public BeanPropertyHandler(PropertyDescriptor pd) {
+			// 调用父类构造函数，可读性和可写性由pd中是否存在对应的读方法和写方法来决定
 			super(pd.getPropertyType(), pd.getReadMethod() != null, pd.getWriteMethod() != null);
+			// 将pd赋值给自身属性
 			this.pd = pd;
 		}
 

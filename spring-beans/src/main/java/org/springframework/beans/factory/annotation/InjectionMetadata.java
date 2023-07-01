@@ -100,13 +100,19 @@ public class InjectionMetadata {
 
 	public void checkConfigMembers(RootBeanDefinition beanDefinition) {
 		Set<InjectedElement> checkedElements = new LinkedHashSet<>(this.injectedElements.size());
+		// 遍历持有的injectedElement的集合
 		for (InjectedElement element : this.injectedElements) {
+			// 获取element的member
 			Member member = element.getMember();
+			// 如果bd的externallyManagedConfigMembers集合中不包含该member
 			if (!beanDefinition.isExternallyManagedConfigMember(member)) {
+				// 将该member注册进bd的externallyManagedConfigMembers集合中
 				beanDefinition.registerExternallyManagedConfigMember(member);
+				// 并且添加到checkedElements这个set中
 				checkedElements.add(element);
 			}
 		}
+		// 将set赋值给自身属性
 		this.checkedElements = checkedElements;
 	}
 
@@ -192,28 +198,38 @@ public class InjectionMetadata {
 		}
 
 		protected final Class<?> getResourceType() {
+			// 如果是字段类型
 			if (this.isField) {
+				// 获取字段的类型返回
 				return ((Field) this.member).getType();
 			}
+			// 如果pd存在，返回pd的propertyType
 			else if (this.pd != null) {
 				return this.pd.getPropertyType();
 			}
+			// 如果是方法类型，返回方法的第一个参数的类型
 			else {
 				return ((Method) this.member).getParameterTypes()[0];
 			}
 		}
 
 		protected final void checkResourceType(Class<?> resourceType) {
+			// 如果member是字段类型的
 			if (this.isField) {
+				// 获取字段对应的类型
 				Class<?> fieldType = ((Field) this.member).getType();
+				// 如果resourceType和字段类型没有继承关系，报错
 				if (!(resourceType.isAssignableFrom(fieldType) || fieldType.isAssignableFrom(resourceType))) {
 					throw new IllegalStateException("Specified field type [" + fieldType +
 							"] is incompatible with resource type [" + resourceType.getName() + "]");
 				}
 			}
+			// 如果member是方法类型的
 			else {
+				// 如果pd存在，获取propertyType，否则获取方法的第一个参数的类型
 				Class<?> paramType =
 						(this.pd != null ? this.pd.getPropertyType() : ((Method) this.member).getParameterTypes()[0]);
+				// 如果resourceType和参数类型没有继承关系，报错
 				if (!(resourceType.isAssignableFrom(paramType) || paramType.isAssignableFrom(resourceType))) {
 					throw new IllegalStateException("Specified parameter type [" + paramType +
 							"] is incompatible with resource type [" + resourceType.getName() + "]");

@@ -335,6 +335,7 @@ public final class CachedIntrospectionResults {
 
 			// Explicitly check implemented interfaces for setter/getter methods as well,
 			// in particular for Java 8 default methods...
+			// 查看接口实现的默认getter/setter方法
 			Class<?> currClass = beanClass;
 			while (currClass != null && currClass != Object.class) {
 				introspectInterfaces(beanClass, currClass);
@@ -349,22 +350,31 @@ public final class CachedIntrospectionResults {
 	}
 
 	private void introspectInterfaces(Class<?> beanClass, Class<?> currClass) throws IntrospectionException {
+		// 遍历当前类实现的接口
 		for (Class<?> ifc : currClass.getInterfaces()) {
+			// 判断如果接口是jdk提供的默认接口，直接跳过
 			if (!ClassUtils.isJavaLanguageInterface(ifc)) {
+				// 获取接口对应beanInfo中的propertyDescriptor进行遍历
 				for (PropertyDescriptor pd : getBeanInfo(ifc).getPropertyDescriptors()) {
+					// 根据pd的name获取在map中已存在的propertyDescriptor
 					PropertyDescriptor existingPd = this.propertyDescriptors.get(pd.getName());
+					// 如果map中不存在对应的pd 或者已存在的pd没有读方法 但是新获取的pd有读方法
 					if (existingPd == null ||
 							(existingPd.getReadMethod() == null && pd.getReadMethod() != null)) {
 						// GenericTypeAwarePropertyDescriptor leniently resolves a set* write method
 						// against a declared read method, so we prefer read method descriptors here.
+						// 根据新的pd构建一个GenericTypeAwarePropertyDescriptor
 						pd = buildGenericTypeAwarePropertyDescriptor(beanClass, pd);
+						// 如果新构建的pd没有写方法 并且 pd对应的属性类型是 没有写方法是非法的，那么跳过该pd
 						if (pd.getWriteMethod() == null && isInvalidReadOnlyPropertyType(pd.getPropertyType())) {
 							// Ignore read-only properties such as ClassLoader - no need to bind to those
 							continue;
 						}
+						// 否则将pd加入到map中
 						this.propertyDescriptors.put(pd.getName(), pd);
 					}
 				}
+				// 继续遍历接口继承的接口中的getter/setter默认方法
 				introspectInterfaces(ifc, ifc);
 			}
 		}
