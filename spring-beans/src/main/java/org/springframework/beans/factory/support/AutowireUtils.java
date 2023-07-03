@@ -136,7 +136,7 @@ abstract class AutowireUtils {
 		// 如果自动注入的值是ObjectFactory类型的 并且 其不是要求的类型的实例
 		if (autowiringValue instanceof ObjectFactory && !requiredType.isInstance(autowiringValue)) {
 			ObjectFactory<?> factory = (ObjectFactory<?>) autowiringValue;
-			// 那么判断autowiringValue是否是可序列化的 并且 要求的类型是不是接口类型
+			// 那么判断autowiringValue是否是可序列化的 并且 要求的类型是接口类型
 			if (autowiringValue instanceof Serializable && requiredType.isInterface()) {
 				// 如果是的话，使用JDK动态代理生成一个代理类继承要求类型的接口返回
 				autowiringValue = Proxy.newProxyInstance(requiredType.getClassLoader(),

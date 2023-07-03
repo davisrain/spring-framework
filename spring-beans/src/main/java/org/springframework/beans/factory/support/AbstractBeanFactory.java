@@ -759,30 +759,43 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	@Override
 	public String[] getAliases(String name) {
+		// 将name转换为真实的beanName，且将前面的&符号去掉
 		String beanName = transformedBeanName(name);
+		// 创建一个list来收集该beanName对应的别名
 		List<String> aliases = new ArrayList<>();
+		// 判断传入的name是否是以&开头的
 		boolean factoryPrefix = name.startsWith(FACTORY_BEAN_PREFIX);
+		// 如果是以&开头的，将真实的beanName前面也加上&
 		String fullBeanName = beanName;
 		if (factoryPrefix) {
 			fullBeanName = FACTORY_BEAN_PREFIX + beanName;
 		}
+		// 判断fullBeanName和传入的name是否一致，如果不一致的话，将fullBeanName添加到别名集合中
 		if (!fullBeanName.equals(name)) {
 			aliases.add(fullBeanName);
 		}
+		// 调用父类的getAliases方法，获取真实的beanName对应的别名数组
 		String[] retrievedAliases = super.getAliases(beanName);
+		// 如果factoryPrefix为true，那么前缀为&
 		String prefix = factoryPrefix ? FACTORY_BEAN_PREFIX : "";
+		// 遍历检索到的别名
 		for (String retrievedAlias : retrievedAliases) {
+			// 在其前面都加上前缀
 			String alias = prefix + retrievedAlias;
+			// 如果发现别名和传入的name不相等，将其加入别名集合
 			if (!alias.equals(name)) {
 				aliases.add(alias);
 			}
 		}
+		// 如果发现beanName不存在于一级缓存和beanDefinitionMap中
 		if (!containsSingleton(beanName) && !containsBeanDefinition(beanName)) {
+			// 尝试从父容器中查找别名
 			BeanFactory parentBeanFactory = getParentBeanFactory();
 			if (parentBeanFactory != null) {
 				aliases.addAll(Arrays.asList(parentBeanFactory.getAliases(fullBeanName)));
 			}
 		}
+		// 将别名集合转换为数组返回
 		return StringUtils.toStringArray(aliases);
 	}
 

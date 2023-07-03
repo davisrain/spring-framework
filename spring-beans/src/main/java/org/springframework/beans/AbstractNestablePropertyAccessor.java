@@ -151,7 +151,9 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	 * @param parent the containing accessor (must not be {@code null})
 	 */
 	protected AbstractNestablePropertyAccessor(Object object, String nestedPath, AbstractNestablePropertyAccessor parent) {
+		// 设置自身的wrappedObject nestedPath rootObject TypeConverterDelegate等属性
 		setWrappedInstance(object, nestedPath, parent.getWrappedInstance());
+		// 继承parent的各种属性
 		setExtractOldValueForEditor(parent.isExtractOldValueForEditor());
 		setAutoGrowNestedPaths(parent.isAutoGrowNestedPaths());
 		setAutoGrowCollectionLimit(parent.getAutoGrowCollectionLimit());
@@ -191,11 +193,15 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	 * @param rootObject the root object at the top of the path
 	 */
 	public void setWrappedInstance(Object object, @Nullable String nestedPath, @Nullable Object rootObject) {
+		// 将wrappedObject设置为object，如果object是optional类型的，调用其get方法获取被包装的对象
 		this.wrappedObject = ObjectUtils.unwrapOptional(object);
 		Assert.notNull(this.wrappedObject, "Target object must not be null");
+		// 如果nestedPath存在的话，设置给自身属性
 		this.nestedPath = (nestedPath != null ? nestedPath : "");
+		// 如果自身的nestedPath存在，说明是某个pa的嵌套属性，因此使用rootObject赋值，否则用自身的wrappedObject赋值
 		this.rootObject = (!this.nestedPath.isEmpty() ? rootObject : this.wrappedObject);
 		this.nestedPropertyAccessors = null;
+		// 根据wrappedObject创建一个类型转换的委托对象
 		this.typeConverterDelegate = new TypeConverterDelegate(this, this.wrappedObject);
 	}
 
@@ -271,9 +277,11 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	}
 
 	protected void setPropertyValue(PropertyTokenHolder tokens, PropertyValue pv) throws BeansException {
+		// 如果tokens的keys不为null的话
 		if (tokens.keys != null) {
 			processKeyedProperty(tokens, pv);
 		}
+		// 如果tokens不存在keys的话
 		else {
 			processLocalProperty(tokens, pv);
 		}
@@ -519,18 +527,30 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	@Nullable
 	public TypeDescriptor getPropertyTypeDescriptor(String propertyName) throws BeansException {
 		try {
+			// 获取属性名嵌套的propertyAccessor
 			AbstractNestablePropertyAccessor nestedPa = getPropertyAccessorForPropertyPath(propertyName);
+			// 获取属性名最后一个分隔符之后的内容
 			String finalPath = getFinalPath(nestedPa, propertyName);
+			// 将finalPath解析为PropertyTokenHolder
 			PropertyTokenHolder tokens = getPropertyNameTokens(finalPath);
+			// 使用tokens中的actualName从nestedPa的CachedIntrospectionResults中获取对应的PropertyDescriptor，
+			// 再用pd实例化一个PropertyHandler返回
 			PropertyHandler ph = nestedPa.getLocalPropertyHandler(tokens.actualName);
+			// 如果ph不为null
 			if (ph != null) {
+				// 如果tokens中存在keys
 				if (tokens.keys != null) {
+					// 如果ph是可读的或者可写的
 					if (ph.isReadable() || ph.isWritable()) {
+						// 根据keys的长度调用ph的nested方法返回
 						return ph.nested(tokens.keys.length);
 					}
 				}
+				// 如果tokens中不存在keys
 				else {
+					// 如果ph是可读的或者可写的
 					if (ph.isReadable() || ph.isWritable()) {
+						// 调用ph的toTypeDescriptor方法
 						return ph.toTypeDescriptor();
 					}
 				}
@@ -587,6 +607,7 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 
 		Assert.state(this.typeConverterDelegate != null, "No TypeConverterDelegate");
 		try {
+			// 调用委托类型转换对象进行转换
 			return this.typeConverterDelegate.convertIfNecessary(propertyName, oldValue, newValue, requiredType, td);
 		}
 		catch (ConverterNotFoundException | IllegalStateException ex) {
@@ -880,25 +901,34 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 		String canonicalName = tokens.canonicalName;
 		// 根据tokens获取属性名对应的属性值
 		Object value = getPropertyValue(tokens);
+		// 如果value为null 或者 value是Optional类型的，但是isPresent返回false
 		if (value == null || (value instanceof Optional && !((Optional<?>) value).isPresent())) {
+			// 如果isAutoGrowNestedPaths为true，设置默认值给value
 			if (isAutoGrowNestedPaths()) {
 				value = setDefaultValue(tokens);
 			}
+			// 否则报错
 			else {
 				throw new NullValueInNestedPathException(getRootClass(), this.nestedPath + canonicalName);
 			}
 		}
 
 		// Lookup cached sub-PropertyAccessor, create new one if not found.
+		// 查询其子propertyAccessors中是否有canonicalName对应的propertyAccessor
 		AbstractNestablePropertyAccessor nestedPa = this.nestedPropertyAccessors.get(canonicalName);
+		// 如果不存在对应的子pa 或者 子pa的包装实例和value不相等，那么创建一个新的pa放入到nestedPropertyAccessors中
 		if (nestedPa == null || nestedPa.getWrappedInstance() != ObjectUtils.unwrapOptional(value)) {
 			if (logger.isTraceEnabled()) {
 				logger.trace("Creating new nested " + getClass().getSimpleName() + " for property '" + canonicalName + "'");
 			}
+			// 调用newNestedPropertyAccessor方法，这是一个模板方法，beanWrapperImpl的实现就是new一个beanWrapperImpl，设置其nestedPath和parent
 			nestedPa = newNestedPropertyAccessor(value, this.nestedPath + canonicalName + NESTED_PROPERTY_SEPARATOR);
 			// Inherit all type-specific PropertyEditors.
+			// 将自身持有的defaultPropertyEditors都复制给 嵌套的pa
 			copyDefaultEditorsTo(nestedPa);
+			// 复制customPropertyEditor给 嵌套的pa
 			copyCustomEditorsTo(nestedPa, canonicalName);
+			// 将嵌套的pa根据canonicalName放入到nestedPropertyAccessors这个map中
 			this.nestedPropertyAccessors.put(canonicalName, nestedPa);
 		}
 		else {
@@ -910,6 +940,7 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	}
 
 	private Object setDefaultValue(PropertyTokenHolder tokens) {
+		// 根据tokens创建一个PropertyValue对象
 		PropertyValue pv = createDefaultPropertyValue(tokens);
 		setPropertyValue(tokens, pv);
 		Object defaultValue = getPropertyValue(tokens);
@@ -918,42 +949,57 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	}
 
 	private PropertyValue createDefaultPropertyValue(PropertyTokenHolder tokens) {
+		// 根据tokens中的canonicalName获取获取对应属性的TypeDescriptor
 		TypeDescriptor desc = getPropertyTypeDescriptor(tokens.canonicalName);
 		if (desc == null) {
 			throw new NullValueInNestedPathException(getRootClass(), this.nestedPath + tokens.canonicalName,
 					"Could not determine property type for auto-growing a default value");
 		}
+		// 根据TypeDescriptor创建一个默认值
 		Object defaultValue = newValue(desc.getType(), desc, tokens.canonicalName);
+		// 然后将canonicalName和默认值构建成一个PropertyValue返回
 		return new PropertyValue(tokens.canonicalName, defaultValue);
 	}
 
 	private Object newValue(Class<?> type, @Nullable TypeDescriptor desc, String name) {
 		try {
+			// 如果type是数组类型的
 			if (type.isArray()) {
+				// 获取数组的成员类型
 				Class<?> componentType = type.getComponentType();
 				// TODO - only handles 2-dimensional arrays
+				// 如果成员类型也是数组类型的，现在只能解析二维数组
 				if (componentType.isArray()) {
+					// 创建一个二维数组
 					Object array = Array.newInstance(componentType, 1);
+					// 将第一个元素设置为创建的一维数组
 					Array.set(array, 0, Array.newInstance(componentType.getComponentType(), 0));
 					return array;
 				}
+				// 如果成员类型不是数组，创建一个对应类型的看那个数组返回
 				else {
 					return Array.newInstance(componentType, 0);
 				}
 			}
+			// 如果是Collection类型的，创建一个空的Collection类型返回
 			else if (Collection.class.isAssignableFrom(type)) {
 				TypeDescriptor elementDesc = (desc != null ? desc.getElementTypeDescriptor() : null);
 				return CollectionFactory.createCollection(type, (elementDesc != null ? elementDesc.getType() : null), 16);
 			}
+			// 如果是Map类型的，创建一个空的Map类型返回
 			else if (Map.class.isAssignableFrom(type)) {
 				TypeDescriptor keyDesc = (desc != null ? desc.getMapKeyTypeDescriptor() : null);
 				return CollectionFactory.createMap(type, (keyDesc != null ? keyDesc.getType() : null), 16);
 			}
+			// 如果是其他类型
 			else {
+				// 获取类型申明的构造器
 				Constructor<?> ctor = type.getDeclaredConstructor();
+				// 如果构造器是私有的，报错
 				if (Modifier.isPrivate(ctor.getModifiers())) {
 					throw new IllegalAccessException("Auto-growing not allowed with private constructor: " + ctor);
 				}
+				// 否则，进行实例化
 				return BeanUtils.instantiateClass(ctor);
 			}
 		}

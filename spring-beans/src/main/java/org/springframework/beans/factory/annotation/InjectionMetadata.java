@@ -117,10 +117,14 @@ public class InjectionMetadata {
 	}
 
 	public void inject(Object target, @Nullable String beanName, @Nullable PropertyValues pvs) throws Throwable {
+		// 获取checkedElements
 		Collection<InjectedElement> checkedElements = this.checkedElements;
+		// 如果checkedElements为null的话，直接使用injectedElements
 		Collection<InjectedElement> elementsToIterate =
 				(checkedElements != null ? checkedElements : this.injectedElements);
+		// 如果要遍历的elements不为空
 		if (!elementsToIterate.isEmpty()) {
+			// 进行遍历，并且调用每个element的inject方法
 			for (InjectedElement element : elementsToIterate) {
 				element.inject(target, beanName, pvs);
 			}
@@ -243,18 +247,27 @@ public class InjectionMetadata {
 		protected void inject(Object target, @Nullable String requestingBeanName, @Nullable PropertyValues pvs)
 				throws Throwable {
 
+			// 如果持有的member是field类型的
 			if (this.isField) {
 				Field field = (Field) this.member;
 				ReflectionUtils.makeAccessible(field);
+				// 调用getResourceToInject方法获取要注入的值
+				// 调用field的set方法将值设置进去
 				field.set(target, getResourceToInject(target, requestingBeanName));
 			}
+			// 如果持有的member是method类型的
 			else {
+				// 查看injectedElement的skip属性看是否需要跳过，如果该属性为null的话，
+				// 那么比较pvs中是否存在相同属性名的属性，如果存在的话，将skip属性置为true并返回true，
+				// 否则置为false并返回false
 				if (checkPropertySkipping(pvs)) {
 					return;
 				}
 				try {
 					Method method = (Method) this.member;
 					ReflectionUtils.makeAccessible(method);
+					// 调用getResourceToInject方法获取要注入的值
+					// 调用method方法将值设置进target对象中
 					method.invoke(target, getResourceToInject(target, requestingBeanName));
 				}
 				catch (InvocationTargetException ex) {
@@ -268,30 +281,42 @@ public class InjectionMetadata {
 		 * an explicit property value having been specified. Also marks the
 		 * affected property as processed for other processors to ignore it.
 		 */
+		// 判断这个属性是否需要被跳过
 		protected boolean checkPropertySkipping(@Nullable PropertyValues pvs) {
+			// 获取其skip属性
 			Boolean skip = this.skip;
+			// skip默认应该是null，如果skip不为null的话，直接返回skip表示结果
 			if (skip != null) {
 				return skip;
 			}
+			// 如果传入的PropertyValues是null，那么将skip属性置为false，返回false，表示不跳过
 			if (pvs == null) {
 				this.skip = false;
 				return false;
 			}
+			// 如果skip为null，加锁
 			synchronized (pvs) {
+				// double check，防止多个线程执行了解析并赋值skip的操作
 				skip = this.skip;
 				if (skip != null) {
 					return skip;
 				}
+				// 如果持有的pd不为null
 				if (this.pd != null) {
+					// 判断pvs中是否包含有该属性名
 					if (pvs.contains(this.pd.getName())) {
 						// Explicit value provided as part of the bean definition.
+						// 如果已经包含了，那么将skip属性置为true，因为该属性会通过pvs进行设置，返回true
 						this.skip = true;
 						return true;
 					}
+					// 如果pvs中不包含该属性名，且pvs是MutablePropertyValues类型的
 					else if (pvs instanceof MutablePropertyValues) {
+						// 调用registerProcessedProperty方法，将属性名添加进其processedProperties集合中，表示已经处理过该属性名
 						((MutablePropertyValues) pvs).registerProcessedProperty(this.pd.getName());
 					}
 				}
+				// 将skip属性设置为false，并返回false
 				this.skip = false;
 				return false;
 			}

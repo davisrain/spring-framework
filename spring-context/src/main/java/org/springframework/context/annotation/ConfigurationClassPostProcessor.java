@@ -527,6 +527,8 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		public PropertyValues postProcessProperties(@Nullable PropertyValues pvs, Object bean, String beanName) {
 			// Inject the BeanFactory before AutowiredAnnotationBeanPostProcessor's
 			// postProcessProperties method attempts to autowire other configuration beans.
+			// 如果bean是被增强过的配置类，即实现了EnhancedConfiguration接口，那么调用其setBeanFactory方法将beanFactory设置进bean中。
+			// 确保在AutowiredAnnotationBeanPostProcessor的postProcessProperties执行前，对应的bean中是存在beanFactory的
 			if (bean instanceof EnhancedConfiguration) {
 				((EnhancedConfiguration) bean).setBeanFactory(this.beanFactory);
 			}

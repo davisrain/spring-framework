@@ -439,8 +439,10 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 	@Override
 	public PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName) {
+		// 根据beanName从缓存中获取postProcessMergedBeanDefinition方法构建的InjectionMetadata
 		InjectionMetadata metadata = findAutowiringMetadata(beanName, bean.getClass(), pvs);
 		try {
+			// 调用medata的inject方法
 			metadata.inject(bean, beanName, pvs);
 		}
 		catch (BeanCreationException ex) {
@@ -674,11 +676,14 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	 */
 	@Nullable
 	private Object resolvedCachedArgument(@Nullable String beanName, @Nullable Object cachedArgument) {
+		// 如果缓存的参数是DependencyDescriptor类型的
 		if (cachedArgument instanceof DependencyDescriptor) {
 			DependencyDescriptor descriptor = (DependencyDescriptor) cachedArgument;
 			Assert.state(this.beanFactory != null, "No BeanFactory available");
+			// 调用beanFactory的resolveDependency方法进行解析
 			return this.beanFactory.resolveDependency(descriptor, beanName, null, null);
 		}
+		// 否则，直接返回缓存的参数
 		else {
 			return cachedArgument;
 		}
@@ -706,19 +711,26 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 		protected void inject(Object bean, @Nullable String beanName, @Nullable PropertyValues pvs) throws Throwable {
 			Field field = (Field) this.member;
 			Object value;
+			// 如果cached属性为true的话
 			if (this.cached) {
 				try {
+					// 尝试获取缓存过的值
 					value = resolvedCachedArgument(beanName, this.cachedFieldValue);
 				}
 				catch (NoSuchBeanDefinitionException ex) {
 					// Unexpected removal of target bean for cached argument -> re-resolve
+					// 如果获取失败了，调用resolveFieldValue方法进行解析字段的值
 					value = resolveFieldValue(field, bean, beanName);
 				}
 			}
+			// 如果cached为false
 			else {
+				// 解析字段的值
 				value = resolveFieldValue(field, bean, beanName);
 			}
+			// 如果获取到的value不为null的话
 			if (value != null) {
+				// 设置进bean对象的field中
 				ReflectionUtils.makeAccessible(field);
 				field.set(bean, value);
 			}
@@ -726,34 +738,48 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 		@Nullable
 		private Object resolveFieldValue(Field field, Object bean, @Nullable String beanName) {
+			// 通过field创建一个DependencyDescriptor
 			DependencyDescriptor desc = new DependencyDescriptor(field, this.required);
+			// 设置desc的containingClass为bean对应的class对象
 			desc.setContainingClass(bean.getClass());
 			Set<String> autowiredBeanNames = new LinkedHashSet<>(1);
 			Assert.state(beanFactory != null, "No BeanFactory available");
+			// 获取beanFactory的typeConverter
 			TypeConverter typeConverter = beanFactory.getTypeConverter();
 			Object value;
 			try {
+				// 调用beanFactory的resolveDependency方法获取对应的bean
 				value = beanFactory.resolveDependency(desc, beanName, autowiredBeanNames, typeConverter);
 			}
 			catch (BeansException ex) {
 				throw new UnsatisfiedDependencyException(null, beanName, new InjectionPoint(field), ex);
 			}
 			synchronized (this) {
+				// 如果自身的cached属性为false
 				if (!this.cached) {
 					Object cachedFieldValue = null;
+					// value不为null 或者 required是true的
 					if (value != null || this.required) {
+						// 将cachedFieldValue设置为DependencyDescriptor
 						cachedFieldValue = desc;
+						// 将beanName和autowiredBeanNames之间的依赖关系注册进容器
 						registerDependentBeans(beanName, autowiredBeanNames);
+						// 如果自动注入的beanName只有一个
 						if (autowiredBeanNames.size() == 1) {
 							String autowiredBeanName = autowiredBeanNames.iterator().next();
+							// 且beanFactory中包含该beanName 且 bean的类型和字段的类型匹配
 							if (beanFactory.containsBean(autowiredBeanName) &&
 									beanFactory.isTypeMatch(autowiredBeanName, field.getType())) {
+								// 创建一个ShortcutDependencyDescriptor的装饰对象赋值给cachedFieldValue，
+								// 里面持有了对应的beanName和beanType，用作解析依赖的快捷方式
 								cachedFieldValue = new ShortcutDependencyDescriptor(
 										desc, autowiredBeanName, field.getType());
 							}
 						}
 					}
+					// 将cachedFieldValue赋值给自身的cachedFieldValue属性
 					this.cachedFieldValue = cachedFieldValue;
+					// 并且将cached属性置为true，表示已经缓存过结果了
 					this.cached = true;
 				}
 			}
@@ -781,25 +807,34 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 		@Override
 		protected void inject(Object bean, @Nullable String beanName, @Nullable PropertyValues pvs) throws Throwable {
+			// 检查属性是否需要被跳过，如果skip没有被解析过，那么解析之后设置skip属性的值。
+			// 如果需要被跳过，直接返回，该属性会在PropertyValues被解析的时候注入
 			if (checkPropertySkipping(pvs)) {
 				return;
 			}
 			Method method = (Method) this.member;
 			Object[] arguments;
+			// 如果cached为true，表示已经被缓存过
 			if (this.cached) {
 				try {
+					// 解析缓存过的参数
 					arguments = resolveCachedArguments(beanName);
 				}
 				catch (NoSuchBeanDefinitionException ex) {
 					// Unexpected removal of target bean for cached argument -> re-resolve
+					// 如果出现异常，回调到解析方法参数的方法
 					arguments = resolveMethodArguments(method, bean, beanName);
 				}
 			}
+			// 如果没有被缓存过
 			else {
+				// 调用resolveMethodArguments方法对方法参数进行解析
 				arguments = resolveMethodArguments(method, bean, beanName);
 			}
+			// 如果参数不为null
 			if (arguments != null) {
 				try {
+					// 调用方法，将值设置进属性中
 					ReflectionUtils.makeAccessible(method);
 					method.invoke(bean, arguments);
 				}
@@ -812,35 +847,52 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 		@Nullable
 		private Object[] resolveCachedArguments(@Nullable String beanName) {
 			Object[] cachedMethodArguments = this.cachedMethodArguments;
+			// 如果缓存的方法参数为null，直接返回null
 			if (cachedMethodArguments == null) {
 				return null;
 			}
 			Object[] arguments = new Object[cachedMethodArguments.length];
+			// 遍历缓存的参数数组
 			for (int i = 0; i < arguments.length; i++) {
+				// 依次解析每个缓存的参数
 				arguments[i] = resolvedCachedArgument(beanName, cachedMethodArguments[i]);
 			}
+			// 返回解析后的参数数组
 			return arguments;
 		}
 
 		@Nullable
 		private Object[] resolveMethodArguments(Method method, Object bean, @Nullable String beanName) {
+			// 获取方法需要的参数个数
 			int argumentCount = method.getParameterCount();
+			// 根据参数个数创建一个对应长度的参数数组
 			Object[] arguments = new Object[argumentCount];
+			// 根据参数个数创建对应长度的DependencyDescriptor类型的数组
 			DependencyDescriptor[] descriptors = new DependencyDescriptor[argumentCount];
 			Set<String> autowiredBeans = new LinkedHashSet<>(argumentCount);
 			Assert.state(beanFactory != null, "No BeanFactory available");
+			// 获取beanFactory的typeConverter
 			TypeConverter typeConverter = beanFactory.getTypeConverter();
+			// 遍历参数数组
 			for (int i = 0; i < arguments.length; i++) {
+				// 根据参数下标创建对应的MethodParameter
 				MethodParameter methodParam = new MethodParameter(method, i);
+				// 根据MethodParameter和required创建一个DependencyDescriptor
 				DependencyDescriptor currDesc = new DependencyDescriptor(methodParam, this.required);
+				// 设置currDesc的containingClass为bean的class对象
 				currDesc.setContainingClass(bean.getClass());
+				// 将currDesc设置进DependencyDescriptor类型的数组的对应下标中
 				descriptors[i] = currDesc;
 				try {
+					// 调用beanFactory的resolveDependency方法解析依赖获取对应的bean
 					Object arg = beanFactory.resolveDependency(currDesc, beanName, autowiredBeans, typeConverter);
+					// 如果获取到的参数为null 并且 required是false
 					if (arg == null && !this.required) {
+						// 那么将参数数组置为null，并且跳出循环
 						arguments = null;
 						break;
 					}
+					// 否则将参数设置进参数数组的对应下标中
 					arguments[i] = arg;
 				}
 				catch (BeansException ex) {
@@ -848,30 +900,45 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 				}
 			}
 			synchronized (this) {
+				// 如果cached属性为false
 				if (!this.cached) {
+					// 并且参数数组不为null，那么将解析结果缓存下来
 					if (arguments != null) {
+						// 复制DependencyDescriptor数组
 						DependencyDescriptor[] cachedMethodArguments = Arrays.copyOf(descriptors, arguments.length);
+						// 将beanName和autowiredBeans之间的依赖关系注册进容器
 						registerDependentBeans(beanName, autowiredBeans);
+						// 如果依赖的bean的个数 等于 参数的个数
 						if (autowiredBeans.size() == argumentCount) {
 							Iterator<String> it = autowiredBeans.iterator();
 							Class<?>[] paramTypes = method.getParameterTypes();
 							for (int i = 0; i < paramTypes.length; i++) {
+								// 获取每个依赖的beanName
 								String autowiredBeanName = it.next();
+								// 如果容器中包含这个beanName 并且 该beanName对应的bean和对应下标的参数类型匹配
 								if (beanFactory.containsBean(autowiredBeanName) &&
 										beanFactory.isTypeMatch(autowiredBeanName, paramTypes[i])) {
+									// 将对应下标的DependencyDescriptor装饰为ShortcutDependencyDescriptor，
+									// 让其内部持有beanName和beanType，使得其在解析的时候可以使用快捷方法，直接根据beanName从beanFactory中
+									// 获取bean
 									cachedMethodArguments[i] = new ShortcutDependencyDescriptor(
 											descriptors[i], autowiredBeanName, paramTypes[i]);
 								}
 							}
 						}
+						// 将cachedMethodArguments复制给自身属性
 						this.cachedMethodArguments = cachedMethodArguments;
 					}
+					// 如果参数数组为null的话
 					else {
+						// 将cachedMethodArguments属性置为null
 						this.cachedMethodArguments = null;
 					}
+					// 将cached属性置为true，表示已经缓存过
 					this.cached = true;
 				}
 			}
+			// 返回方法参数数组
 			return arguments;
 		}
 	}

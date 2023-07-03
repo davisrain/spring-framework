@@ -313,27 +313,37 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	@Nullable
 	public PropertyEditor findCustomEditor(@Nullable Class<?> requiredType, @Nullable String propertyPath) {
 		Class<?> requiredTypeToUse = requiredType;
+		// 如果属性路径不为null
 		if (propertyPath != null) {
+			// 并且customEditorsForPath也不为null
 			if (this.customEditorsForPath != null) {
 				// Check property-specific editor first.
+				// 尝试将属性路径作为明确的属性名 以及 根据要求的类型 获取自定义的PropertyEditor
 				PropertyEditor editor = getCustomEditor(propertyPath, requiredType);
+				// 如果没有获取到
 				if (editor == null) {
+					// 将属性路径按照分隔符剥离成路径数组
 					List<String> strippedPaths = new ArrayList<>();
 					addStrippedPropertyPaths(strippedPaths, "", propertyPath);
+					// 然后遍历路径数组，直到找到一个自定义的PropertyEditor位置
 					for (Iterator<String> it = strippedPaths.iterator(); it.hasNext() && editor == null;) {
 						String strippedPath = it.next();
 						editor = getCustomEditor(strippedPath, requiredType);
 					}
 				}
+				// 如果上述步骤找到了对应的PropertyEditor，直接返回
 				if (editor != null) {
 					return editor;
 				}
 			}
+			// 如果要求的类型为null
 			if (requiredType == null) {
+				// 根据属性路径获取对应的属性类型，赋值给要使用的需求类型
 				requiredTypeToUse = getPropertyType(propertyPath);
 			}
 		}
 		// No property-specific editor -> check type-specific editor.
+		// 没有属性名指定的editor，尝试通过属性类型去获取对应的editor
 		return getCustomEditor(requiredTypeToUse);
 	}
 
@@ -383,8 +393,10 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	 */
 	@Nullable
 	private PropertyEditor getCustomEditor(String propertyName, @Nullable Class<?> requiredType) {
+		// 从customEditorsForPath这个map中根据属性名获取对应的CustomEditorHolder
 		CustomEditorHolder holder =
 				(this.customEditorsForPath != null ? this.customEditorsForPath.get(propertyName) : null);
+		// 如果holder不为null的话，再根据需求的属性类型获取对应的PropertyEditor
 		return (holder != null ? holder.getPropertyEditor(requiredType) : null);
 	}
 
@@ -460,24 +472,34 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	 * will be copied. If this is null, all editors will be copied.
 	 */
 	protected void copyCustomEditorsTo(PropertyEditorRegistry target, @Nullable String nestedProperty) {
+		// 如果nestedProperty不为null的话，解析出实际的属性名，即将nestedProperty中[]包含的内容都去除掉
 		String actualPropertyName =
 				(nestedProperty != null ? PropertyAccessorUtils.getPropertyName(nestedProperty) : null);
+		// 遍历自身自定义的propertyEditors，将其都注册到target中
 		if (this.customEditors != null) {
 			this.customEditors.forEach(target::registerCustomEditor);
 		}
+		// 如果customEditorsForPath不为null的话
 		if (this.customEditorsForPath != null) {
+			// 遍历customEditorsForPath
 			this.customEditorsForPath.forEach((editorPath, editorHolder) -> {
+				// 如果nestedProperty不为null
 				if (nestedProperty != null) {
+					// 查看编辑器路径中是否存在分隔符
 					int pos = PropertyAccessorUtils.getFirstNestedPropertySeparatorIndex(editorPath);
+					// 如果存在
 					if (pos != -1) {
+						// 将其分为嵌套属性名 和 嵌套路径
 						String editorNestedProperty = editorPath.substring(0, pos);
 						String editorNestedPath = editorPath.substring(pos + 1);
+						// 如果嵌套属性等于nestedProperty 或者 嵌套属性等于actualPropertyName的话，将对应的editor注册进target中
 						if (editorNestedProperty.equals(nestedProperty) || editorNestedProperty.equals(actualPropertyName)) {
 							target.registerCustomEditor(
 									editorHolder.getRegisteredType(), editorNestedPath, editorHolder.getPropertyEditor());
 						}
 					}
 				}
+				// 如果nestedProperty为null，直接将editor注册进target中
 				else {
 					target.registerCustomEditor(
 							editorHolder.getRegisteredType(), editorPath, editorHolder.getPropertyEditor());
@@ -495,12 +517,19 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	 * @param propertyPath the property path to check for keys/indexes to strip
 	 */
 	private void addStrippedPropertyPaths(List<String> strippedPaths, String nestedPath, String propertyPath) {
+		// 获取属性路径中[字符的下标
 		int startIndex = propertyPath.indexOf(PropertyAccessor.PROPERTY_KEY_PREFIX_CHAR);
+		// 如果存在[字符
 		if (startIndex != -1) {
+			// 获取属性路径中]字符的下标
 			int endIndex = propertyPath.indexOf(PropertyAccessor.PROPERTY_KEY_SUFFIX_CHAR);
+			// 如果也存在]字符
 			if (endIndex != -1) {
+				// 获取[字符前的内容作为前缀
 				String prefix = propertyPath.substring(0, startIndex);
+				// 获取[]包含的内容作为key
 				String key = propertyPath.substring(startIndex, endIndex + 1);
+				// 获取]字符后的内容作为后缀
 				String suffix = propertyPath.substring(endIndex + 1);
 				// Strip the first key.
 				strippedPaths.add(nestedPath + prefix + suffix);
@@ -546,6 +575,10 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 			// then return PropertyEditor if not registered for Collection or array type.
 			// (If not registered for Collection or array, it is assumed to be intended
 			// for elements.)
+			// 1.如果注册的类型是null 或者
+			// 2.需求的类型不为null 并且 (需求的类型是可以赋值给注册的类型的 或者 注册的类型是可以赋值给需求的类型的) 或者
+			// 3.需求的类型为null 并且 (注册的类型不是Collection类型 并且 注册的类型不是数组类型)
+			// 以上三种情况都可返回持有的PropertyEditor
 			if (this.registeredType == null ||
 					(requiredType != null &&
 					(ClassUtils.isAssignable(this.registeredType, requiredType) ||
@@ -554,6 +587,7 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 					(!Collection.class.isAssignableFrom(this.registeredType) && !this.registeredType.isArray()))) {
 				return this.propertyEditor;
 			}
+			// 否则返回null
 			else {
 				return null;
 			}

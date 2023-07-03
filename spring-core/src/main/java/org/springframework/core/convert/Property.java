@@ -163,21 +163,31 @@ public final class Property {
 	}
 
 	private MethodParameter resolveMethodParameter() {
+		// 根据读方法获取到返回类型，如果读方法为null，返回null
 		MethodParameter read = resolveReadMethodParameter();
+		// 根据写方法获取到第一个参数的类型，如果写方法为null，返回null
 		MethodParameter write = resolveWriteMethodParameter();
+		// 如果写方法为null
 		if (write == null) {
+			// 并且读方法也为null，报错
 			if (read == null) {
 				throw new IllegalStateException("Property is neither readable nor writeable");
 			}
+			// 如果读方法不为null，返回读方法的返回类型
 			return read;
 		}
+		// 如果写方法和读方法都不为null
 		if (read != null) {
+			// 查看MethodParameter对应的参数的实际类型
 			Class<?> readType = read.getParameterType();
 			Class<?> writeType = write.getParameterType();
+			// 如果写方法参数类型和读方法的返回类型不一致 且 写方法的参数类型是读方法的父类
 			if (!writeType.equals(readType) && writeType.isAssignableFrom(readType)) {
+				// 那么返回更精确的类型，即读方法的返回类型
 				return read;
 			}
 		}
+		// 否则返回写方法的参数类型
 		return write;
 	}
 

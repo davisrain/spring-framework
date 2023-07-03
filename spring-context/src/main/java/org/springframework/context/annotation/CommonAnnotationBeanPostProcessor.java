@@ -319,8 +319,10 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 
 	@Override
 	public PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName) {
+		// 获取在postProcessMergeBeanDefinition方法中解析出的InjectionMetadata
 		InjectionMetadata metadata = findResourceMetadata(beanName, bean.getClass(), pvs);
 		try {
+			// 调用metadata的inject方法进行注入操作
 			metadata.inject(bean, beanName, pvs);
 		}
 		catch (Throwable ex) {
@@ -581,16 +583,20 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 	protected Object getResource(LookupElement element, @Nullable String requestingBeanName)
 			throws NoSuchBeanDefinitionException {
 
+		// 如果element的mappedName不为空字符串，根据mappedName和lookupType尝试从jndiFactory中查找并返回
 		if (StringUtils.hasLength(element.mappedName)) {
 			return this.jndiFactory.getBean(element.mappedName, element.lookupType);
 		}
+		// 如果alwaysUseJndiLookup参数为true，继续根据name和lookupType从jndiFactory中查找
 		if (this.alwaysUseJndiLookup) {
 			return this.jndiFactory.getBean(element.name, element.lookupType);
 		}
+		// 如果resourceFactory为null的话，报错，默认情况下resourceFactory都等于beanFactory，在setBeanFactory方法中会设置
 		if (this.resourceFactory == null) {
 			throw new NoSuchBeanDefinitionException(element.lookupType,
 					"No resource factory configured - specify the 'resourceFactory' property");
 		}
+		// 调用autowireResource方法尝试从beanFactory中获取bean
 		return autowireResource(this.resourceFactory, element, requestingBeanName);
 	}
 
@@ -610,35 +616,47 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 		Set<String> autowiredBeanNames;
 		String name = element.name;
 
+		// 如果factory是AutowireCapableBeanFactory类型的
 		if (factory instanceof AutowireCapableBeanFactory) {
 			AutowireCapableBeanFactory beanFactory = (AutowireCapableBeanFactory) factory;
+			// 调用element的getDependencyDescriptor方法，根据持有的member初始化一个LookupDependencyDescriptor
 			DependencyDescriptor descriptor = element.getDependencyDescriptor();
+			// 如果fallbackToDefaultTypeMatch为true，并且element是使用的默认名称，即通过字段或方法名获取的名称 并且 容器中不存在对应名称的bean。
+			// 那么失败回调为用类型去匹配
 			if (this.fallbackToDefaultTypeMatch && element.isDefaultName && !factory.containsBean(name)) {
 				autowiredBeanNames = new LinkedHashSet<>();
+				// 使用beanFactory根据DependencyDescriptor去解析对应的bean
 				resource = beanFactory.resolveDependency(descriptor, requestingBeanName, autowiredBeanNames, null);
+				// 如果最终仍然没有找到对应的bean，报错
 				if (resource == null) {
 					throw new NoSuchBeanDefinitionException(element.getLookupType(), "No resolvable resource object");
 				}
 			}
+			// 否则的话，通过name去解析对应的bean
 			else {
 				resource = beanFactory.resolveBeanByName(name, descriptor);
 				autowiredBeanNames = Collections.singleton(name);
 			}
 		}
+		// 如果factory不是AutowireCapableBeanFactory类型的
 		else {
+			// 直接通过name去获取对应类型的bean
 			resource = factory.getBean(name, element.lookupType);
 			autowiredBeanNames = Collections.singleton(name);
 		}
 
+		// 如果factory是ConfigurableBeanFactory类型的
 		if (factory instanceof ConfigurableBeanFactory) {
 			ConfigurableBeanFactory beanFactory = (ConfigurableBeanFactory) factory;
 			for (String autowiredBeanName : autowiredBeanNames) {
+				// 将autowiredBeanNames和beanName之间的依赖关系注册进容器中
 				if (requestingBeanName != null && beanFactory.containsBean(autowiredBeanName)) {
 					beanFactory.registerDependentBean(autowiredBeanName, requestingBeanName);
 				}
 			}
 		}
 
+		// 返回解析出的resource
 		return resource;
 	}
 
@@ -762,6 +780,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 
 		@Override
 		protected Object getResourceToInject(Object target, @Nullable String requestingBeanName) {
+			// 如果lazyLookup为true，创建一个LazyResource的代理，否则，调用getResource获取到资源并返回
 			return (this.lazyLookup ? buildLazyResourceProxy(this, requestingBeanName) :
 					getResource(this, requestingBeanName));
 		}

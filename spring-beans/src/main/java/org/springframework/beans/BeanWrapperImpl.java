@@ -142,9 +142,12 @@ public class BeanWrapperImpl extends AbstractNestablePropertyAccessor implements
 	 * @see #setWrappedInstance(Object)
 	 */
 	public void setBeanInstance(Object object) {
+		// 设置wrappedObject rootObject
 		this.wrappedObject = object;
 		this.rootObject = object;
+		// typeConvertDelegate也使用wrappedObject重新生成并赋值
 		this.typeConverterDelegate = new TypeConverterDelegate(this, this.wrappedObject);
+		// 如果CachedIntrospectionResults的beanClass改变了，将其置为null
 		setIntrospectionClass(object.getClass());
 	}
 
@@ -207,15 +210,21 @@ public class BeanWrapperImpl extends AbstractNestablePropertyAccessor implements
 	@Nullable
 	public Object convertForProperty(@Nullable Object value, String propertyName) throws TypeMismatchException {
 		CachedIntrospectionResults cachedIntrospectionResults = getCachedIntrospectionResults();
+		// 获取属性名对应的自身属性的PropertyDescriptor
 		PropertyDescriptor pd = cachedIntrospectionResults.getPropertyDescriptor(propertyName);
+		// 如果pd为null，报错
 		if (pd == null) {
 			throw new InvalidPropertyException(getRootClass(), getNestedPath() + propertyName,
 					"No property '" + propertyName + "' found");
 		}
+		// 根据pd获取到TypeDescriptor
 		TypeDescriptor td = cachedIntrospectionResults.getTypeDescriptor(pd);
+		// 如果CachedIntrospectionResults中还没有缓存该pd对应的TypeDescriptor
 		if (td == null) {
+			// 那么根据pd生成一个Property对象，再根据Property对象生成一个TypeDescriptor
 			td = cachedIntrospectionResults.addTypeDescriptor(pd, new TypeDescriptor(property(pd)));
 		}
+		// 调用convertForProperty的重载方法进行转换
 		return convertForProperty(propertyName, null, value, td);
 	}
 
@@ -286,12 +295,14 @@ public class BeanWrapperImpl extends AbstractNestablePropertyAccessor implements
 
 		@Override
 		public TypeDescriptor toTypeDescriptor() {
+			// 根据持有的pd生成一个Property对象，然后通过property对象创建一个TypeDescriptor
 			return new TypeDescriptor(property(this.pd));
 		}
 
 		@Override
 		@Nullable
 		public TypeDescriptor nested(int level) {
+			// 根据持有的pd生成一个Property对象，然后调用TypeDescriptor的nested方法根据嵌套层级 创建一个TypeDescriptor
 			return TypeDescriptor.nested(property(this.pd), level);
 		}
 

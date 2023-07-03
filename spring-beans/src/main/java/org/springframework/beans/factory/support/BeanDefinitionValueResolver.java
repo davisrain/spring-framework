@@ -145,10 +145,13 @@ class BeanDefinitionValueResolver {
 			// 解析内部bean，创建一个实际的bean对象返回
 			return resolveInnerBean(argName, innerBeanName, bd);
 		}
+		// 如果value是DependencyDescriptor类型的
 		else if (value instanceof DependencyDescriptor) {
 			Set<String> autowiredBeanNames = new LinkedHashSet<>(4);
+			// 调用beanFactory的resolveDependency方法进行解析依赖
 			Object result = this.beanFactory.resolveDependency(
 					(DependencyDescriptor) value, this.beanName, autowiredBeanNames, this.typeConverter);
+			// 并且将要注入的beanName 和 依赖它们的beanName的依赖关系注册进容器
 			for (String autowiredBeanName : autowiredBeanNames) {
 				if (this.beanFactory.containsBean(autowiredBeanName)) {
 					this.beanFactory.registerDependentBean(autowiredBeanName, this.beanName);
@@ -339,16 +342,18 @@ class BeanDefinitionValueResolver {
 			// 如果ref不是指向parentBeanFactory的
 			else {
 				String resolvedName;
-				// 如果beanType不为null
+				// 如果beanType不为null，这是根据类型去获取bean
 				if (beanType != null) {
-					//TODO 获取其解析后的beanName
+					//从beanFactory中根据beanType获取一个包含有beanName和实际bean的holder对象
 					NamedBeanHolder<?> namedBean = this.beanFactory.resolveNamedBean(beanType);
+					// 获取实际的bean对象
 					bean = namedBean.getBeanInstance();
+					// 获取beanName
 					resolvedName = namedBean.getBeanName();
 				}
-				// 如果beanType为null，根据beanName进行解析
+				// 如果beanType为null，根据beanName去获取bean
 				else {
-					// 得到解析后的name，根据解析后的name去容器中获取bean对象
+					// 使用BeanExpressionResolver解析beanName中的#{}占位符，得到解析后的name，根据解析后的name去容器中获取bean对象
 					resolvedName = String.valueOf(doEvaluate(ref.getBeanName()));
 					bean = this.beanFactory.getBean(resolvedName);
 				}

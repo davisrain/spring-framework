@@ -116,39 +116,56 @@ class TypeConverterDelegate {
 			@Nullable Class<T> requiredType, @Nullable TypeDescriptor typeDescriptor) throws IllegalArgumentException {
 
 		// Custom editor for this type?
+		// 首先尝试查找对应属性的PropertyEditor，尝试使用editor对属性进行转换
 		PropertyEditor editor = this.propertyEditorRegistry.findCustomEditor(requiredType, propertyName);
 
 		ConversionFailedException conversionAttemptEx = null;
 
 		// No custom editor but custom ConversionService specified?
+		// 获取持有的ConversionService
 		ConversionService conversionService = this.propertyEditorRegistry.getConversionService();
+		// 如果自定义的PropertyEditor为null 并且 conversionService不为null 并且 typeDescriptor不为null，
+		// 那么使用conversionService进行类型转换
 		if (editor == null && conversionService != null && newValue != null && typeDescriptor != null) {
+			// 根据要转换的value获取其TypeDescriptor
 			TypeDescriptor sourceTypeDesc = TypeDescriptor.forObject(newValue);
+			// 然后根据sourceTypeDesc和目标TypeDescriptor判断是否conversionService是否支持这两种类型的转换
 			if (conversionService.canConvert(sourceTypeDesc, typeDescriptor)) {
 				try {
+					// 如果支持，调用conversionService的convert方法进行类型转换，并且返回结果
 					return (T) conversionService.convert(newValue, sourceTypeDesc, typeDescriptor);
 				}
 				catch (ConversionFailedException ex) {
 					// fallback to default conversion logic below
+					// 如果conversionService转换失败了，先将异常持有，后续再进行处理
 					conversionAttemptEx = ex;
 				}
 			}
 		}
 
+		// 将newValue赋值给convertedValue
 		Object convertedValue = newValue;
 
 		// Value not of required type?
+		// 如果editor不为null  或者  requiredType不为null并且转换后value不是requiredType类型的
 		if (editor != null || (requiredType != null && !ClassUtils.isAssignableValue(requiredType, convertedValue))) {
+			// 如果typeDescriptor不为null 并且 requiredType不为null 并且 requiredType是集合类型 并且 convertedValue是字符串类型
 			if (typeDescriptor != null && requiredType != null && Collection.class.isAssignableFrom(requiredType) &&
 					convertedValue instanceof String) {
+				// 那么通过typeDescriptor获取元素类型的typeDescriptor
 				TypeDescriptor elementTypeDesc = typeDescriptor.getElementTypeDescriptor();
+				// 如果elementTypeDesc不为null的话
 				if (elementTypeDesc != null) {
+					// 获取元素类型
 					Class<?> elementType = elementTypeDesc.getType();
+					// 如果元素类型是Class.class 或者是 枚举类型
 					if (Class.class == elementType || Enum.class.isAssignableFrom(elementType)) {
+						// 将convertedValue按逗号分隔转换为String数组
 						convertedValue = StringUtils.commaDelimitedListToStringArray((String) convertedValue);
 					}
 				}
 			}
+			// 如果editor为null的话，尝试根据要求的类型查找默认的editor
 			if (editor == null) {
 				editor = findDefaultEditor(requiredType);
 			}

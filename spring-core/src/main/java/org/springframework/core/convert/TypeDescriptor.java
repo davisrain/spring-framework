@@ -703,19 +703,25 @@ public class TypeDescriptor implements Serializable {
 
 	@Nullable
 	private static TypeDescriptor nested(TypeDescriptor typeDescriptor, int nestingLevel) {
+		// 获取typeDescriptor的resolvableType
 		ResolvableType nested = typeDescriptor.resolvableType;
+		// 根据嵌套层级进行遍历
 		for (int i = 0; i < nestingLevel; i++) {
+			// 如果resolvable的type是Object.class的，不做任何处理
 			if (Object.class == nested.getType()) {
 				// Could be a collection type but we don't know about its element type,
 				// so let's just assume there is an element type of type Object...
 			}
+			// 否则获取其嵌套的类型
 			else {
 				nested = nested.getNested(2);
 			}
 		}
+		// 如果最后获取到的resolvableType是NONE，直接返回null
 		if (nested == ResolvableType.NONE) {
 			return null;
 		}
+		// 否则根据最后获取到的resolvableType创建一个TypeDescriptor返回
 		return getRelatedIfResolvable(typeDescriptor, nested);
 	}
 
