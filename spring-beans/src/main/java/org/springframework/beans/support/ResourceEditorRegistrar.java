@@ -76,6 +76,8 @@ public class ResourceEditorRegistrar implements PropertyEditorRegistrar {
 	 * @see org.springframework.context.ApplicationContext
 	 */
 	public ResourceEditorRegistrar(ResourceLoader resourceLoader, PropertyResolver propertyResolver) {
+		// 在AbstractApplicationContext的refresh阶段的prepareBeanFactory方法中初始化，
+		// 传入的resourceLoader是ApplicationContext，传入的PropertyResolver是Environment
 		this.resourceLoader = resourceLoader;
 		this.propertyResolver = propertyResolver;
 	}
@@ -99,6 +101,8 @@ public class ResourceEditorRegistrar implements PropertyEditorRegistrar {
 	 */
 	@Override
 	public void registerCustomEditors(PropertyEditorRegistry registry) {
+
+		// 根据自身持有的resourceLoader和propertyResolver构建一个ResourceEditor，用于String类型到Resource类型的转换
 		ResourceEditor baseEditor = new ResourceEditor(this.resourceLoader, this.propertyResolver);
 		doRegisterEditor(registry, Resource.class, baseEditor);
 		doRegisterEditor(registry, ContextResource.class, baseEditor);
@@ -125,9 +129,11 @@ public class ResourceEditorRegistrar implements PropertyEditorRegistrar {
 	 * otherwise register as a custom editor.
 	 */
 	private void doRegisterEditor(PropertyEditorRegistry registry, Class<?> requiredType, PropertyEditor editor) {
+		// 如果registry是PropertyEditorRegistrySupport类型的，将editor设置到overrideDefaultEditors中持有
 		if (registry instanceof PropertyEditorRegistrySupport) {
 			((PropertyEditorRegistrySupport) registry).overrideDefaultEditor(requiredType, editor);
 		}
+		// 否则注册到自定义的editors中持有
 		else {
 			registry.registerCustomEditor(requiredType, editor);
 		}

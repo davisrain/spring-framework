@@ -89,6 +89,7 @@ public abstract class AbstractPropertyAccessor extends TypeConverterSupport impl
 			throws BeansException {
 
 		List<PropertyAccessException> propertyAccessExceptions = null;
+		// 获取PropertyValue集合
 		List<PropertyValue> propertyValues = (pvs instanceof MutablePropertyValues ?
 				((MutablePropertyValues) pvs).getPropertyValueList() : Arrays.asList(pvs.getPropertyValues()));
 
@@ -96,11 +97,13 @@ public abstract class AbstractPropertyAccessor extends TypeConverterSupport impl
 			this.suppressNotWritablePropertyException = true;
 		}
 		try {
+			// 遍历PropertyValue集合
 			for (PropertyValue pv : propertyValues) {
 				// setPropertyValue may throw any BeansException, which won't be caught
 				// here, if there is a critical failure such as no matching field.
 				// We can attempt to deal only with less serious exceptions.
 				try {
+					// 调用setPropertyValue方法将pv设置进beanWrapper中
 					setPropertyValue(pv);
 				}
 				catch (NotWritablePropertyException ex) {
@@ -115,6 +118,7 @@ public abstract class AbstractPropertyAccessor extends TypeConverterSupport impl
 					}
 					// Otherwise, just ignore it and continue...
 				}
+				// 如果出现了PropertyAccessException类型的异常，收集到一个集合中
 				catch (PropertyAccessException ex) {
 					if (propertyAccessExceptions == null) {
 						propertyAccessExceptions = new ArrayList<>();
@@ -130,7 +134,9 @@ public abstract class AbstractPropertyAccessor extends TypeConverterSupport impl
 		}
 
 		// If we encountered individual exceptions, throw the composite exception.
+		// 如果异常集合不为空
 		if (propertyAccessExceptions != null) {
+			// 将集合转换为数组，然后封装为一个PropertyBatchUpdateException的异常抛出
 			PropertyAccessException[] paeArray = propertyAccessExceptions.toArray(new PropertyAccessException[0]);
 			throw new PropertyBatchUpdateException(paeArray);
 		}

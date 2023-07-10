@@ -510,10 +510,12 @@ public abstract class BeanUtils {
 	 */
 	@Nullable
 	public static PropertyEditor findEditorByConvention(@Nullable Class<?> targetType) {
+		// 如果targetType为null 或者 是数组 或者unknownEditorTypes中包含了targetType，直接返回null
 		if (targetType == null || targetType.isArray() || unknownEditorTypes.contains(targetType)) {
 			return null;
 		}
 
+		// 获取类加载器
 		ClassLoader cl = targetType.getClassLoader();
 		if (cl == null) {
 			try {
@@ -532,18 +534,23 @@ public abstract class BeanUtils {
 		}
 
 		String targetTypeName = targetType.getName();
+		// 在类名后面拼接Editor
 		String editorName = targetTypeName + "Editor";
 		try {
+			// 尝试加载Editor类
 			Class<?> editorClass = cl.loadClass(editorName);
 			if (editorClass != null) {
+				// 如果加载到了，但是没有实现PropretyEditor接口的话，打印日志
 				if (!PropertyEditor.class.isAssignableFrom(editorClass)) {
 					if (logger.isInfoEnabled()) {
 						logger.info("Editor class [" + editorName +
 								"] does not implement [java.beans.PropertyEditor] interface");
 					}
+					// 将targetType添加到unknownEditorTypes中，返回null
 					unknownEditorTypes.add(targetType);
 					return null;
 				}
+				// 如果实现了PropertyEditor接口，实例化对象并返回
 				return (PropertyEditor) instantiateClass(editorClass);
 			}
 			// Misbehaving ClassLoader returned null instead of ClassNotFoundException
@@ -556,6 +563,7 @@ public abstract class BeanUtils {
 			logger.trace("No property editor [" + editorName + "] found for type " +
 					targetTypeName + " according to 'Editor' suffix convention");
 		}
+		// 如果没有找到对应的类，将targetType添加到unknownEditorTypes中
 		unknownEditorTypes.add(targetType);
 		return null;
 	}

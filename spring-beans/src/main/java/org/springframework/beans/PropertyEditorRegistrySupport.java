@@ -179,24 +179,30 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	 */
 	@Nullable
 	public PropertyEditor getDefaultEditor(Class<?> requiredType) {
+		// 如果默认的editor启用标志是false，直接返回null
 		if (!this.defaultEditorsActive) {
 			return null;
 		}
+		// 如果overriddenDefaultEditors不为null
 		if (this.overriddenDefaultEditors != null) {
+			// 根据要求的类型获取对应的editor，如果不为null，直接返回
 			PropertyEditor editor = this.overriddenDefaultEditors.get(requiredType);
 			if (editor != null) {
 				return editor;
 			}
 		}
+		// 如果defaultEditors为null的话，创建默认的editors
 		if (this.defaultEditors == null) {
 			createDefaultEditors();
 		}
+		// 然后根据要求的类型从defaultEditors中获取对应的editor
 		return this.defaultEditors.get(requiredType);
 	}
 
 	/**
 	 * Actually register the default editors for this registry instance.
 	 */
+	// 创建默认的editor并存入到defaultEditors字段中
 	private void createDefaultEditors() {
 		this.defaultEditors = new HashMap<>(64);
 
@@ -410,32 +416,43 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	 */
 	@Nullable
 	private PropertyEditor getCustomEditor(@Nullable Class<?> requiredType) {
+		// 如果要求的类型为null 或者 customerEditors为null的话，直接返回null
 		if (requiredType == null || this.customEditors == null) {
 			return null;
 		}
 		// Check directly registered editor for type.
+		// 否则尝试从customEditors中获取对应类型的PropertyEditor
 		PropertyEditor editor = this.customEditors.get(requiredType);
+		// 如果editor不存在
 		if (editor == null) {
 			// Check cached editor for type, registered for superclass or interface.
+			// 如果customEditorCache不为null的话，尝试从缓存中根据类型获取
 			if (this.customEditorCache != null) {
 				editor = this.customEditorCache.get(requiredType);
 			}
+			// 如果editor仍为null的话
 			if (editor == null) {
 				// Find editor for superclass or interface.
+				// 遍历customEditors的key
 				for (Iterator<Class<?>> it = this.customEditors.keySet().iterator(); it.hasNext() && editor == null;) {
 					Class<?> key = it.next();
+					// 如果key是要求类型的父类或者接口
 					if (key.isAssignableFrom(requiredType)) {
+						// 那么获取key对应的editor
 						editor = this.customEditors.get(key);
 						// Cache editor for search type, to avoid the overhead
 						// of repeated assignable-from checks.
+						// 如果customEditor的缓存为null，初始化为一个HashMap
 						if (this.customEditorCache == null) {
 							this.customEditorCache = new HashMap<>();
 						}
+						// 将editor根据要求的类型放入缓存中
 						this.customEditorCache.put(requiredType, editor);
 					}
 				}
 			}
 		}
+		// 返回editor
 		return editor;
 	}
 
@@ -532,10 +549,13 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 				// 获取]字符后的内容作为后缀
 				String suffix = propertyPath.substring(endIndex + 1);
 				// Strip the first key.
+				// 将前后缀拼接再nestedPath后面添加进集合中，这样会忽略掉第一个[]的内容
 				strippedPaths.add(nestedPath + prefix + suffix);
 				// Search for further keys to strip, with the first key stripped.
+				// 将nestedPath+prefix作为新的nestedPath，递归调用本方法，这样会在忽略掉第一个[]的前提下，进行解析
 				addStrippedPropertyPaths(strippedPaths, nestedPath + prefix, suffix);
 				// Search for further keys to strip, with the first key not stripped.
+				// 将nestedPath+prefix+key作为新的nestedPath，递归调用本方法，这样会保留第一个[]的前提下，进行解析
 				addStrippedPropertyPaths(strippedPaths, nestedPath + prefix + key, suffix);
 			}
 		}
