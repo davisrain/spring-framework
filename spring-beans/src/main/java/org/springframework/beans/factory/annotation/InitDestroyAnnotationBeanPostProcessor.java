@@ -155,8 +155,10 @@ public class InitDestroyAnnotationBeanPostProcessor
 
 	@Override
 	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+		// 查找bean的类对象对应的LifecycleMetadata
 		LifecycleMetadata metadata = findLifecycleMetadata(bean.getClass());
 		try {
+			// 调用metadata的invokeInitMethods方法，调用bean的初始化方法对bean进行初始化，即标注了@PostConstruct注解的方法
 			metadata.invokeInitMethods(bean, beanName);
 		}
 		catch (InvocationTargetException ex) {
@@ -195,6 +197,7 @@ public class InitDestroyAnnotationBeanPostProcessor
 
 	@Override
 	public boolean requiresDestruction(Object bean) {
+		// 根据bean的类对象查找到LifecycleMetadata，判断其是否存在destroyMethod，即标注了@PreDestroy注解的方法
 		return findLifecycleMetadata(bean.getClass()).hasDestroyMethods();
 	}
 
@@ -358,14 +361,17 @@ public class InitDestroyAnnotationBeanPostProcessor
 		}
 
 		public void invokeInitMethods(Object target, String beanName) throws Throwable {
+			// 获取到需要遍历的初始化方法集合
 			Collection<LifecycleElement> checkedInitMethods = this.checkedInitMethods;
 			Collection<LifecycleElement> initMethodsToIterate =
 					(checkedInitMethods != null ? checkedInitMethods : this.initMethods);
 			if (!initMethodsToIterate.isEmpty()) {
+				// 遍历初始化方法集合
 				for (LifecycleElement element : initMethodsToIterate) {
 					if (logger.isTraceEnabled()) {
 						logger.trace("Invoking init method on bean '" + beanName + "': " + element.getMethod());
 					}
+					// 反射调用bean的初始化方法
 					element.invoke(target);
 				}
 			}

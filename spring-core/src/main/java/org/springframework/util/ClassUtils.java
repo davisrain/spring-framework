@@ -1317,23 +1317,33 @@ public abstract class ClassUtils {
 	 * @see #getMostSpecificMethod
 	 */
 	public static Method getInterfaceMethodIfPossible(Method method) {
+		// 如果方法不是public的 或者 方法的声明类是接口，直接返回方法
 		if (!Modifier.isPublic(method.getModifiers()) || method.getDeclaringClass().isInterface()) {
 			return method;
 		}
+		// 否则，尝试从缓存中查找method对应的接口方法，如果缓存不存在，执行lambda表达式中的逻辑，遍历实现的接口，查找到方法后存入缓存
 		return interfaceMethodCache.computeIfAbsent(method, key -> {
+			// 获取方法的声明类
 			Class<?> current = key.getDeclaringClass();
+			// 如果当前类不为null 并且 不是Object.class
 			while (current != null && current != Object.class) {
+				// 获取类实现的接口
 				Class<?>[] ifcs = current.getInterfaces();
+				// 遍历这些接口
 				for (Class<?> ifc : ifcs) {
 					try {
+						// 在接口中查找名称和参数类型相同的方法，如果找到就返回
 						return ifc.getMethod(key.getName(), key.getParameterTypes());
 					}
+					// 如果没找到，忽略异常
 					catch (NoSuchMethodException ex) {
 						// ignore
 					}
 				}
+				// 将当前类赋值为它的父类，继续循环查找
 				current = current.getSuperclass();
 			}
+			// 如果上述步骤都没有找到，直接返回key作为value
 			return key;
 		});
 	}

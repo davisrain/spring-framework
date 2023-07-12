@@ -120,23 +120,38 @@ public abstract class AopConfigUtils {
 
 		Assert.notNull(registry, "BeanDefinitionRegistry must not be null");
 
+		// 如果registry中存在了beanName为org.springframework.aop.config.internalAutoProxyCreator的beanDefinition
 		if (registry.containsBeanDefinition(AUTO_PROXY_CREATOR_BEAN_NAME)) {
+			// 根据beanName获取到对应的bd
 			BeanDefinition apcDefinition = registry.getBeanDefinition(AUTO_PROXY_CREATOR_BEAN_NAME);
+			// 判断bd的beanClassName是否和传入的类的权限名一致，如果不一致
 			if (!cls.getName().equals(apcDefinition.getBeanClassName())) {
+				// 查找到已经存在的bd的beanClass的优先级
 				int currentPriority = findPriorityForClass(apcDefinition.getBeanClassName());
+				// 获取传入的class对应的优先级
 				int requiredPriority = findPriorityForClass(cls);
+				// 如果当前bd的优先级 小于 传入的class的优先级
 				if (currentPriority < requiredPriority) {
+					// 将bd的beanClassName替换为传入的class的全限定名
 					apcDefinition.setBeanClassName(cls.getName());
 				}
 			}
+			// 然后直接返回null
 			return null;
 		}
 
+		// 如果registry中不存在对应beanName的bd
+		// 根据传入的class创建一个RootBeanDefinition
 		RootBeanDefinition beanDefinition = new RootBeanDefinition(cls);
+		// 将source设置进bd中
 		beanDefinition.setSource(source);
+		// 向bd的propertyValues添加order属性，值为最高的优先级
 		beanDefinition.getPropertyValues().add("order", Ordered.HIGHEST_PRECEDENCE);
+		// 设置bd的role为infrastructure的，表示是基建bd
 		beanDefinition.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
+		// 将bd根据beanName注册进registry中
 		registry.registerBeanDefinition(AUTO_PROXY_CREATOR_BEAN_NAME, beanDefinition);
+		// 返回bd
 		return beanDefinition;
 	}
 

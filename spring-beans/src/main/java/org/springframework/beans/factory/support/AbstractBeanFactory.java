@@ -255,12 +255,12 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		Object bean;
 
 		// Eagerly check singleton cache for manually registered singletons.
-		// 尝试从singleton缓存中根据beanName获取bean
+		// 尝试从三级缓存中根据beanName获取bean
 		Object sharedInstance = getSingleton(beanName);
 		// 如果获取到的bean不为null 并且 传入的参数args为null
 		if (sharedInstance != null && args == null) {
 			if (logger.isTraceEnabled()) {
-				// 如果当前bean正在创建中，打印对应的日志
+				// 如果当前bean正在创建中，打印对应的日志。说明获取到了提前暴露的未初始化完全的对象，循环依赖的时候会出现
 				if (isSingletonCurrentlyInCreation(beanName)) {
 					logger.trace("Returning eagerly cached instance of singleton bean '" + beanName +
 							"' that is not fully initialized yet - a consequence of a circular reference");
@@ -1881,10 +1881,15 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @return {@code true} if actually removed, {@code false} otherwise
 	 */
 	protected boolean removeSingletonIfCreatedForTypeCheckOnly(String beanName) {
+		// 如果alreadyCreated集合中不包含该beanName
 		if (!this.alreadyCreated.contains(beanName)) {
+			// 将其从单例缓存中删除，包裹FactoryBeanInstanceCache 和 FactoryBeanObjectCache 以及三级缓存
+			// 因为alreadyCreated没有包含这些bean的beanName，说明它们的创建只是为了类型检查
 			removeSingleton(beanName);
+			// 然后返回true
 			return true;
 		}
+		// 如果包含，返回false
 		else {
 			return false;
 		}
@@ -1986,7 +1991,15 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @see org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor
 	 */
 	protected boolean requiresDestruction(Object bean, RootBeanDefinition mbd) {
+		// 如果bean的类对象不是NullBean.class 并且
+		// (bean中含有destroy方法 或者 (beanFactory持有DestructionAwareBeanPostProcessor 并且 存在可以应用到bean上的DestructionAwareBeanPostProcessor)
+		// 满足上述条件返回true，表示bean需要被摧毁
 		return (bean.getClass() != NullBean.class &&
+				// 判断是否有destroyMethod的逻辑是：
+				// 如果bean是DisposableBean或者AutoCloseable接口的，直接返回true；
+				// 否则查看mbd中是否有已解析的destroyMethodName；
+				// 如果没有，查看mbd的destroyMethodName，看是否有值；
+				// 如果destroyMethodName的值为(inferred)，进行推断，查找是否有名为close或shutdown的方法
 				(DisposableBeanAdapter.hasDestroyMethod(bean, mbd) || (hasDestructionAwareBeanPostProcessors() &&
 						DisposableBeanAdapter.hasApplicableProcessors(bean, getBeanPostProcessors()))));
 	}
@@ -2005,20 +2018,26 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 */
 	protected void registerDisposableBeanIfNecessary(String beanName, Object bean, RootBeanDefinition mbd) {
 		AccessControlContext acc = (System.getSecurityManager() != null ? getAccessControlContext() : null);
+		// 如果mbd不是prototype类型的 并且 判断出bean需要destruction
 		if (!mbd.isPrototype() && requiresDestruction(bean, mbd)) {
+			// 如果mbd是singleton的
 			if (mbd.isSingleton()) {
 				// Register a DisposableBean implementation that performs all destruction
 				// work for the given bean: DestructionAwareBeanPostProcessors,
 				// DisposableBean interface, custom destroy method.
+				// 注册一个DisposableBean，其中实现了所有的destruction操作，
+				// 包括DestructionAwareBeanPostProcessors，DisposableBean接口以及自定义的destroyMethod
 				registerDisposableBean(beanName,
 						new DisposableBeanAdapter(bean, beanName, mbd, getBeanPostProcessors(), acc));
 			}
 			else {
 				// A bean with a custom scope...
+				// 如果bean是自定义范围的
 				Scope scope = this.scopes.get(mbd.getScope());
 				if (scope == null) {
 					throw new IllegalStateException("No Scope registered for scope name '" + mbd.getScope() + "'");
 				}
+				// 将其注册到范围的destructionCallback中
 				scope.registerDestructionCallback(beanName,
 						new DisposableBeanAdapter(bean, beanName, mbd, getBeanPostProcessors(), acc));
 			}

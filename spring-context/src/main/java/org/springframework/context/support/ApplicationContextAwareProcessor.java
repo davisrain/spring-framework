@@ -71,6 +71,7 @@ class ApplicationContextAwareProcessor implements BeanPostProcessor {
 	 */
 	public ApplicationContextAwareProcessor(ConfigurableApplicationContext applicationContext) {
 		this.applicationContext = applicationContext;
+		// 使用beanFactory创建一个EmbeddedValueResolver持有
 		this.embeddedValueResolver = new EmbeddedValueResolver(applicationContext.getBeanFactory());
 	}
 
@@ -97,6 +98,7 @@ class ApplicationContextAwareProcessor implements BeanPostProcessor {
 			}, acc);
 		}
 		else {
+			// 调用Aware接口的set方法
 			invokeAwareInterfaces(bean);
 		}
 

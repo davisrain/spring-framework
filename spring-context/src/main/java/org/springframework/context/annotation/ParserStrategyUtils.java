@@ -133,15 +133,19 @@ abstract class ParserStrategyUtils {
 
 		// 如果实例时Aware类型的，根据Aware的实际类型，调用不同的方法将元素设置进去
 		if (parserStrategyBean instanceof Aware) {
+			// 设置beanFactory持有的beanClassLoader
 			if (parserStrategyBean instanceof BeanClassLoaderAware && classLoader != null) {
 				((BeanClassLoaderAware) parserStrategyBean).setBeanClassLoader(classLoader);
 			}
+			// 设置BeanFactory
 			if (parserStrategyBean instanceof BeanFactoryAware && registry instanceof BeanFactory) {
 				((BeanFactoryAware) parserStrategyBean).setBeanFactory((BeanFactory) registry);
 			}
+			// 设置ApplicationContext持有的Environment
 			if (parserStrategyBean instanceof EnvironmentAware) {
 				((EnvironmentAware) parserStrategyBean).setEnvironment(environment);
 			}
+			// 设置ApplicationContext作为ResourceLoader
 			if (parserStrategyBean instanceof ResourceLoaderAware) {
 				((ResourceLoaderAware) parserStrategyBean).setResourceLoader(resourceLoader);
 			}

@@ -762,7 +762,7 @@ class ConfigurationClassParser {
 		if (this.importStack.contains(configClass)) {
 			// 获取类名，假设当前类为A
 			String configClassName = configClass.getMetadata().getClassName();
-			// 从导入栈中根据类A的名称获取到正在导入当前类A的类B的metadata
+			// 从导入栈中根据类A的名称获取到导入当前类A的类B的metadata
 			AnnotationMetadata importingClass = this.importStack.getImportingClassFor(configClassName);
 			// 如果类B的metadata不为null
 			while (importingClass != null) {
@@ -770,7 +770,7 @@ class ConfigurationClassParser {
 				if (configClassName.equals(importingClass.getClassName())) {
 					return true;
 				}
-				// 否则根据类B的名称，查找到正在导入B的类C的metadata，将其赋值给importingClass，继续循环比较
+				// 否则根据类B的名称，查找到导入B的类C的metadata，将其赋值给importingClass，继续循环比较
 				importingClass = this.importStack.getImportingClassFor(importingClass.getClassName());
 			}
 		}

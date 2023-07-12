@@ -66,9 +66,9 @@ class ComponentScanAnnotationParser {
 	public ComponentScanAnnotationParser(Environment environment, ResourceLoader resourceLoader,
 			BeanNameGenerator beanNameGenerator, BeanDefinitionRegistry registry) {
 
-		// ConfigurationClassPostProcessor中创建的StandardEnvironment
+		// ConfigurationClassPostProcessor中通过Aware注入的ApplicationContext的Environment
 		this.environment = environment;
-		// ConfigurationClassPostProcessor中创建的DefaultResourceLoader
+		// ConfigurationClassPostProcessor中通过Aware注入的ApplicationContext作为ResourceLoader
 		this.resourceLoader = resourceLoader;
 		// ConfigurationClassPostProcessor中创建的AnnotationBeanNameGenerator，获取@Component、@MangedBean、@Named注解对应的value属性，
 		// 如果value属性不为空的话，取其作为beanName，如果为空，使用对应类型的简单类名，首字母小写

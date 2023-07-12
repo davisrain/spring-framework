@@ -270,14 +270,18 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					}
 				}
 				catch (BeanCreationException ex) {
+					// 如果recordSuppressedExceptions为true的话
 					if (recordSuppressedExceptions) {
+						// 遍历suppressExceptions集合，将其添加到ex的relatedCause中
 						for (Exception suppressedException : this.suppressedExceptions) {
 							ex.addRelatedCause(suppressedException);
 						}
 					}
+					// 然后抛出异常
 					throw ex;
 				}
 				finally {
+					// 如果recordSuppressedExceptions为true，将suppressExceptions置为null
 					if (recordSuppressedExceptions) {
 						this.suppressedExceptions = null;
 					}
@@ -285,11 +289,13 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					// 那么将beanName从 正在创建的单例名单(singletonsCurrentlyInCreation) 删除，如果删除失败，报错
 					afterSingletonCreation(beanName);
 				}
-				// 如果newSingleton标志为true，将生成的singletonObject放入一级缓存中，并且将二三级缓存中的内容都删除
+				// 如果newSingleton标志为true，将生成的singletonObject放入一级缓存中，并且将二三级缓存中的内容都删除。
+				// 并且将beanName放入到registeredSingletons集合中
 				if (newSingleton) {
 					addSingleton(beanName, singletonObject);
 				}
 			}
+			// 返回创建出的singletonObject
 			return singletonObject;
 		}
 	}
@@ -610,7 +616,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 		synchronized (this.disposableBeans) {
 			disposableBean = (DisposableBean) this.disposableBeans.remove(beanName);
 		}
-		// 如果disposableBean不为null的话，说明删除成功，bean存在且实现了DisposableBean接口。
+		// 如果disposableBean不为null的话，说明bean存在destroyMethod需要调用
 		// 调用destroyBean方法摧毁bean
 		destroyBean(beanName, disposableBean);
 	}
@@ -624,22 +630,31 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	protected void destroyBean(String beanName, @Nullable DisposableBean bean) {
 		// Trigger destruction of dependent beans first...
 		Set<String> dependencies;
+		// 根据beanName删除dependentBeanMap中的数据，获取到dependencies，即依赖了当前bean的所有其他bean的beanNames
 		synchronized (this.dependentBeanMap) {
 			// Within full synchronization in order to guarantee a disconnected Set
 			dependencies = this.dependentBeanMap.remove(beanName);
 		}
+		// 如果存在依赖了当前bean的其他bean
 		if (dependencies != null) {
 			if (logger.isTraceEnabled()) {
 				logger.trace("Retrieved dependent beans for bean '" + beanName + "': " + dependencies);
 			}
+			// 遍历这些beanName
 			for (String dependentBeanName : dependencies) {
+				// 调用destroySingleton将这些bean也摧毁
 				destroySingleton(dependentBeanName);
 			}
 		}
 
 		// Actually destroy the bean now...
+		// 如果存在DisposableBean，即初始化之后注册进DefaultSingletonBeanRegistry的DisposableBeanAdapter
 		if (bean != null) {
 			try {
+				// 调用DisposableBeanAdapter的destroy方法，执行顺序如下
+				// 1.执行满足条件的DestructionAwareBeanPostProcessor的postProcessBeforeDestruction
+				// 2.如果bean实现了DisposableBean接口，执行bean的destroy方法
+				// 3.如果bean存在自定义的destroyMethod，执行它
 				bean.destroy();
 			}
 			catch (Throwable ex) {
@@ -651,17 +666,22 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 
 		// Trigger destruction of contained beans...
 		Set<String> containedBeans;
+		// 如果当前bean里面包含了内部bean，将其从containedBeanMap中删除
 		synchronized (this.containedBeanMap) {
 			// Within full synchronization in order to guarantee a disconnected Set
 			containedBeans = this.containedBeanMap.remove(beanName);
 		}
+		// 如果存在内部bean
 		if (containedBeans != null) {
+			// 遍历内部bean的beanName，调用destroySingleton方法
 			for (String containedBeanName : containedBeans) {
 				destroySingleton(containedBeanName);
 			}
 		}
 
 		// Remove destroyed bean from other beans' dependencies.
+		// 找到该bean在dependentBeanMap中存在于value的位置，将其删除，
+		// 因为这个bean被摧毁了，那么原本被它依赖的那些bean就不再被它依赖，所以需要更新dependentBeanMap中的信息
 		synchronized (this.dependentBeanMap) {
 			for (Iterator<Map.Entry<String, Set<String>>> it = this.dependentBeanMap.entrySet().iterator(); it.hasNext();) {
 				Map.Entry<String, Set<String>> entry = it.next();
@@ -674,6 +694,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 		}
 
 		// Remove destroyed bean's prepared dependency information.
+		// 删除dependenciesForBeanMap中beanName对应的元素，不再保留该bean依赖的bean的信息。
 		this.dependenciesForBeanMap.remove(beanName);
 	}
 
