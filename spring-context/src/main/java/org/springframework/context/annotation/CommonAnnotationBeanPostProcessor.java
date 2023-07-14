@@ -304,6 +304,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 
 	@Override
 	public void resetBeanDefinition(String beanName) {
+		// 清除beanName对应的InjectionMetadata缓存
 		this.injectionMetadataCache.remove(beanName);
 	}
 

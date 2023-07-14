@@ -80,18 +80,30 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 	 * @return the list of {@link org.springframework.aop.Advisor} beans
 	 * @see #isEligibleBean
 	 */
+	// 查找被标注了@Aspect注解的那些bean，并且返回一个集合的SpringAOP的advisors来表示它们。
+	// 为每一个AspectJ的advice方法创建一个Spring的Advisor对象
 	public List<Advisor> buildAspectJAdvisors() {
+		// 获取自身持有的aspectBeanNames集合
 		List<String> aspectNames = this.aspectBeanNames;
 
+		// 如果aspectNames为null
 		if (aspectNames == null) {
+			// 加锁去获取
 			synchronized (this) {
+				// double check，防止有多个线程都执行了获取操作
 				aspectNames = this.aspectBeanNames;
 				if (aspectNames == null) {
+					// 创建一个list用于存储Advisor对象
 					List<Advisor> advisors = new ArrayList<>();
+					// 将aspectNames初始化为一个list
 					aspectNames = new ArrayList<>();
+					// 获取beanFactory中的所有beanName
 					String[] beanNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(
 							this.beanFactory, Object.class, true, false);
+					// 遍历beanName数组
 					for (String beanName : beanNames) {
+						// 如果beanName对应的bean是不合格的bean，跳过，
+						// 这里的检查逻辑是根据AnnotationAwareAspectJAutoProxyCreator中的includePatterns来决定的
 						if (!isEligibleBean(beanName)) {
 							continue;
 						}
@@ -110,13 +122,11 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 								List<Advisor> classAdvisors = this.advisorFactory.getAdvisors(factory);
 								if (this.beanFactory.isSingleton(beanName)) {
 									this.advisorsCache.put(beanName, classAdvisors);
-								}
-								else {
+								} else {
 									this.aspectFactoryCache.put(beanName, factory);
 								}
 								advisors.addAll(classAdvisors);
-							}
-							else {
+							} else {
 								// Per target or per this.
 								if (this.beanFactory.isSingleton(beanName)) {
 									throw new IllegalArgumentException("Bean with name '" + beanName +

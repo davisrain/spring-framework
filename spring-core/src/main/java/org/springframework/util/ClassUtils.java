@@ -398,7 +398,7 @@ public abstract class ClassUtils {
 
 	// 如果加载clazz的类加载器是classLoader的父加载器的话，那么一定不会出现classLoader还存在，而clazz类已经被卸载的情况。
 	// 因为已知类卸载的条件，如果加载clazz的类加载器要被回收，说明没有被其他对象引用，但是classLoader存在，
-	// 那么classLoader一定还被某个类加载器的parent字段引用，因此前后矛盾，所以此时clazz用作被classLoader加载的类中的缓存是安全的。
+	// 那么clazz的类加载器一定还被classloader或者其父加载器的parent字段引用，因此前后矛盾，所以此时clazz用作被classLoader加载的类中的缓存是安全的。
 	public static boolean isCacheSafe(Class<?> clazz, @Nullable ClassLoader classLoader) {
 		Assert.notNull(clazz, "Class must not be null");
 		try {

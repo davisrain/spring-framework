@@ -1120,12 +1120,15 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @throws BeanDefinitionValidationException in case of validation failure
 	 */
 	public void validate() throws BeanDefinitionValidationException {
+		// 如果存在@Lookup注解的方法或者 MethodReplacer的方法 并且 factoryMethodName不为null的话，报错
 		if (hasMethodOverrides() && getFactoryMethodName() != null) {
 			throw new BeanDefinitionValidationException(
 					"Cannot combine factory method with container-generated method overrides: " +
 					"the factory method must create the concrete bean instance.");
 		}
+		// 如果bd存在beanClass
 		if (hasBeanClass()) {
+			// 调用prepareMethodOverrides
 			prepareMethodOverrides();
 		}
 	}
@@ -1137,6 +1140,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 */
 	public void prepareMethodOverrides() throws BeanDefinitionValidationException {
 		// Check that lookup methods exist and determine their overloaded status.
+		// 如果存在methodOverrides，检查其是否存在重载方法
 		if (hasMethodOverrides()) {
 			getMethodOverrides().getOverrides().forEach(this::prepareMethodOverride);
 		}

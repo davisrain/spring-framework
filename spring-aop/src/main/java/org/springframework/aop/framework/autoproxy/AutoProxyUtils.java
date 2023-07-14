@@ -125,11 +125,14 @@ public abstract class AutoProxyUtils {
 	 * @since 5.1
 	 * @see AutowireCapableBeanFactory#ORIGINAL_INSTANCE_SUFFIX
 	 */
+	// beanName为beanClass.getName() + .ORIGINAL的bean不进行任何代理
 	static boolean isOriginalInstance(String beanName, Class<?> beanClass) {
+		// 如果beanName为空字符串 或者 beanName的长度不等于beanClass的全限定名加上.ORIGINAL的长度，返回false
 		if (!StringUtils.hasLength(beanName) || beanName.length() !=
 				beanClass.getName().length() + AutowireCapableBeanFactory.ORIGINAL_INSTANCE_SUFFIX.length()) {
 			return false;
 		}
+		// 如果beanName以beanClass的全限定开始 并且 以.ORIGINAL结束，返回true
 		return (beanName.startsWith(beanClass.getName()) &&
 				beanName.endsWith(AutowireCapableBeanFactory.ORIGINAL_INSTANCE_SUFFIX));
 	}

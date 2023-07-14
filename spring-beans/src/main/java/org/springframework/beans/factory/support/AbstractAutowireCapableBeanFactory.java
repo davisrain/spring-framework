@@ -718,19 +718,27 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		Class<?> targetType = determineTargetType(beanName, mbd, typesToMatch);
 		// Apply SmartInstantiationAwareBeanPostProcessors to predict the
 		// eventual type after a before-instantiation shortcut.
+		// 如果targetType不为null 并且 mbd不是合成的 并且 beanFactory持有InstantiationAwareBeanPostProcessor的bbp
 		if (targetType != null && !mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
+			// 判断需要匹配的类型是否只有FactoryBean.class
 			boolean matchingOnlyFactoryBean = typesToMatch.length == 1 && typesToMatch[0] == FactoryBean.class;
+			// 遍历持有的bbp
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
+				// 如果bbp是SmartInstantiationAwareBeanPostProcessor类型的
 				if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
 					SmartInstantiationAwareBeanPostProcessor ibp = (SmartInstantiationAwareBeanPostProcessor) bp;
+					// 调用它的predictBeanType方法
 					Class<?> predicted = ibp.predictBeanType(targetType, beanName);
+					// 如果判断出的类型不为null 并且 不是只匹配FactoryBean 或者 判断出的类型就是FactoryBean的实现类
 					if (predicted != null &&
 							(!matchingOnlyFactoryBean || FactoryBean.class.isAssignableFrom(predicted))) {
+						// 返回predicted
 						return predicted;
 					}
 				}
 			}
 		}
+		// 否则返回targetType
 		return targetType;
 	}
 
@@ -942,21 +950,29 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	@Override
 	protected ResolvableType getTypeForFactoryBean(String beanName, RootBeanDefinition mbd, boolean allowInit) {
 		// Check if the bean definition itself has defined the type with an attribute
+		// 尝试从mbd设置的属性中获取属性名为factoryBeanObjectType的属性值
 		ResolvableType result = getTypeForFactoryBeanFromAttributes(mbd);
+		// 如果result不为ResolvableType.NONE的话，说明存在属性，直接返回result
 		if (result != ResolvableType.NONE) {
 			return result;
 		}
 
+		// 判断mbd是否存在beanClass，如果存在，解析为ResolvableType，否则，将ResolvableType.NONE赋值给beanType
 		ResolvableType beanType =
 				(mbd.hasBeanClass() ? ResolvableType.forClass(mbd.getBeanClass()) : ResolvableType.NONE);
 
 		// For instance supplied beans try the target type and bean class
+		// 如果mbd得到instanceSupplier不为null
 		if (mbd.getInstanceSupplier() != null) {
+			// 尝试解析mbd的targetType
 			result = getFactoryBeanGeneric(mbd.targetType);
+			// 如果result的resolved字段不为null，直接返回result
 			if (result.resolve() != null) {
 				return result;
 			}
+			// 否则，尝试解析mbd的beanType
 			result = getFactoryBeanGeneric(beanType);
+			// 如果result的resolved字段不为null，返回result
 			if (result.resolve() != null) {
 				return result;
 			}
@@ -1026,9 +1042,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	}
 
 	private ResolvableType getFactoryBeanGeneric(@Nullable ResolvableType type) {
+		// 如果type为null，直接返回ResolvableType.NONEW
 		if (type == null) {
 			return ResolvableType.NONE;
 		}
+		// 否则将其转换为FactoryBean，并且获取其generic
 		return type.as(FactoryBean.class).getGeneric();
 	}
 

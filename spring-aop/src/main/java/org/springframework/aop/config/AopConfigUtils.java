@@ -155,13 +155,16 @@ public abstract class AopConfigUtils {
 		return beanDefinition;
 	}
 
+	// 查找对应的class在APC_PRIORITY_LIST中的下标
 	private static int findPriorityForClass(Class<?> clazz) {
 		return APC_PRIORITY_LIST.indexOf(clazz);
 	}
 
 	private static int findPriorityForClass(@Nullable String className) {
+		// 遍历APC_PRIORITY_LIST集合
 		for (int i = 0; i < APC_PRIORITY_LIST.size(); i++) {
 			Class<?> clazz = APC_PRIORITY_LIST.get(i);
+			// 如果发现存在某个类的全限定名和传入的className相等，则返回下标i
 			if (clazz.getName().equals(className)) {
 				return i;
 			}

@@ -493,7 +493,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 	@Override
 	public String[] getBeanNamesForType(@Nullable Class<?> type, boolean includeNonSingletons, boolean allowEagerInit) {
+		// 如果configurationFrozen是false 或者 type为null 或者 allowEagerInit为false
 		if (!isConfigurationFrozen() || type == null || !allowEagerInit) {
+			// 调用doGetBeanNamesForType执行具体的获取逻辑
 			return doGetBeanNamesForType(ResolvableType.forRawClass(type), includeNonSingletons, allowEagerInit);
 		}
 		// 根据是否包含不是单例bean的参数选择不同的缓存
@@ -526,8 +528,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 					// 根据beanName获取到当前beanFactory中的mergedBeanDefinition，不会考虑父ioc容器
 					RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 					// Only check bean definition if it is complete.
-					// 如果mbd不是抽象的 并且 (allowEagerInit为true 或者 (mbd有beanClass 或者mbd不是lazyInit的 或者allowEagerClassLoading为true))
-					// 并且requiresEagerInitForType返回false
+					// 如果mbd不是抽象的 并且
+					// (allowEagerInit为true 或者 ((mbd有beanClass 或者 mbd不是lazyInit的 或者allowEagerClassLoading为true) 并且 requiresEagerInitForType返回false)
 					if (!mbd.isAbstract() && (allowEagerInit ||
 							(mbd.hasBeanClass() || !mbd.isLazyInit() || isAllowEagerClassLoading()) &&
 									!requiresEagerInitForType(mbd.getFactoryBeanName()))) {
@@ -538,13 +540,15 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 						boolean matchFound = false;
 						boolean allowFactoryBeanInit = (allowEagerInit || containsSingleton(beanName));
 						boolean isNonLazyDecorated = (dbd != null && !mbd.isLazyInit());
-						// 如果不是factoryBean
+						// 如果不是FactoryBean
 						if (!isFactoryBean) {
-							// 如果includeNonSingletons为true 或者
+							// 如果includeNonSingletons为true 或者 beanName对应的mbd是单例
 							if (includeNonSingletons || isSingleton(beanName, mbd, dbd)) {
+								// 调用isTypeMatch方法来判断beanName对应的beanType是否和type一致，或者是type的子类
 								matchFound = isTypeMatch(beanName, type, allowFactoryBeanInit);
 							}
 						}
+						// 如果对应的bean是FactoryBean
 						else {
 							if (includeNonSingletons || isNonLazyDecorated ||
 									(allowFactoryBeanInit && isSingleton(beanName, mbd, dbd))) {
@@ -610,6 +614,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	}
 
 	private boolean isSingleton(String beanName, RootBeanDefinition mbd, @Nullable BeanDefinitionHolder dbd) {
+		// dbd不为null，判断mbd是否是单例，否则调用isSingleton方法根据beanName进行判断
 		return (dbd != null ? mbd.isSingleton() : isSingleton(beanName));
 	}
 
@@ -969,7 +974,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		// 判断beanDefinition是否是AbstractBeanDefinition类型的
 		if (beanDefinition instanceof AbstractBeanDefinition) {
 			try {
-				// 调用validate方法进行激活
+				// 调用validate方法对bd进行验证，并且解析MethodOverride是否有对应的重载方法
 				((AbstractBeanDefinition) beanDefinition).validate();
 			}
 			catch (BeanDefinitionValidationException ex) {
@@ -1041,7 +1046,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		}
 
 		// 如果BeanDefinitionMap中存在对应beanName的beanDefinition
-		// 或者 singletonObjects(Ioc容器的第三级缓存，用于存放单例bean的map)存在beanName对应的bean
+		// 或者 singletonObjects(Ioc容器的一级缓存，用于存放单例bean的map)存在beanName对应的bean
 		if (existingDefinition != null || containsSingleton(beanName)) {
 			// 调用resetBeanDefinition方法重新设置BeanDefinition或Bean
 			resetBeanDefinition(beanName);
@@ -1105,13 +1110,17 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		destroySingleton(beanName);
 
 		// Notify all post-processors that the specified bean definition has been reset.
+		// 遍历持有的BeanPostProcessor
 		for (BeanPostProcessor processor : getBeanPostProcessors()) {
+			// 如果bbp是MergedBeanDefinitionPostProcessor类型的，调用其resetBeanDefinition方法。
+			// 其中CommonAnnotationBeanPostProcessor 和 AutowiredAnnotationBeanPostProcessor的具体逻辑都是清除beanName对应的InjectionMetadata的缓存
 			if (processor instanceof MergedBeanDefinitionPostProcessor) {
 				((MergedBeanDefinitionPostProcessor) processor).resetBeanDefinition(beanName);
 			}
 		}
 
 		// Reset all bean definitions that have the given bean as parent (recursively).
+		// reset所有将该beanName作为parent的bd
 		for (String bdName : this.beanDefinitionNames) {
 			if (!beanName.equals(bdName)) {
 				BeanDefinition bd = this.beanDefinitionMap.get(bdName);

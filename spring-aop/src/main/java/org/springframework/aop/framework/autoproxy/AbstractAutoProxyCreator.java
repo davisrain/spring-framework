@@ -221,10 +221,13 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	@Override
 	@Nullable
 	public Class<?> predictBeanType(Class<?> beanClass, String beanName) {
+		// 如果proxyTypes为空的，直接返回null，
 		if (this.proxyTypes.isEmpty()) {
 			return null;
 		}
+		// 否则根据beanClass或者beanName获取cacheKey
 		Object cacheKey = getCacheKey(beanClass, beanName);
+		// 从proxyTypes中根据cacheKey取值并返回
 		return this.proxyTypes.get(cacheKey);
 	}
 
@@ -236,8 +239,11 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 
 	@Override
 	public Object getEarlyBeanReference(Object bean, String beanName) {
+		// 根据beanClass或者beanName获取cacheKey
 		Object cacheKey = getCacheKey(bean.getClass(), beanName);
+		// 将bean根据cacheKey放入到earlyProxyReferences缓存中
 		this.earlyProxyReferences.put(cacheKey, bean);
+		// 然后根据bean是否需要进行包装，返回代理后的对象或者原始bean
 		return wrapIfNecessary(bean, beanName, cacheKey);
 	}
 
@@ -294,12 +300,30 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 */
 	@Override
 	public Object postProcessAfterInitialization(@Nullable Object bean, String beanName) {
+		// 如果bean不等于null
 		if (bean != null) {
+			// 根据beanName或者bean的class对象获取缓存键
 			Object cacheKey = getCacheKey(bean.getClass(), beanName);
+			// 尝试从earlyProxyReference中根据cacheKey获取对象，并与bean进行比较，如果不相等的话，执行if里面的逻辑。
+
+			// 在调用getEarlyBeanReference方法的时候，会将bean根据cacheKey放入到earlyProxyReferences缓存中，
+			// 即当存在循环依赖的时候，获取提前暴露的未初始化完成的bean时，会调用getEarlyBeanReference方法，如果需要进行aop代理，
+			// 在那一步就已经代理了。
+			// 所以此时在afterInitialization阶段判断缓存的bean和此时传入的bean如果不相等的话，只有两种情况：
+			// 1.不存在循环依赖，没有提前调用过该bean对应的getEarlyBeanReference方法，此时earlyProxyReferences缓存中不存在cacheKey这个键，
+			// 那么会执行wrapIfNecessary根据情况选择是否要进行aop代理
+			// 2.存在循环依赖，但是populateBean和initializeBean的过程中bean的引用发生了改变，bean已经和原本缓存的bean不是一个对象了
+			// ，那么需要再次调用wrapIfNecessary根据情况选择是否进行aop代理
+
+			// 如果已经在getEarlyBeanReference方法中进行过代理了，说明存在循环依赖，
+			// 此时bean的代理对象或者自身已经保存在IOC容器的二级缓存earlySingletonObjects中了，
+			// 在doCreateBean方法中会尝试从二级缓存中获取并赋值给最终要返回的对象，因此这里会直接返回原始bean，不做任何处理。
 			if (this.earlyProxyReferences.remove(cacheKey) != bean) {
+				// 调用wrapIfNecessary对bean进行包装，返回包装对象
 				return wrapIfNecessary(bean, beanName, cacheKey);
 			}
 		}
+		// 如果上述步骤没有返回，直接返回bean
 		return bean;
 	}
 
@@ -316,11 +340,15 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 * @return the cache key for the given class and name
 	 */
 	protected Object getCacheKey(Class<?> beanClass, @Nullable String beanName) {
+		// 如果beanName不为空字符串的话
 		if (StringUtils.hasLength(beanName)) {
+			// 判断beanClass是否是FactoryBean类型的，如果是，在beanName前面加上&，否则直接使用beanName作为cacheKey
 			return (FactoryBean.class.isAssignableFrom(beanClass) ?
 					BeanFactory.FACTORY_BEAN_PREFIX + beanName : beanName);
 		}
+		// 如果beanName为空字符串或者null
 		else {
+			// 返回beanClass作为cacheKey
 			return beanClass;
 		}
 	}
@@ -333,14 +361,20 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 * @return a proxy wrapping the bean, or the raw bean instance as-is
 	 */
 	protected Object wrapIfNecessary(Object bean, String beanName, Object cacheKey) {
+		// 如果beanName不为空字符串 并且 targetSourceBeans中包含beanName，直接返回bean
 		if (StringUtils.hasLength(beanName) && this.targetSourcedBeans.contains(beanName)) {
 			return bean;
 		}
+		// 如果advisedBeans中cacheKey对应的value是false，也直接返回bean
 		if (Boolean.FALSE.equals(this.advisedBeans.get(cacheKey))) {
 			return bean;
 		}
+		// 如果bean的类对象是Advice PointCut Advisor AopInfrastructureBean这几种类型的 或者
+		// bean是应该跳过的
 		if (isInfrastructureClass(bean.getClass()) || shouldSkip(bean.getClass(), beanName)) {
+			// 将cacheKey存入advisedBeans中，并且value为false，表示不需要进行包装
 			this.advisedBeans.put(cacheKey, Boolean.FALSE);
+			// 并且返回原本的bean
 			return bean;
 		}
 
@@ -371,6 +405,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 * @see #shouldSkip
 	 */
 	protected boolean isInfrastructureClass(Class<?> beanClass) {
+		// 判断beanClass是否是Advice PointCut Advisor AopInfrastructureBean 这几种类型的，如果是，返回true
 		boolean retVal = Advice.class.isAssignableFrom(beanClass) ||
 				Pointcut.class.isAssignableFrom(beanClass) ||
 				Advisor.class.isAssignableFrom(beanClass) ||

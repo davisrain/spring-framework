@@ -250,7 +250,9 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 	@Override
 	public void resetBeanDefinition(String beanName) {
+		// 清除lookupMethodsChecked中beanName对应的缓存
 		this.lookupMethodsChecked.remove(beanName);
+		// 清除beanName对应的InjectionMetadata的缓存
 		this.injectionMetadataCache.remove(beanName);
 	}
 

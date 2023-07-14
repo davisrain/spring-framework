@@ -77,10 +77,14 @@ public class AnnotationAwareAspectJAutoProxyCreator extends AspectJAwareAdvisorA
 
 	@Override
 	protected void initBeanFactory(ConfigurableListableBeanFactory beanFactory) {
+		// 调用父类的initBeanFactory方法
 		super.initBeanFactory(beanFactory);
+		// 如果自身的aspectJAdvisorFactory为null
 		if (this.aspectJAdvisorFactory == null) {
+			// 根据beanFactory创建一个ReflectiveAspectJAdvisorFactory
 			this.aspectJAdvisorFactory = new ReflectiveAspectJAdvisorFactory(beanFactory);
 		}
+		// 根据beanFactory和上面创建的aspectJAdvisorFactory创建一个BeanFactoryAspectJAdvisorsBuilderAdapter赋值给aspectJAdvisorsBuilder属性
 		this.aspectJAdvisorsBuilder =
 				new BeanFactoryAspectJAdvisorsBuilderAdapter(beanFactory, this.aspectJAdvisorFactory);
 	}
@@ -89,9 +93,11 @@ public class AnnotationAwareAspectJAutoProxyCreator extends AspectJAwareAdvisorA
 	@Override
 	protected List<Advisor> findCandidateAdvisors() {
 		// Add all the Spring advisors found according to superclass rules.
+		// 调用父类的findCandidateAdvisors方法，父类方法的逻辑就是去beanFactory中根据Advisor类型查找对应的bean
 		List<Advisor> advisors = super.findCandidateAdvisors();
 		// Build Advisors for all AspectJ aspects in the bean factory.
 		if (this.aspectJAdvisorsBuilder != null) {
+			// 调用aspectJAdvisorsBuilder的buildAspectJAdvisors方法，将构建出来的advisor添加进集合中
 			advisors.addAll(this.aspectJAdvisorsBuilder.buildAspectJAdvisors());
 		}
 		return advisors;
@@ -118,15 +124,19 @@ public class AnnotationAwareAspectJAutoProxyCreator extends AspectJAwareAdvisorA
 	 * then one of the patterns must match.
 	 */
 	protected boolean isEligibleAspectBean(String beanName) {
+		// 如果includePatterns为null，直接返回true
 		if (this.includePatterns == null) {
 			return true;
 		}
 		else {
+			// 否则遍历includePatterns
 			for (Pattern pattern : this.includePatterns) {
+				// 将每个pattern与beanName进行匹配，一旦匹配成功，返回true
 				if (pattern.matcher(beanName).matches()) {
 					return true;
 				}
 			}
+			// 否则返回false
 			return false;
 		}
 	}

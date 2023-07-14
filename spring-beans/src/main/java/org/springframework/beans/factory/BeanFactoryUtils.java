@@ -264,12 +264,17 @@ public abstract class BeanFactoryUtils {
 			ListableBeanFactory lbf, Class<?> type, boolean includeNonSingletons, boolean allowEagerInit) {
 
 		Assert.notNull(lbf, "ListableBeanFactory must not be null");
+		// 调用ListableBeanFactory的getBeanNamesForType方法，或者所有type类型的beanNames
 		String[] result = lbf.getBeanNamesForType(type, includeNonSingletons, allowEagerInit);
+		// 如果lbf又是HierarchicalBeanFactory类型的
 		if (lbf instanceof HierarchicalBeanFactory) {
 			HierarchicalBeanFactory hbf = (HierarchicalBeanFactory) lbf;
+			// 查看它的父容器是否是ListableBeanFactory类型的
 			if (hbf.getParentBeanFactory() instanceof ListableBeanFactory) {
+				// 如果是的话，继续从父容器中查找
 				String[] parentResult = beanNamesForTypeIncludingAncestors(
 						(ListableBeanFactory) hbf.getParentBeanFactory(), type, includeNonSingletons, allowEagerInit);
+				// 将从自身容器等到的beanNames和从父容器中得到的beanNames合并起来
 				result = mergeNamesWithParent(result, parentResult, hbf);
 			}
 		}
@@ -528,16 +533,20 @@ public abstract class BeanFactoryUtils {
 	 * @since 4.3.15
 	 */
 	private static String[] mergeNamesWithParent(String[] result, String[] parentResult, HierarchicalBeanFactory hbf) {
+		// 如果父容器的结果数组长度为0，直接返回自身容器的结果
 		if (parentResult.length == 0) {
 			return result;
 		}
 		List<String> merged = new ArrayList<>(result.length + parentResult.length);
 		merged.addAll(Arrays.asList(result));
+		// 遍历父bf中找到的beanName数组
 		for (String beanName : parentResult) {
+			// 如果发现merged集合中不包含该beanName 并且 自身bf中不包含该beanName的bean，将其添加进merged集合中
 			if (!merged.contains(beanName) && !hbf.containsLocalBean(beanName)) {
 				merged.add(beanName);
 			}
 		}
+		// 将集合转换成数组返回
 		return StringUtils.toStringArray(merged);
 	}
 
