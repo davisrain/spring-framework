@@ -79,44 +79,64 @@ public class AspectMetadata implements Serializable {
 	 * @param aspectName the name of the aspect
 	 */
 	public AspectMetadata(Class<?> aspectClass, String aspectName) {
+		// 将aspectName设置为传入的参数aspectName，一般是对应的beanName
 		this.aspectName = aspectName;
 
 		Class<?> currClass = aspectClass;
 		AjType<?> ajType = null;
+		// 如果currClass不等于Object.class
 		while (currClass != Object.class) {
+			// 根据currClass获取一个AjType用于检查
 			AjType<?> ajTypeToCheck = AjTypeSystem.getAjType(currClass);
+			// 如果发现该ajType是aspect，检查的逻辑就是类上是否标注了@Aspect注解。
+			// 因为我们传入的aspectClass可能是标注了@Aspect注解的类的子类
 			if (ajTypeToCheck.isAspect()) {
+				// 那么将ajTypeToCheck赋值给ajType，并且跳出循环
 				ajType = ajTypeToCheck;
 				break;
 			}
+			// 否则继续循环检查currClass的父类
 			currClass = currClass.getSuperclass();
 		}
+		// 如果ajType为null，报错
 		if (ajType == null) {
 			throw new IllegalArgumentException("Class '" + aspectClass.getName() + "' is not an @AspectJ aspect");
 		}
+		// 如果ajType所对应的类上标注了@DeclarePrecedence 或者类中声明的方法上标注了@ajcDeclarePrecedence注解，报错。
+		// SpringAOP不支持这个注解
 		if (ajType.getDeclarePrecedence().length > 0) {
 			throw new IllegalArgumentException("DeclarePrecedence not presently supported in Spring AOP");
 		}
+		// 返回实际标注了@Aspect注解的类型
 		this.aspectClass = ajType.getJavaClass();
+		// 将ajType赋值给自身属性持有
 		this.ajType = ajType;
 
+		// 获取@Aspect注解中的value属性，根据value属性值生成不同的PerClause，然后返回它们的类型，根据类型进行判断
 		switch (this.ajType.getPerClause().getKind()) {
+			// 如果是SINGLETON类型的，说明@Aspect注解的value属性为空字符串
+			// 将perClausePointcut设置为TruePointcut
 			case SINGLETON:
 				this.perClausePointcut = Pointcut.TRUE;
 				return;
+				// 如果是PERTARGET或者是PERTHIS类型的，创建一个AspectJExpressionPointcut赋值给perClausePointcut属性
 			case PERTARGET:
 			case PERTHIS:
 				AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut();
+				// location设置为aspectClass的全限定名
 				ajexp.setLocation(aspectClass.getName());
+				// 获取@Aspect注解value属性中括号内的值，然后解析为pointcut的expression中
 				ajexp.setExpression(findPerClause(aspectClass));
 				ajexp.setPointcutDeclarationScope(aspectClass);
 				this.perClausePointcut = ajexp;
 				return;
 			case PERTYPEWITHIN:
 				// Works with a type pattern
+				// 根据perClause解析出expression，然后生成一个TypePatternClassFilter，根据这个ClassFilter构建一个ComposablePointcut
 				this.perClausePointcut = new ComposablePointcut(new TypePatternClassFilter(findPerClause(aspectClass)));
 				return;
 			default:
+				// 如果是其他类型的perClause，比如percflow percflowbelow是不被SpringAOP支持的，报错
 				throw new AopConfigException(
 						"PerClause " + ajType.getPerClause().getKind() + " not supported by Spring AOP for " + aspectClass);
 		}
@@ -126,6 +146,7 @@ public class AspectMetadata implements Serializable {
 	 * Extract contents from String of form {@code pertarget(contents)}.
 	 */
 	private String findPerClause(Class<?> aspectClass) {
+		// 获取到@Aspect注解的value属性中括号内的值
 		String str = aspectClass.getAnnotation(Aspect.class).value();
 		int beginIndex = str.indexOf('(') + 1;
 		int endIndex = str.length() - 1;
@@ -182,6 +203,7 @@ public class AspectMetadata implements Serializable {
 	 * Return whether the aspect needs to be lazily instantiated.
 	 */
 	public boolean isLazilyInstantiated() {
+		// 如果ajType的perClause是perThis或者perTarget或者perTypeWithin的，那么都需要lazily instantiated
 		return (isPerThisOrPerTarget() || isPerTypeWithin());
 	}
 

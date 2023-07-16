@@ -106,10 +106,14 @@ final class InstantiationModelAwarePointcutAdvisorImpl
 					this.declaredPointcut, preInstantiationPointcut, aspectInstanceFactory);
 			this.lazy = true;
 		}
+		// 如果是singleton的aspect
 		else {
 			// A singleton aspect.
+			// 那么将pointcut赋值为declaredPointcut
 			this.pointcut = this.declaredPointcut;
+			// 将lazy设置为false
 			this.lazy = false;
+			// 根据pointcut实例化advice
 			this.instantiatedAdvice = instantiateAdvice(this.declaredPointcut);
 		}
 	}
@@ -146,6 +150,7 @@ final class InstantiationModelAwarePointcutAdvisorImpl
 	}
 
 	private Advice instantiateAdvice(AspectJExpressionPointcut pointcut) {
+		// 调用aspectJAdvisorFactory的getAdvice方法
 		Advice advice = this.aspectJAdvisorFactory.getAdvice(this.aspectJAdviceMethod, pointcut,
 				this.aspectInstanceFactory, this.declarationOrder, this.aspectName);
 		return (advice != null ? advice : EMPTY_ADVICE);

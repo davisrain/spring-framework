@@ -370,7 +370,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 			return bean;
 		}
 		// 如果bean的类对象是Advice PointCut Advisor AopInfrastructureBean这几种类型的 或者
-		// bean是应该跳过的
+		// bean是应该跳过的(判断逻辑是 1.beanName属于AspectJPointcutAdvisor的aspectName 或者 2.beanName只以beanClass的全限定名 + .ORIGINAL命名的)
 		if (isInfrastructureClass(bean.getClass()) || shouldSkip(bean.getClass(), beanName)) {
 			// 将cacheKey存入advisedBeans中，并且value为false，表示不需要进行包装
 			this.advisedBeans.put(cacheKey, Boolean.FALSE);
@@ -379,7 +379,9 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		}
 
 		// Create proxy if we have advice.
+		// 根据beanName和beanClass查找到对应的advice和advisor
 		Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean.getClass(), beanName, null);
+		// 如果查找到的advisors不为null的话
 		if (specificInterceptors != DO_NOT_PROXY) {
 			this.advisedBeans.put(cacheKey, Boolean.TRUE);
 			Object proxy = createProxy(
@@ -388,7 +390,9 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 			return proxy;
 		}
 
+		// 如果查找到的advisors为null，将cacheKey=false存入advisedBeans，表示该bean不用进行代理
 		this.advisedBeans.put(cacheKey, Boolean.FALSE);
+		// 返回原始对象bean
 		return bean;
 	}
 

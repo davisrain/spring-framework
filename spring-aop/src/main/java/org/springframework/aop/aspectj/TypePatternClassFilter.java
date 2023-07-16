@@ -110,6 +110,7 @@ public class TypePatternClassFilter implements ClassFilter {
 	 * We also allow {@code and} between two sub-expressions.
 	 * <p>This method converts back to {@code &&} for the AspectJ pointcut parser.
 	 */
+	// 将and替换为&& or替换为|| not替换为!
 	private String replaceBooleanOperators(String pcExpr) {
 		String result = StringUtils.replace(pcExpr," and "," && ");
 		result = StringUtils.replace(result, " or ", " || ");

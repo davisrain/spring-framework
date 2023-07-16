@@ -223,11 +223,16 @@ public class AspectJAdviceParameterNameDiscoverer implements ParameterNameDiscov
 	 */
 	@Override
 	@Nullable
+	// 推断adviceMethod的parameterNames
 	public String[] getParameterNames(Method method) {
+		// 获取方法参数类型数组
 		this.argumentTypes = method.getParameterTypes();
+		// 剩余的未绑定的参数的数量
 		this.numberOfRemainingUnboundArguments = this.argumentTypes.length;
+		// 根据剩余的未绑定的参数数量生成一个 参数名绑定数组
 		this.parameterNameBindings = new String[this.numberOfRemainingUnboundArguments];
 
+		// 如果returningName或throwingName不为null，都会将最小的未绑定参数数量+1
 		int minimumNumberUnboundArgs = 0;
 		if (this.returningName != null) {
 			minimumNumberUnboundArgs++;
@@ -235,23 +240,32 @@ public class AspectJAdviceParameterNameDiscoverer implements ParameterNameDiscov
 		if (this.throwingName != null) {
 			minimumNumberUnboundArgs++;
 		}
+		// 如果剩余的被绑定参数数量 小于 最小的未绑定参数数量，报错
 		if (this.numberOfRemainingUnboundArguments < minimumNumberUnboundArgs) {
 			throw new IllegalStateException(
 					"Not enough arguments in method to satisfy binding of returning and throwing variables");
 		}
 
 		try {
+			// 将推测算法的步骤置为JoinPoint参数这一步
 			int algorithmicStep = STEP_JOIN_POINT_BINDING;
+			// 当剩余的未绑定的参数数量大于0 并且 算法步骤小于结束步骤时
 			while ((this.numberOfRemainingUnboundArguments > 0) && algorithmicStep < STEP_FINISHED) {
+				// 判断当前的算法步骤，然后将当前算法步骤+1
 				switch (algorithmicStep++) {
+					// 如果当前步骤是JoinPoint
 					case STEP_JOIN_POINT_BINDING:
+						// 检查方法的第一个参数是否是JoinPoint或者ProceedingJoinPoint类型的，如果是，将第一个参数名设置为thisJoinPoint
 						if (!maybeBindThisJoinPoint()) {
+							// 如果不是，检查是否是JoinPoint.StaticPart类型的，如果是，将第一个参数名设置为thisJoinPointStaticPart
 							maybeBindThisJoinPointStaticPart();
 						}
 						break;
+						// 如果当前步骤是throwing
 					case STEP_THROWING_BINDING:
 						maybeBindThrowingVariable();
 						break;
+						// 如果当前步骤是annotation
 					case STEP_ANNOTATION_BINDING:
 						maybeBindAnnotationsFromPointcutExpression();
 						break;
@@ -346,17 +360,22 @@ public class AspectJAdviceParameterNameDiscoverer implements ParameterNameDiscov
 	 * (argument that is a subtype of Throwable) then bind it.
 	 */
 	private void maybeBindThrowingVariable() {
+		// 如果throwingName为null，直接返回
 		if (this.throwingName == null) {
 			return;
 		}
 
 		// So there is binding work to do...
+		// 遍历参数类型数组
 		int throwableIndex = -1;
 		for (int i = 0; i < this.argumentTypes.length; i++) {
+			// 如果下标i对应的参数名还未绑定 并且 下标i对应的参数类型是Throwable的子类
 			if (isUnbound(i) && isSubtypeOf(Throwable.class, i)) {
+				// 如果之前并未找到Throwable类型的参数，那么将下标i赋值给throwableIndex
 				if (throwableIndex == -1) {
 					throwableIndex = i;
 				}
+				// 如果出现了两个候选的Throwable类型的参数，报错
 				else {
 					// Second candidate we've found - ambiguous binding
 					throw new AmbiguousBindingException("Binding of throwing parameter '" +
@@ -366,11 +385,13 @@ public class AspectJAdviceParameterNameDiscoverer implements ParameterNameDiscov
 			}
 		}
 
+		// 如果没找到Throwable类型的参数，报错
 		if (throwableIndex == -1) {
 			throw new IllegalStateException("Binding of throwing parameter '" + this.throwingName
 					+ "' could not be completed as no available arguments are a subtype of Throwable");
 		}
 		else {
+			// 如果找到了，将对应下标的参数名设置未throwingName
 			bindParameterName(throwableIndex, this.throwingName);
 		}
 	}

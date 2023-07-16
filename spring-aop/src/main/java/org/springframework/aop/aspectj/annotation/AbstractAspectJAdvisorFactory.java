@@ -77,6 +77,7 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 	 */
 	@Override
 	public boolean isAspect(Class<?> clazz) {
+		// 如果clazz上面标注了@Aspect注解 并且 clazz中声明的字段名没有以ajc$开头的
 		return (hasAspectAnnotation(clazz) && !compiledByAjc(clazz));
 	}
 
@@ -103,6 +104,7 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 	@Override
 	public void validate(Class<?> aspectClass) throws AopConfigException {
 		// If the parent has the annotation and isn't abstract it's an error
+		// 如果aspect的父类标注了@Aspect注解并且它不是抽象的，那么报错
 		Class<?> superclass = aspectClass.getSuperclass();
 		if (superclass.getAnnotation(Aspect.class) != null &&
 				!Modifier.isAbstract(superclass.getModifiers())) {
@@ -110,10 +112,13 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 					superclass.getName() + "]");
 		}
 
+		// 根据aspectClass获取到它的ajType
 		AjType<?> ajType = AjTypeSystem.getAjType(aspectClass);
+		// 如果aspectClass上面没有标注@Aspect注解，报错
 		if (!ajType.isAspect()) {
 			throw new NotAnAtAspectException(aspectClass);
 		}
+		// 如果ajType的perClauseKind是percflow或者percflowbelow的，报错，SpringAOP不支持这两种类型
 		if (ajType.getPerClause().getKind() == PerClauseKind.PERCFLOW) {
 			throw new AopConfigException(aspectClass.getName() + " uses percflow instantiation model: " +
 					"This is not supported in Spring AOP.");
@@ -131,21 +136,27 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 	@SuppressWarnings("unchecked")
 	@Nullable
 	protected static AspectJAnnotation<?> findAspectJAnnotationOnMethod(Method method) {
+		// 遍历持有的ASPECTJ_ANNOTATION_CLASSES
 		for (Class<?> clazz : ASPECTJ_ANNOTATION_CLASSES) {
+			// 调用findAnnotation方法找到每个方法上标注的对应注解，并封装为AspectJAnnotation返回
 			AspectJAnnotation<?> foundAnnotation = findAnnotation(method, (Class<Annotation>) clazz);
 			if (foundAnnotation != null) {
 				return foundAnnotation;
 			}
 		}
+		// 如果没有找到ASPECTJ_ANNOTATION_CLASSES中的任何注解，返回null
 		return null;
 	}
 
 	@Nullable
 	private static <A extends Annotation> AspectJAnnotation<A> findAnnotation(Method method, Class<A> toLookFor) {
 		A result = AnnotationUtils.findAnnotation(method, toLookFor);
+		// 如果找到的注解不为null
 		if (result != null) {
+			// 将其封装成AspectJAnnotation返回
 			return new AspectJAnnotation<>(result);
 		}
+		// 如果没有找到对应的注解，返回null
 		else {
 			return null;
 		}
@@ -192,10 +203,14 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 
 		public AspectJAnnotation(A annotation) {
 			this.annotation = annotation;
+			// 根据annotationType映射出对应的AspectJAnnotationType
 			this.annotationType = determineAnnotationType(annotation);
 			try {
+				// 获取对应注解的value或者pointcut属性，如果存在值的话，返回赋值给pointcutExpression
 				this.pointcutExpression = resolveExpression(annotation);
+				// 获取注解的argNames属性
 				Object argNames = AnnotationUtils.getValue(annotation, "argNames");
+				// 如果argNames是String类型的，将其赋值给argumentNames属性
 				this.argumentNames = (argNames instanceof String ? (String) argNames : "");
 			}
 			catch (Exception ex) {
@@ -256,14 +271,19 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 		@Override
 		@Nullable
 		public String[] getParameterNames(Method method) {
+			// 如果方法参数为0，直接返回空的String数组
 			if (method.getParameterCount() == 0) {
 				return new String[0];
 			}
+			// 查找方法上的AspectJ相关注解，封装为AspectJAnnotation
 			AspectJAnnotation<?> annotation = findAspectJAnnotationOnMethod(method);
+			// 如果注解为null，返回null
 			if (annotation == null) {
 				return null;
 			}
+			// 将AspectJAnnotation的argumentNames属性按逗号分隔
 			StringTokenizer nameTokens = new StringTokenizer(annotation.getArgumentNames(), ",");
+			// 如果nameTokens的长度大于0，将其转换为String类型数组返回
 			if (nameTokens.countTokens() > 0) {
 				String[] names = new String[nameTokens.countTokens()];
 				for (int i = 0; i < names.length; i++) {
@@ -271,6 +291,7 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 				}
 				return names;
 			}
+			// 否则返回null
 			else {
 				return null;
 			}

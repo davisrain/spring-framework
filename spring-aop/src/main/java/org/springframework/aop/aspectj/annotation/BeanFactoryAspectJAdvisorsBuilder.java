@@ -109,56 +109,85 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 						}
 						// We must be careful not to instantiate beans eagerly as in this case they
 						// would be cached by the Spring container but would not have been weaved.
+						// 获取对应beanName对应的bean的类型
 						Class<?> beanType = this.beanFactory.getType(beanName, false);
+						// 如果beanType为null的话，直接进行下一次循环
 						if (beanType == null) {
 							continue;
 						}
+						// 判断beanType是否是aspect，判断逻辑是beanType上标注了@Aspect注解且声明的字段中名称没有以ajc$开头的
 						if (this.advisorFactory.isAspect(beanType)) {
+							// 将beanName添加进aspectNames集合中
 							aspectNames.add(beanName);
+							// 根据beanName和beanType生成一个AspectMetadata对象
 							AspectMetadata amd = new AspectMetadata(beanType, beanName);
+							// 获取amd中ajType的perClauseKind，如果是SINGLETON的
 							if (amd.getAjType().getPerClause().getKind() == PerClauseKind.SINGLETON) {
+								// 根据beanFactory和beanName创建一个MetadataAwareAspectInstanceFactory
 								MetadataAwareAspectInstanceFactory factory =
 										new BeanFactoryAspectInstanceFactory(this.beanFactory, beanName);
+								// 根据factory调用advisorFactory的getAdvisors方法
 								List<Advisor> classAdvisors = this.advisorFactory.getAdvisors(factory);
+								// 如果beanName对应的元素在beanFactory中是单例
 								if (this.beanFactory.isSingleton(beanName)) {
+									// 将解析出来的Advisor集合根据beanName缓存起来
 									this.advisorsCache.put(beanName, classAdvisors);
 								} else {
+									// 否则只能将aspectInstanceFactory根据beanName缓存起来
 									this.aspectFactoryCache.put(beanName, factory);
 								}
+								// 将该beanName解析出的advisor集合添加到advisors中
 								advisors.addAll(classAdvisors);
-							} else {
+							}
+							// 如果perClauseKind不是单例
+							else {
 								// Per target or per this.
+								// 但对应的beanName在beanFactory中是单例，报错
 								if (this.beanFactory.isSingleton(beanName)) {
 									throw new IllegalArgumentException("Bean with name '" + beanName +
 											"' is a singleton, but aspect instantiation model is not singleton");
 								}
+								// 根据beanFactory和beanName创建一个PrototypeAspectInstanceFactory
 								MetadataAwareAspectInstanceFactory factory =
 										new PrototypeAspectInstanceFactory(this.beanFactory, beanName);
+								// 将PrototypeAspectInstanceFactory根据beanName缓存起来
 								this.aspectFactoryCache.put(beanName, factory);
+								// 获取advisor添加到advisors集合中
 								advisors.addAll(this.advisorFactory.getAdvisors(factory));
 							}
 						}
 					}
+					// 将aspectNames赋值给aspectBeanNames
 					this.aspectBeanNames = aspectNames;
+					// 然后返回advisors
 					return advisors;
 				}
 			}
 		}
 
+		// 如果aspectNames为空的话，返回空集合
 		if (aspectNames.isEmpty()) {
 			return Collections.emptyList();
 		}
+		// 否则尝试从缓存中获取
 		List<Advisor> advisors = new ArrayList<>();
+		// 遍历aspectNames
 		for (String aspectName : aspectNames) {
+			// 获取单例aspect缓存的advisor集合
 			List<Advisor> cachedAdvisors = this.advisorsCache.get(aspectName);
+			// 如果集合不为null，添加到advisors中
 			if (cachedAdvisors != null) {
 				advisors.addAll(cachedAdvisors);
 			}
+			// 如果集合为null，说明aspectName对应的bean不是单例
 			else {
+				// 获取缓存的aspectInstanceFactory
 				MetadataAwareAspectInstanceFactory factory = this.aspectFactoryCache.get(aspectName);
+				// 调用advisorFactory的getAdvisors方法，根据factory获取到advisor并添加进advisors中
 				advisors.addAll(this.advisorFactory.getAdvisors(factory));
 			}
 		}
+		// 返回advisors
 		return advisors;
 	}
 

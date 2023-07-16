@@ -803,7 +803,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			// 如果name不是以&开头的，说明是要返回FactoryBean创建的bean的类型
 			if (!BeanFactoryUtils.isFactoryDereference(name)) {
 				// If it's a FactoryBean, we want to look at what it creates, not at the factory class.
-				//
+				// 调用getTypeForFactoryBean根据beanName mbd获取到resolvableType，然后返回其resolved字段
 				return getTypeForFactoryBean(beanName, mbd, allowFactoryBeanInit).resolve();
 			}
 			// 如果name是以&开头的，说明是返回FactoryBean本身，那么直接返回beanClass

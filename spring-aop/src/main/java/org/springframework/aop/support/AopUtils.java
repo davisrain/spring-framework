@@ -224,6 +224,7 @@ public abstract class AopUtils {
 	 */
 	public static boolean canApply(Pointcut pc, Class<?> targetClass, boolean hasIntroductions) {
 		Assert.notNull(pc, "Pointcut must not be null");
+		// 如果pointcut的classFilter不匹配目标类型，直接返回false
 		if (!pc.getClassFilter().matches(targetClass)) {
 			return false;
 		}
@@ -282,13 +283,18 @@ public abstract class AopUtils {
 	 * @return whether the pointcut can apply on any method
 	 */
 	public static boolean canApply(Advisor advisor, Class<?> targetClass, boolean hasIntroductions) {
+		// 如果advisor是IntroductionAdvisor类型的
 		if (advisor instanceof IntroductionAdvisor) {
+			// 调用advisor持有的classFilter的matches方法
 			return ((IntroductionAdvisor) advisor).getClassFilter().matches(targetClass);
 		}
+		// 如果advisor是PointcutAdvisor类型的
 		else if (advisor instanceof PointcutAdvisor) {
 			PointcutAdvisor pca = (PointcutAdvisor) advisor;
+			// 调用canApply的重载方法，将advisor持有的Pointcut传入方法进行判断
 			return canApply(pca.getPointcut(), targetClass, hasIntroductions);
 		}
+		// 如果是其他类型的，直接返回true
 		else {
 			// It doesn't have a pointcut so we assume it applies.
 			return true;
@@ -304,25 +310,36 @@ public abstract class AopUtils {
 	 * (may be the incoming List as-is)
 	 */
 	public static List<Advisor> findAdvisorsThatCanApply(List<Advisor> candidateAdvisors, Class<?> clazz) {
+		// 如果候选的advisors为空的话，直接返回候选集合
 		if (candidateAdvisors.isEmpty()) {
 			return candidateAdvisors;
 		}
+		// 创建一个list用于保存合格的advisor
 		List<Advisor> eligibleAdvisors = new ArrayList<>();
+		// 遍历候选的advisor集合
 		for (Advisor candidate : candidateAdvisors) {
+			// 如果候选的advisor是IntroductionAdvisor类型的 并且 canApply方法返回true
 			if (candidate instanceof IntroductionAdvisor && canApply(candidate, clazz)) {
+				// 将候选advisor添加到合格的advisors中
 				eligibleAdvisors.add(candidate);
 			}
 		}
+		// 如果合格的advisor集合不为空，hasIntroductions为true
 		boolean hasIntroductions = !eligibleAdvisors.isEmpty();
+		// 再次遍历候选的advisor集合
 		for (Advisor candidate : candidateAdvisors) {
+			// 如果候选的advisor是IntroductionAdvisor类型的，跳过，因为前面已经解析过了
 			if (candidate instanceof IntroductionAdvisor) {
 				// already processed
 				continue;
 			}
+			// 调用canApply方法，传入hasIntroductions参数，如果返回方法返回true
 			if (canApply(candidate, clazz, hasIntroductions)) {
+				// 将候选advisor添加到合格的advisors中
 				eligibleAdvisors.add(candidate);
 			}
 		}
+		// 最后返回合格的advisors
 		return eligibleAdvisors;
 	}
 

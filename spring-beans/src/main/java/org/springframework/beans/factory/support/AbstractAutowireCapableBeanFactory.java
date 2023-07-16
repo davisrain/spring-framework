@@ -979,25 +979,34 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// Consider factory methods
+		// 考虑是使用factoryMethod生成的FactoryBean的情况
 		String factoryBeanName = mbd.getFactoryBeanName();
 		String factoryMethodName = mbd.getFactoryMethodName();
 
 		// Scan the factory bean methods
+		// 如果factoryBeanName不为null，说明是成员方法
 		if (factoryBeanName != null) {
+			// 如果factoryMethodName不为null
 			if (factoryMethodName != null) {
 				// Try to obtain the FactoryBean's object type from its factory method
 				// declaration without instantiating the containing bean at all.
+				// 获取到factoryBean的bd
 				BeanDefinition factoryBeanDefinition = getBeanDefinition(factoryBeanName);
 				Class<?> factoryBeanClass;
+				// 如果bd是abstractBeanDefinition类型的 并且 bd存在beanClass
 				if (factoryBeanDefinition instanceof AbstractBeanDefinition &&
 						((AbstractBeanDefinition) factoryBeanDefinition).hasBeanClass()) {
+					// 获取到factoryBean的beanClass
 					factoryBeanClass = ((AbstractBeanDefinition) factoryBeanDefinition).getBeanClass();
-				}
-				else {
+				} else {
+					// 否则获取到factoryBean的mbd
 					RootBeanDefinition fbmbd = getMergedBeanDefinition(factoryBeanName, factoryBeanDefinition);
+					// 解析出factoryBean的beanClass
 					factoryBeanClass = determineTargetType(factoryBeanName, fbmbd);
 				}
+				// 如果factoryBean的beanClass不为null
 				if (factoryBeanClass != null) {
+					// 调用getTypeForFactoryBeanFromMethod来获取到factoryMethod的返回类型FactoryBean中所包含的泛型
 					result = getTypeForFactoryBeanFromMethod(factoryBeanClass, factoryMethodName);
 					if (result.resolve() != null) {
 						return result;
@@ -1013,36 +1022,47 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// If we're allowed, we can create the factory bean and call getObjectType() early
+		// 如果是允许init的，那么创建factoryBean并且调用它的getObjectType方法
 		if (allowInit) {
+			// 根据mbd是否是singleton的，选择不同的方法创建FactoryBean
 			FactoryBean<?> factoryBean = (mbd.isSingleton() ?
 					getSingletonFactoryBeanForTypeCheck(beanName, mbd) :
 					getNonSingletonFactoryBeanForTypeCheck(beanName, mbd));
+			// 如果factoryBean不为null
 			if (factoryBean != null) {
 				// Try to obtain the FactoryBean's object type from this early stage of the instance.
+				// 调用factoryBean的getObjectType方法
 				Class<?> type = getTypeForFactoryBean(factoryBean);
+				// 如果type不为null，转换成resolvableType返回
 				if (type != null) {
 					return ResolvableType.forClass(type);
 				}
 				// No type found for shortcut FactoryBean instance:
 				// fall back to full creation of the FactoryBean instance.
+				// 如果上述步骤没有返回，调用父类的getTypeForFactoryBean方法
 				return super.getTypeForFactoryBean(beanName, mbd, true);
 			}
 		}
 
+		// 如果factoryBeanName为null 并且 mbd存在beanClass 并且 factoryMethodName不为null，说明是静态方法返回了FactoryBean
 		if (factoryBeanName == null && mbd.hasBeanClass() && factoryMethodName != null) {
 			// No early bean instantiation possible: determine FactoryBean's type from
 			// static factory method signature or from class inheritance hierarchy...
+			// 同样调用getTypeForFactoryBeanFromMethod去查找对应方法的返回类型
 			return getTypeForFactoryBeanFromMethod(mbd.getBeanClass(), factoryMethodName);
 		}
+		// 如果mbd不是通过factoryMethod的方式来生成bean的，那么直接根据beanType的泛型来获取对应的result
 		result = getFactoryBeanGeneric(beanType);
+		// 如果result的resolved字段不为null，返回result
 		if (result.resolve() != null) {
 			return result;
 		}
+		// 否则返回NONE
 		return ResolvableType.NONE;
 	}
 
 	private ResolvableType getFactoryBeanGeneric(@Nullable ResolvableType type) {
-		// 如果type为null，直接返回ResolvableType.NONEW
+		// 如果type为null，直接返回ResolvableType.NONE
 		if (type == null) {
 			return ResolvableType.NONE;
 		}
@@ -1059,9 +1079,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	private ResolvableType getTypeForFactoryBeanFromMethod(Class<?> beanClass, String factoryMethodName) {
 		// CGLIB subclass methods hide generic parameters; look at the original user class.
+		// cglib的代理类的方法会隐藏掉泛型参数，因此我们需要查看原始的用户类
 		Class<?> factoryBeanClass = ClassUtils.getUserClass(beanClass);
+		// 创建一个MethodCallback的子类finder进行查找
 		FactoryBeanMethodTypeFinder finder = new FactoryBeanMethodTypeFinder(factoryMethodName);
+		// 遍历factoryBeanClass中的方法
 		ReflectionUtils.doWithMethods(factoryBeanClass, finder, ReflectionUtils.USER_DECLARED_METHODS);
+		// 返回finder中缓存的result字段
 		return finder.getResult();
 	}
 
@@ -1124,14 +1148,19 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	@Nullable
 	private FactoryBean<?> getSingletonFactoryBeanForTypeCheck(String beanName, RootBeanDefinition mbd) {
 		synchronized (getSingletonMutex()) {
+			// 尝试从factoryBeanInstanceCache中根据beanName查找FactoryBean的BeanWrapper
 			BeanWrapper bw = this.factoryBeanInstanceCache.get(beanName);
+			// 如果缓存存在，直接返回其wrappedInstance
 			if (bw != null) {
 				return (FactoryBean<?>) bw.getWrappedInstance();
 			}
+			// 否则尝试从一二级缓存中查找bean
 			Object beanInstance = getSingleton(beanName, false);
+			// 如果bean是属于FactoryBean类型的，直接返回
 			if (beanInstance instanceof FactoryBean) {
 				return (FactoryBean<?>) beanInstance;
 			}
+			// 如果beanName对应的单例正在创建 或者 factoryMethod所在的factoryBean正在创建，返回null
 			if (isSingletonCurrentlyInCreation(beanName) ||
 					(mbd.getFactoryBeanName() != null && isSingletonCurrentlyInCreation(mbd.getFactoryBeanName()))) {
 				return null;
@@ -1140,10 +1169,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			Object instance;
 			try {
 				// Mark this bean as currently in creation, even if just partially.
+				// 将beanName添加进正在创建的集合中
 				beforeSingletonCreation(beanName);
 				// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
+				// 调用bbp的beforeInstantiation方法，如果有实例被创建，调用afterInitialization方法
 				instance = resolveBeforeInstantiation(beanName, mbd);
+				// 如果instance为null
 				if (instance == null) {
+					// 调用createBeanInstance创建beanWrapper
 					bw = createBeanInstance(beanName, mbd, null);
 					instance = bw.getWrappedInstance();
 				}
@@ -1167,13 +1200,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 			finally {
 				// Finished partial creation of this bean.
+				// 将beanName从正在创建的集合中删除
 				afterSingletonCreation(beanName);
 			}
 
+			// 将instance转型为FactoryBean
 			FactoryBean<?> fb = getFactoryBean(beanName, instance);
 			if (bw != null) {
+				// 将bw放入缓存中
 				this.factoryBeanInstanceCache.put(beanName, bw);
 			}
+			// 返回FactoryBean
 			return fb;
 		}
 	}
@@ -1188,6 +1225,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	@Nullable
 	private FactoryBean<?> getNonSingletonFactoryBeanForTypeCheck(String beanName, RootBeanDefinition mbd) {
+		// 如果beanName存在于正在创建的原型集合中，返回null
 		if (isPrototypeCurrentlyInCreation(beanName)) {
 			return null;
 		}
@@ -1195,10 +1233,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		Object instance;
 		try {
 			// Mark this bean as currently in creation, even if just partially.
+			// 将beanName放入正在创建的原型集合中
 			beforePrototypeCreation(beanName);
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
+			// 调用bbp的beforeInstantiation方法
 			instance = resolveBeforeInstantiation(beanName, mbd);
 			if (instance == null) {
+				// 根据mbd创建一个beanWrapper
 				BeanWrapper bw = createBeanInstance(beanName, mbd, null);
 				instance = bw.getWrappedInstance();
 			}
@@ -1217,9 +1258,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 		finally {
 			// Finished partial creation of this bean.
+			// 将beanName从正在创建的原型集合中删除
 			afterPrototypeCreation(beanName);
 		}
 
+		// 将instance转型为FactoryBean返回
 		return getFactoryBean(beanName, instance);
 	}
 
@@ -2361,15 +2404,22 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		@Override
 		public void doWith(Method method) throws IllegalArgumentException, IllegalAccessException {
+			// 如果方法名称和要查找的factoryMethodName一致，并且返回类型是FactoryBean
 			if (isFactoryBeanMethod(method)) {
+				// 根据方法的返回类型创建一个ResolvableType
 				ResolvableType returnType = ResolvableType.forMethodReturnType(method);
+				// 然后将其转换为FactoryBean并获取其泛型
 				ResolvableType candidate = returnType.as(FactoryBean.class).getGeneric();
+				// 如果自身缓存的result为NONE的话，将candidate赋值
 				if (this.result == ResolvableType.NONE) {
 					this.result = candidate;
 				}
+				// 如果自身的result已经有值
 				else {
+					// 那么比较二者的resolved字段，选取其共同祖先类
 					Class<?> resolvedResult = this.result.resolve();
 					Class<?> commonAncestor = ClassUtils.determineCommonAncestor(candidate.resolve(), resolvedResult);
+					// 如果共同祖先类不等于result的类，那么将result赋值为commonAncestor的resolvableType
 					if (!ObjectUtils.nullSafeEquals(resolvedResult, commonAncestor)) {
 						this.result = ResolvableType.forClass(commonAncestor);
 					}
@@ -2383,8 +2433,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		ResolvableType getResult() {
+			// 获取result的resolved字段
 			Class<?> resolved = this.result.resolve();
+			// 如果resolved字段不为null且不是Object.class
 			boolean foundResult = resolved != null && resolved != Object.class;
+			// 返回result，否则返回NONE
 			return (foundResult ? this.result : ResolvableType.NONE);
 		}
 	}

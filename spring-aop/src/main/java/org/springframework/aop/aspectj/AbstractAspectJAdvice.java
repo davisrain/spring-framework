@@ -260,22 +260,32 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	}
 
 	public void setArgumentNamesFromStringArray(String... args) {
+		// 将advice持有的argumentNames初始化为String数组
 		this.argumentNames = new String[args.length];
+		// 遍历传入的参数数组
 		for (int i = 0; i < args.length; i++) {
+			// 将其trim
 			this.argumentNames[i] = StringUtils.trimWhitespace(args[i]);
+			// 如果发现对应的参数名不是变量名，报错
 			if (!isVariableName(this.argumentNames[i])) {
 				throw new IllegalArgumentException(
 						"'argumentNames' property of AbstractAspectJAdvice contains an argument name '" +
-						this.argumentNames[i] + "' that is not a valid Java identifier");
+								this.argumentNames[i] + "' that is not a valid Java identifier");
 			}
 		}
+		// 如果argumentNames不为null
 		if (this.argumentNames != null) {
+			// 检查方法的参数个数是否比参数名数组的长度大1
 			if (this.aspectJAdviceMethod.getParameterCount() == this.argumentNames.length + 1) {
 				// May need to add implicit join point arg name...
+				// 如果是的话，我们需要添加隐式的连接点的参数名
+				// 获取adviceMethod的第一个参数类型
 				Class<?> firstArgType = this.aspectJAdviceMethod.getParameterTypes()[0];
+				// 如果参数类型是连接点相关的类型的话
 				if (firstArgType == JoinPoint.class ||
 						firstArgType == ProceedingJoinPoint.class ||
 						firstArgType == JoinPoint.StaticPart.class) {
+					// 将参数数组的第一个元素设置为THIS_JOIN_POINT，然后将原本的参数数组的内容赋值到新数组的第二个元素开始的位置
 					String[] oldNames = this.argumentNames;
 					this.argumentNames = new String[oldNames.length + 1];
 					this.argumentNames[0] = "THIS_JOIN_POINT";
@@ -379,22 +389,31 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	 */
 	public final synchronized void calculateArgumentBindings() {
 		// The simple case... nothing to bind.
+		// 如果argumentsIntrospected为true 或者 参数类型长度为0，直接返回
 		if (this.argumentsIntrospected || this.parameterTypes.length == 0) {
 			return;
 		}
 
+		// 获取参数类型的长度
 		int numUnboundArgs = this.parameterTypes.length;
+		// 获取adviceMethod的参数类型数组
 		Class<?>[] parameterTypes = this.aspectJAdviceMethod.getParameterTypes();
+		// 判断第一个参数类型是否是JoinPoint.class 或者
+		// ProceedingJoinPoint.class(这种类型只有AspectJAroundAdvice才可以存在) 或者 JoinPoint.StaticPart.class
 		if (maybeBindJoinPoint(parameterTypes[0]) || maybeBindProceedingJoinPoint(parameterTypes[0]) ||
 				maybeBindJoinPointStaticPart(parameterTypes[0])) {
+			// 如果是的话，将未绑定的参数个数-1
 			numUnboundArgs--;
 		}
 
+		// 如果未绑定的参数个数大于0的话
 		if (numUnboundArgs > 0) {
 			// need to bind arguments by name as returned from the pointcut match
+			// 那么根据name去绑定参数
 			bindArgumentsByName(numUnboundArgs);
 		}
 
+		// 将argumentsIntrospected设置为true
 		this.argumentsIntrospected = true;
 	}
 
@@ -436,11 +455,15 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	}
 
 	private void bindArgumentsByName(int numArgumentsExpectingToBind) {
+		// 如果参数名数组为null的话
 		if (this.argumentNames == null) {
+			// 创建参数名发现器去查找adviceMethod的参数名
 			this.argumentNames = createParameterNameDiscoverer().getParameterNames(this.aspectJAdviceMethod);
 		}
+		// 如果参数名数组不为null
 		if (this.argumentNames != null) {
 			// We have been able to determine the arg names.
+			// 调用bindExplicitArguments去绑定参数
 			bindExplicitArguments(numArgumentsExpectingToBind);
 		}
 		else {
@@ -458,12 +481,16 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	protected ParameterNameDiscoverer createParameterNameDiscoverer() {
 		// We need to discover them, or if that fails, guess,
 		// and if we can't guess with 100% accuracy, fail.
+		// 先创建一个DefaultParameterNameDiscoverer
 		DefaultParameterNameDiscoverer discoverer = new DefaultParameterNameDiscoverer();
+		// 根据pointcut的expression创建一个AspectJAdviceParameterNameDiscover
 		AspectJAdviceParameterNameDiscoverer adviceParameterNameDiscoverer =
 				new AspectJAdviceParameterNameDiscoverer(this.pointcut.getExpression());
+		// 向AspectJAdviceParameterNameDiscover中设置自身的returningName和throwingName
 		adviceParameterNameDiscoverer.setReturningName(this.returningName);
 		adviceParameterNameDiscoverer.setThrowingName(this.throwingName);
 		// Last in chain, so if we're called and we fail, that's bad...
+		// 设置raiseException为true
 		adviceParameterNameDiscoverer.setRaiseExceptions(true);
 		discoverer.addDiscoverer(adviceParameterNameDiscoverer);
 		return discoverer;
@@ -471,9 +498,12 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 
 	private void bindExplicitArguments(int numArgumentsLeftToBind) {
 		Assert.state(this.argumentNames != null, "No argument names available");
+		// 创建一个HashMap赋值给argumentBindings
 		this.argumentBindings = new HashMap<>();
 
+		// 获取adviceMethod的参数个数
 		int numExpectedArgumentNames = this.aspectJAdviceMethod.getParameterCount();
+		// 如果参数名数组的长度不等于adviceMethod的参数个数，报错
 		if (this.argumentNames.length != numExpectedArgumentNames) {
 			throw new IllegalStateException("Expecting to find " + numExpectedArgumentNames +
 					" arguments to bind by name in advice, but actually found " +
@@ -481,24 +511,32 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 		}
 
 		// So we match in number...
+		// 用参数类型个数-剩余的要绑定的参数个数=需要绑定的参数的偏移量
 		int argumentIndexOffset = this.parameterTypes.length - numArgumentsLeftToBind;
+		// 将参数名和对应下标存入到argumentBindings中
 		for (int i = argumentIndexOffset; i < this.argumentNames.length; i++) {
 			this.argumentBindings.put(this.argumentNames[i], i);
 		}
 
 		// Check that returning and throwing were in the argument names list if
 		// specified, and find the discovered argument types.
+		// 如果returningName存在
 		if (this.returningName != null) {
+			// 但是在参数绑定的map中不包含returningName这个key，报错
 			if (!this.argumentBindings.containsKey(this.returningName)) {
 				throw new IllegalStateException("Returning argument name '" + this.returningName +
 						"' was not bound in advice arguments");
 			}
+			// 如果returningName存在于argumentBindings的key中
 			else {
+				// 找到对应的参数下标
 				Integer index = this.argumentBindings.get(this.returningName);
+				// 将discoveredReturningType和discoveredReturningGenericType都从adviceMethod这个方法反射对象中解析出来
 				this.discoveredReturningType = this.aspectJAdviceMethod.getParameterTypes()[index];
 				this.discoveredReturningGenericType = this.aspectJAdviceMethod.getGenericParameterTypes()[index];
 			}
 		}
+		// throwingName的解析同上
 		if (this.throwingName != null) {
 			if (!this.argumentBindings.containsKey(this.throwingName)) {
 				throw new IllegalStateException("Throwing argument name '" + this.throwingName +
@@ -511,6 +549,7 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 		}
 
 		// configure the pointcut expression accordingly.
+		// 配置pointcut相关的参数
 		configurePointcutParameters(this.argumentNames, argumentIndexOffset);
 	}
 
@@ -520,31 +559,41 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	 * and must be removed from the list if present.
 	 */
 	private void configurePointcutParameters(String[] argumentNames, int argumentIndexOffset) {
+		// 将argumentIndexOffset作为要删除的参数个数，因为JointPoint相关的参数不会配置到pointcut中
 		int numParametersToRemove = argumentIndexOffset;
+		// 同时，如果存在returningName或者throwingName，都将要删除的参数个数+1
 		if (this.returningName != null) {
 			numParametersToRemove++;
 		}
 		if (this.throwingName != null) {
 			numParametersToRemove++;
 		}
+		// 根据剩余的参数个数创建pointcut相关的参数名数组
 		String[] pointcutParameterNames = new String[argumentNames.length - numParametersToRemove];
+		// 以及pointcut的参数类型数组
 		Class<?>[] pointcutParameterTypes = new Class<?>[pointcutParameterNames.length];
+		// 获取adviceMethod的参数类型数组
 		Class<?>[] methodParameterTypes = this.aspectJAdviceMethod.getParameterTypes();
 
 		int index = 0;
+		// 遍历adviceMethod的参数类型数组
 		for (int i = 0; i < argumentNames.length; i++) {
+			// 当下标小于argumentIndexOffset时，跳过
 			if (i < argumentIndexOffset) {
 				continue;
 			}
+			// 当参数名等于returningName或者throwingName时也跳过
 			if (argumentNames[i].equals(this.returningName) ||
-				argumentNames[i].equals(this.throwingName)) {
+					argumentNames[i].equals(this.throwingName)) {
 				continue;
 			}
+			// 将下标i对应的参数放入到pointcut参数名和类型数组的index位置去
 			pointcutParameterNames[index] = argumentNames[i];
 			pointcutParameterTypes[index] = methodParameterTypes[i];
 			index++;
 		}
 
+		// 将参数名和参数类型数组设置进pointcut
 		this.pointcut.setParameterNames(pointcutParameterNames);
 		this.pointcut.setParameterTypes(pointcutParameterTypes);
 	}
