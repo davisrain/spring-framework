@@ -68,8 +68,10 @@ public abstract class AutoProxyUtils {
 	public static boolean shouldProxyTargetClass(
 			ConfigurableListableBeanFactory beanFactory, @Nullable String beanName) {
 
+		// 如果beanName不为null 并且 beanFactory中包含对应的bd
 		if (beanName != null && beanFactory.containsBeanDefinition(beanName)) {
 			BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
+			// 查看bd的preserveTargetClass属性是否为true
 			return Boolean.TRUE.equals(bd.getAttribute(PRESERVE_TARGET_CLASS_ATTRIBUTE));
 		}
 		return false;

@@ -41,7 +41,9 @@ class MethodBeforeAdviceAdapter implements AdvisorAdapter, Serializable {
 
 	@Override
 	public MethodInterceptor getInterceptor(Advisor advisor) {
+		// 获取advisor的MethodBeforeAdvice类型的Advice
 		MethodBeforeAdvice advice = (MethodBeforeAdvice) advisor.getAdvice();
+		// 然后将其适配为MethodBeforeAdviceInterceptor
 		return new MethodBeforeAdviceInterceptor(advice);
 	}
 

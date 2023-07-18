@@ -328,18 +328,26 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	 * @param advisors the advisors to register
 	 */
 	public void addAdvisors(Collection<Advisor> advisors) {
+		// 如果proxyFactory的状态是frozen的，报错
 		if (isFrozen()) {
 			throw new AopConfigException("Cannot add advisor: Configuration is frozen.");
 		}
+		// 如果advisors不为空
 		if (!CollectionUtils.isEmpty(advisors)) {
+			// 遍历advisors
 			for (Advisor advisor : advisors) {
+				// 如果advisor属于IntroductionAdvisor类型的
 				if (advisor instanceof IntroductionAdvisor) {
+					// 验证IntroductionAdvisor
 					validateIntroductionAdvisor((IntroductionAdvisor) advisor);
 				}
 				Assert.notNull(advisor, "Advisor must not be null");
+				// 将advisor添加到自身持有的advisors属性中
 				this.advisors.add(advisor);
 			}
+			// 更新advisor数组
 			updateAdvisorArray();
+			// 调用adviceChanged方法，将缓存失效以及可能发送通知
 			adviceChanged();
 		}
 	}
@@ -347,6 +355,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	private void validateIntroductionAdvisor(IntroductionAdvisor advisor) {
 		advisor.validateInterfaces();
 		// If the advisor passed validation, we can make the change.
+		// 如果advisor通过了验证，那么可以将advisor的interfaces添加到proxyFactory中
 		Class<?>[] ifcs = advisor.getInterfaces();
 		for (Class<?> ifc : ifcs) {
 			addInterface(ifc);
@@ -476,13 +485,19 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	 * @return a List of MethodInterceptors (may also include InterceptorAndDynamicMethodMatchers)
 	 */
 	public List<Object> getInterceptorsAndDynamicInterceptionAdvice(Method method, @Nullable Class<?> targetClass) {
+		// 根据method生成一个MethodCacheKey用做缓存的key
 		MethodCacheKey cacheKey = new MethodCacheKey(method);
+		// 查看缓存中是否存在对应key的值
 		List<Object> cached = this.methodCache.get(cacheKey);
+		// 如果不存在
 		if (cached == null) {
+			// 调用advisorChainFactory获取method对应的MethodInterceptorChain
 			cached = this.advisorChainFactory.getInterceptorsAndDynamicInterceptionAdvice(
 					this, method, targetClass);
+			// 将结果根据key缓存起来
 			this.methodCache.put(cacheKey, cached);
 		}
+		// 返回获取到的增强链
 		return cached;
 	}
 

@@ -52,7 +52,9 @@ public class MethodBeforeAdviceInterceptor implements MethodInterceptor, BeforeA
 
 	@Override
 	public Object invoke(MethodInvocation mi) throws Throwable {
+		// invoke方法就是调用持有的advice的before方法，传入调用的方法、方法参数、以及被代理的target对象
 		this.advice.before(mi.getMethod(), mi.getArguments(), mi.getThis());
+		// 继续调用下一个增强链
 		return mi.proceed();
 	}
 

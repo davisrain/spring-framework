@@ -50,10 +50,15 @@ public final class ExposeInvocationInterceptor implements MethodInterceptor, Pri
 	 * Singleton advisor for this class. Use in preference to INSTANCE when using
 	 * Spring AOP, as it prevents the need to create a new Advisor to wrap the instance.
 	 */
+	// 该advisor会在AbstractAdvisorAutoProxyCreator的findEligibleAdvisors中的extendAdvisors方法中添加到advisor链中，
+	// 且Pointcut的ClassFilter和MethodMatcher都为true，表示所有类的所有方法都会应用到该advisor中的advice增强。
+	// 并且该advisor持有的advice实现了Ordered接口，在findEligibleAdvisors方法中的sortAdvisors方法中，会将advisors排序，
+	// 如果AbstractPointcutAdvisor类型的对象的order值为null，那么会获取持有的advice的order值，该advisor持有的advice就是当前类，其order为最高优先级+1，
+	// 所以会最终会在MethodInterceptorChain中排得十分靠前。
 	public static final Advisor ADVISOR = new DefaultPointcutAdvisor(INSTANCE) {
 		@Override
 		public String toString() {
-			return ExposeInvocationInterceptor.class.getName() +".ADVISOR";
+			return ExposeInvocationInterceptor.class.getName() + ".ADVISOR";
 		}
 	};
 
@@ -89,12 +94,17 @@ public final class ExposeInvocationInterceptor implements MethodInterceptor, Pri
 
 	@Override
 	public Object invoke(MethodInvocation mi) throws Throwable {
+		// 获取threadLocal保存的原本MethodInvocation
 		MethodInvocation oldInvocation = invocation.get();
+		// 将传入的MethodInvocation作为新的存入threadLocal中，
+		// 方便其他methodInterceptor通过该类的currentInvocation方法获取当前的MethodInvocation
 		invocation.set(mi);
 		try {
+			// 继续调用MethodInvocation持有的MethodInterceptorChain中的下一个MethodInterceptor
 			return mi.proceed();
 		}
 		finally {
+			// 将oldMethodInvocation设置回threadLocal中
 			invocation.set(oldInvocation);
 		}
 	}

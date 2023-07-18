@@ -112,6 +112,7 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 		this.proxy = proxy;
 		this.target = target;
 		this.targetClass = targetClass;
+		// 如果是桥接方法，找到那个被桥接的方法
 		this.method = BridgeMethodResolver.findBridgedMethod(method);
 		this.arguments = AopProxyUtils.adaptArgumentsIfNecessary(method, arguments);
 		this.interceptorsAndDynamicMethodMatchers = interceptorsAndDynamicMethodMatchers;
@@ -159,30 +160,45 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 	@Nullable
 	public Object proceed() throws Throwable {
 		// We start with an index of -1 and increment early.
+		// 如果当前执行到的interceptorIndex已经是最后一个MethodInterceptor了
 		if (this.currentInterceptorIndex == this.interceptorsAndDynamicMethodMatchers.size() - 1) {
+			// 那么调用invokeJoinPoint方法并返回
 			return invokeJoinpoint();
 		}
 
+		// 否则，将当前执行到的interceptorIndex+1，并获取到对应下标的interceptor
 		Object interceptorOrInterceptionAdvice =
 				this.interceptorsAndDynamicMethodMatchers.get(++this.currentInterceptorIndex);
+		// 如果获取到的interceptor是InterceptorAndDynamicMethodMatcher类型的
 		if (interceptorOrInterceptionAdvice instanceof InterceptorAndDynamicMethodMatcher) {
 			// Evaluate dynamic method matcher here: static part will already have
 			// been evaluated and found to match.
 			InterceptorAndDynamicMethodMatcher dm =
 					(InterceptorAndDynamicMethodMatcher) interceptorOrInterceptionAdvice;
 			Class<?> targetClass = (this.targetClass != null ? this.targetClass : this.method.getDeclaringClass());
+			// 调用其持有的MethodMatcher检验当前方法是否匹配
 			if (dm.methodMatcher.matches(this.method, targetClass, this.arguments)) {
+				// 如果匹配，调用其持有的interceptor的invoke方法
 				return dm.interceptor.invoke(this);
 			}
+			// 如果匹配失败了，跳过当前要执行interceptor，通过proceed方法调用chain中的一个interceptor
 			else {
 				// Dynamic matching failed.
 				// Skip this interceptor and invoke the next in the chain.
 				return proceed();
 			}
 		}
+		// 如果获取到interceptor就是单纯的MethodInterceptor类型的
 		else {
 			// It's an interceptor, so we just invoke it: The pointcut will have
 			// been evaluated statically before this object was constructed.
+			// 调用interceptor的invoke方法
+			// 其中通过AspectJ注解声明的几种advice对应的MethodInterceptor分别是：
+			// @Before：MethodBeforeAdviceInterceptor，这是由DefaultAdvisorAdapterRegistry根据AspectJMethodBeforeAdvice适配而来的
+			// @AfterReturning：AfterReturningAdviceInterceptor，这也是由DefaultAdvisorAdapterRegistry根据AspectJAfterReturningAdvice适配来的
+			// @After：AspectJAfterAdvice，因为其自身就实现了MethodInterceptor接口，所以不需要适配
+			// @AfterThrowing：AspectJAfterThrowingAdvice，因为其自身就实现了MethodInterceptor接口，所以也不需要适配
+			// @Around：AspectJAroundAdvice，该Advice类也实现了MethodInterceptor接口，不需要适配
 			return ((MethodInterceptor) interceptorOrInterceptionAdvice).invoke(this);
 		}
 	}
@@ -195,6 +211,7 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 	 */
 	@Nullable
 	protected Object invokeJoinpoint() throws Throwable {
+		// 通过反射调用被代理对象的被代理方法
 		return AopUtils.invokeJoinpointUsingReflection(this.target, this.method, this.arguments);
 	}
 

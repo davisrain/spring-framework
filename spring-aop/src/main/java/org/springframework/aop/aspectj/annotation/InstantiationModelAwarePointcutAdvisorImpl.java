@@ -183,6 +183,7 @@ final class InstantiationModelAwarePointcutAdvisorImpl
 
 	@Override
 	public int getOrder() {
+		// 调用aspectInstanceFactory的getOrder方法
 		return this.aspectInstanceFactory.getOrder();
 	}
 

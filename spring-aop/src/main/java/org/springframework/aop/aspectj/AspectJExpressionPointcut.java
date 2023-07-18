@@ -87,6 +87,42 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 
 	private static final Set<PointcutPrimitive> SUPPORTED_PRIMITIVES = new HashSet<>();
 
+
+	//execution：匹配目标类的方法执行。可以使用类名、方法名、参数等来进行匹配。
+	//示例：
+	//execution(* com.example.MyClass.myMethod(..))：匹配com.example.MyClass类中的myMethod方法。
+
+	//within：匹配目标类中的所有方法。使用类名来进行匹配，不考虑具体方法名和参数。
+	//示例：
+	//within(com.example.MyClass)：匹配com.example.MyClass类中的所有方法。
+
+	//args：匹配目标类中的方法，根据方法的参数类型进行匹配。可以指定一个或多个参数类型。
+	//示例：
+	//args(java.lang.String)：匹配具有一个String参数的方法。
+
+	//this：匹配目标类的实例。使用目标对象的类型来进行匹配。
+	//示例：
+	//this(com.example.MyInterface)：匹配实现了com.example.MyInterface接口的目标对象。
+
+	//target：匹配目标类本身。使用目标类的类型来进行匹配。
+	//示例：
+	//target(com.example.MyClass)：匹配com.example.MyClass类本身。
+
+	//@target：匹配目标类被特定注解标注的方法。使用注解类型来进行匹配。
+	//示例：
+	//@target(org.springframework.stereotype.Service)：匹配被@Service注解标注的目标类的方法。
+
+	//@args：匹配目标类中的方法，根据方法的参数上是否有特定注解来进行匹配。使用注解类型来进行匹配。
+	//示例：
+	//@args(org.springframework.beans.annotation.Qualifier)：匹配具有一个参数上标注了@Qualifier注解的方法。
+
+	//@within：匹配目标类本身是否被特定注解标注。使用注解类型来进行匹配。
+	//示例：
+	//@within(org.springframework.stereotype.Component)：匹配被@Component注解标注的目标类本身。
+
+	//@annotation：匹配目标方法是否被特定注解标注。使用注解类型来进行匹配。
+	//示例：
+	//@annotation(org.springframework.transaction.annotation.Transactional)：匹配被@Transactional注解标注的目标方法。
 	static {
 		SUPPORTED_PRIMITIVES.add(PointcutPrimitive.EXECUTION);
 		SUPPORTED_PRIMITIVES.add(PointcutPrimitive.ARGS);
@@ -174,6 +210,8 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 
 	@Override
 	public ClassFilter getClassFilter() {
+		// 获取pointcutExpression，根据父类中的expression属性来构建PointcutExpression。
+		// 这是一种懒构建，在使用时才开始构建
 		obtainPointcutExpression();
 		return this;
 	}
@@ -194,7 +232,9 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 			throw new IllegalStateException("Must set property 'expression' before attempting to match");
 		}
 		if (this.pointcutExpression == null) {
+			// 查找到Pointcut要使用的类加载器，如果ConfigurableBeanFactory存在，使用beanFactory的beanClassLoader
 			this.pointcutClassLoader = determinePointcutClassLoader();
+			// 调用buildPointcutExpression方法使用刚才获取到的类加载器来构建
 			this.pointcutExpression = buildPointcutExpression(this.pointcutClassLoader);
 		}
 		return this.pointcutExpression;
@@ -205,12 +245,16 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 	 */
 	@Nullable
 	private ClassLoader determinePointcutClassLoader() {
+		// 如果beanFactory是属于ConfigurableBeanFactory类型的
 		if (this.beanFactory instanceof ConfigurableBeanFactory) {
+			// 获取它的beanClassLoader
 			return ((ConfigurableBeanFactory) this.beanFactory).getBeanClassLoader();
 		}
+		// 如果pointcutDeclarationScope不为null，获取加载这个类的类加载器
 		if (this.pointcutDeclarationScope != null) {
 			return this.pointcutDeclarationScope.getClassLoader();
 		}
+		// 否则获取默认的类加载器
 		return ClassUtils.getDefaultClassLoader();
 	}
 
@@ -218,13 +262,20 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 	 * Build the underlying AspectJ pointcut expression.
 	 */
 	private PointcutExpression buildPointcutExpression(@Nullable ClassLoader classLoader) {
+		// 初始化Pointcut解析器
 		PointcutParser parser = initializePointcutParser(classLoader);
+		// 根据pointcutParameterNames和pointcutParameterTypes创建PointcutParameter数组
 		PointcutParameter[] pointcutParameters = new PointcutParameter[this.pointcutParameterNames.length];
 		for (int i = 0; i < pointcutParameters.length; i++) {
 			pointcutParameters[i] = parser.createPointcutParameter(
 					this.pointcutParameterNames[i], this.pointcutParameterTypes[i]);
 		}
-		return parser.parsePointcutExpression(replaceBooleanOperators(resolveExpression()),
+		// 调用parser的parsePointcutExpression方法对expression进行解析，返回PointcutExpression对象
+		return parser.parsePointcutExpression(
+				// 将and or not替换为&& || !
+				replaceBooleanOperators(
+				// 获取expression属性
+				resolveExpression()),
 				this.pointcutDeclarationScope, pointcutParameters);
 	}
 
@@ -238,9 +289,11 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 	 * Initialize the underlying AspectJ pointcut parser.
 	 */
 	private PointcutParser initializePointcutParser(@Nullable ClassLoader classLoader) {
+		// 根据SUPPORTED_PRIMITIVES和classloader创建一个PointcutParser
 		PointcutParser parser = PointcutParser
 				.getPointcutParserSupportingSpecifiedPrimitivesAndUsingSpecifiedClassLoaderForResolution(
 						SUPPORTED_PRIMITIVES, classLoader);
+		// 注册一个registerPointcutDesignatorHandler进parser中
 		parser.registerPointcutDesignatorHandler(new BeanPointcutDesignatorHandler());
 		return parser;
 	}

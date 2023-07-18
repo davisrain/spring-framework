@@ -101,9 +101,11 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 	 */
 	public JdkDynamicAopProxy(AdvisedSupport config) throws AopConfigException {
 		Assert.notNull(config, "AdvisedSupport must not be null");
+		// 如果config中的advisors长度为0 并且 targetSource又是EmptyTargetSource，报错
 		if (config.getAdvisors().length == 0 && config.getTargetSource() == AdvisedSupport.EMPTY_TARGET_SOURCE) {
 			throw new AopConfigException("No advisors and no TargetSource specified");
 		}
+		// 否则将config赋值给自身的advised属性
 		this.advised = config;
 	}
 
@@ -118,8 +120,11 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 		if (logger.isTraceEnabled()) {
 			logger.trace("Creating JDK dynamic proxy: " + this.advised.getTargetSource());
 		}
+		// 根据advisedSupport找到需要代理的完整接口数组，其中会根据情况添加SpringProxy、Advised、DecoratingProxy等接口
 		Class<?>[] proxiedInterfaces = AopProxyUtils.completeProxiedInterfaces(this.advised, true);
+		// 判断要代理的接口中是否已经有定义好的equals和hashcode方法了，并且设置自身的equalsDefined和hashcodeDefined属性
 		findDefinedEqualsAndHashCodeMethods(proxiedInterfaces);
+		// 然后使用JDK的动态代理生成代理对象，其中InvocationHandler为this对象，因为JDKDynamicAopProxy实现了InvocationHandler接口
 		return Proxy.newProxyInstance(classLoader, proxiedInterfaces, this);
 	}
 
@@ -129,15 +134,21 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 	 * @param proxiedInterfaces the interfaces to introspect
 	 */
 	private void findDefinedEqualsAndHashCodeMethods(Class<?>[] proxiedInterfaces) {
+		// 遍历要被代理的接口数组
 		for (Class<?> proxiedInterface : proxiedInterfaces) {
+			// 获取接口声明的方法
 			Method[] methods = proxiedInterface.getDeclaredMethods();
+			// 遍历接口声明的方法
 			for (Method method : methods) {
+				// 如果方法是equals方法，那么将自身的equalsDefined属性设置为true
 				if (AopUtils.isEqualsMethod(method)) {
 					this.equalsDefined = true;
 				}
+				// 如果方法是hashcode方法，那么将自身的hashcodeDefined属性设置为true
 				if (AopUtils.isHashCodeMethod(method)) {
 					this.hashCodeDefined = true;
 				}
+				// 如果equalsDefined和hashcodeDefined都已经为true了，直接返回
 				if (this.equalsDefined && this.hashCodeDefined) {
 					return;
 				}
@@ -157,58 +168,81 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 		Object oldProxy = null;
 		boolean setProxyContext = false;
 
+		// 获取到自身持有的advised的targetSource
 		TargetSource targetSource = this.advised.targetSource;
 		Object target = null;
 
 		try {
+			// 如果要实现的接口中都没有定义equals方法 并且 当前调用的方法是equals
 			if (!this.equalsDefined && AopUtils.isEqualsMethod(method)) {
 				// The target does not implement the equals(Object) method itself.
+				// 那么调用invocationHolder自身的equals方法，并将第一个参数传入
 				return equals(args[0]);
 			}
+			// 如果要实现的接口中都没有定义hashcode方法 并且 当前调用的是hashcode
 			else if (!this.hashCodeDefined && AopUtils.isHashCodeMethod(method)) {
 				// The target does not implement the hashCode() method itself.
+				// 那么调用InvocationHandler自身的hashcode
 				return hashCode();
 			}
+			// 如果反射方法的声明类是DecoratingProxy接口
 			else if (method.getDeclaringClass() == DecoratingProxy.class) {
 				// There is only getDecoratedClass() declared -> dispatch to proxy config.
+				// 获取advised的ultimateTargetClass
 				return AopProxyUtils.ultimateTargetClass(this.advised);
 			}
+			// 如果持有的advised的opaque是false 并且 方法的声明类是Advised接口，那么就是要获取Advised相关的内容，
+			// 直接从自身持有的advised对象(也就是创建代理使用的ProxyFactory，它继承了AdvisedSupport，实现了Advised接口)中返回
 			else if (!this.advised.opaque && method.getDeclaringClass().isInterface() &&
 					method.getDeclaringClass().isAssignableFrom(Advised.class)) {
 				// Service invocations on ProxyConfig with the proxy config...
+				// 通过反射调用自身持有的advised相对应的方法
 				return AopUtils.invokeJoinpointUsingReflection(this.advised, method, args);
 			}
 
 			Object retVal;
 
+			// 如果advised的exposeProxy为true，代表需要将代理对象的引用暴露出来，并且存入ThreadLocal中
 			if (this.advised.exposeProxy) {
 				// Make invocation available if necessary.
+				// 将代理对象放入AopContext持有的ThreadLocal中，并且将老的代理对象赋值给oldProxy，待方法调用结束后set回去
 				oldProxy = AopContext.setCurrentProxy(proxy);
+				// 并且将setProxyContext标志置为true
 				setProxyContext = true;
 			}
 
 			// Get as late as possible to minimize the time we "own" the target,
 			// in case it comes from a pool.
+			// 获取到实际代理的对象target
 			target = targetSource.getTarget();
+			// 如果target不为null的话，获取到targetClass，否则targetClass为null
 			Class<?> targetClass = (target != null ? target.getClass() : null);
 
 			// Get the interception chain for this method.
+			// 根据类型和方法获取到应用到这个方法上的增强链
 			List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
 
 			// Check whether we have any advice. If we don't, we can fallback on direct
 			// reflective invocation of the target, and avoid creating a MethodInvocation.
+			// 如果增强链为空的话，那么我们可以直接反射调用target的对应方法，避免了去创建一个MethodInvocation
 			if (chain.isEmpty()) {
 				// We can skip creating a MethodInvocation: just invoke the target directly
 				// Note that the final invoker must be an InvokerInterceptor so we know it does
 				// nothing but a reflective operation on the target, and no hot swapping or fancy proxying.
+				// 适配方法调用所需要的参数
 				Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
+				// 直接通过反射调用target的方法，没有进行方法增强
 				retVal = AopUtils.invokeJoinpointUsingReflection(target, method, argsToUse);
 			}
+			// 如果存在增强链的话
 			else {
 				// We need to create a method invocation...
+				// 我们需要创建一个MethodInvocation，MethodInvocation实现了JoinPoint接口
+				// 将代理对象、被代理对象、方法、调用方法的参数、被代理对象的类型和MethodInterceptor增强链都封装起来
 				MethodInvocation invocation =
 						new ReflectiveMethodInvocation(proxy, target, method, args, targetClass, chain);
 				// Proceed to the joinpoint through the interceptor chain.
+				// 然后调用invocation的proceed方法，执行MethodInterceptorChain，并执行实际的方法调用，并且获取返回值
 				retVal = invocation.proceed();
 			}
 
@@ -233,8 +267,10 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 				// Must have come from TargetSource.
 				targetSource.releaseTarget(target);
 			}
+			// 如果之前将proxy设置进了AopContext的ThreadLocal中
 			if (setProxyContext) {
 				// Restore old proxy.
+				// 那么现在将之前的proxy代理对象重新设置进去
 				AopContext.setCurrentProxy(oldProxy);
 			}
 		}

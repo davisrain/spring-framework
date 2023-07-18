@@ -80,32 +80,43 @@ class AspectJPrecedenceComparator implements Comparator<Advisor> {
 
 	@Override
 	public int compare(Advisor o1, Advisor o2) {
+		// 首先使用AnnotationAwareOrderComparator对两个advisor进行比较
 		int advisorPrecedence = this.advisorComparator.compare(o1, o2);
+		// 如果发现它们的优先级相同 并且 它们是声明在同一个切面里的
 		if (advisorPrecedence == SAME_PRECEDENCE && declaredInSameAspect(o1, o2)) {
+			// 在切面中比较它们的优先级
 			advisorPrecedence = comparePrecedenceWithinAspect(o1, o2);
 		}
+		// 返回比较结果
 		return advisorPrecedence;
 	}
 
 	private int comparePrecedenceWithinAspect(Advisor advisor1, Advisor advisor2) {
+		// 如果两个advisor之中存在一个AfterAdvice，将该标志置为true
 		boolean oneOrOtherIsAfterAdvice =
 				(AspectJAopUtils.isAfterAdvice(advisor1) || AspectJAopUtils.isAfterAdvice(advisor2));
+		// 用advisor1的declarationOrder减去advisor2的declarationOrder，等到它们的声明的顺序差
 		int adviceDeclarationOrderDelta = getAspectDeclarationOrder(advisor1) - getAspectDeclarationOrder(advisor2);
 
+		// 如果二者之间存在AfterAdvice，那么声明在后面的有更高的优先级
 		if (oneOrOtherIsAfterAdvice) {
 			// the advice declared last has higher precedence
+			// 因为advice1声明在advice2前面，因此advice1有更低的优先级
 			if (adviceDeclarationOrderDelta < 0) {
 				// advice1 was declared before advice2
 				// so advice1 has lower precedence
 				return LOWER_PRECEDENCE;
 			}
+			// 如果它们的声明顺序的差为0，则有相同的优先级
 			else if (adviceDeclarationOrderDelta == 0) {
 				return SAME_PRECEDENCE;
 			}
+			// 如果advice1声明在advice2的后面，那么advice1有更高的优先级
 			else {
 				return HIGHER_PRECEDENCE;
 			}
 		}
+		// 如果二者之间不存在AfterAdvice，那么声明在前面的有更高的优先级
 		else {
 			// the advice declared first has higher precedence
 			if (adviceDeclarationOrderDelta < 0) {
@@ -123,11 +134,14 @@ class AspectJPrecedenceComparator implements Comparator<Advisor> {
 	}
 
 	private boolean declaredInSameAspect(Advisor advisor1, Advisor advisor2) {
+		// 如果两个advisor都存在aspectName且它们的aspectName相等，那么说明它们是声明在相同切面里面的
 		return (hasAspectName(advisor1) && hasAspectName(advisor2) &&
 				getAspectName(advisor1).equals(getAspectName(advisor2)));
 	}
 
 	private boolean hasAspectName(Advisor advisor) {
+		// 如果advisor是属于AspectJPrecedenceInformation类型的 或者 其持有的advice是属于AspectJPrecedenceInformation类型的。
+		// 说明它们存在aspectName
 		return (advisor instanceof AspectJPrecedenceInformation ||
 				advisor.getAdvice() instanceof AspectJPrecedenceInformation);
 	}

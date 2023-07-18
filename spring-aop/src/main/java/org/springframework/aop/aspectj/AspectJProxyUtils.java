@@ -44,21 +44,28 @@ public abstract class AspectJProxyUtils {
 	 */
 	public static boolean makeAdvisorChainAspectJCapableIfNecessary(List<Advisor> advisors) {
 		// Don't add advisors to an empty list; may indicate that proxying is just not required
+		// 如果advisors不为空
 		if (!advisors.isEmpty()) {
 			boolean foundAspectJAdvice = false;
+			// 尝试从advisors查找包含有AspectJ类型的advice的advisor，遍历advisors
 			for (Advisor advisor : advisors) {
 				// Be careful not to get the Advice without a guard, as this might eagerly
 				// instantiate a non-singleton AspectJ aspect...
+				// 如果advisor包含了AspectJ类型的advice
 				if (isAspectJAdvice(advisor)) {
+					// 将foundAspectAdvice置为true
 					foundAspectJAdvice = true;
 					break;
 				}
 			}
+			// 如果找到了AspectJ类型的Advice，并且advisors中不包含ExposeInvocationInterceptor.ADVISOR
 			if (foundAspectJAdvice && !advisors.contains(ExposeInvocationInterceptor.ADVISOR)) {
+				// 那么将ExposeInvocationInterceptor.ADVISOR添加到advisors的第一个位置，返回true
 				advisors.add(0, ExposeInvocationInterceptor.ADVISOR);
 				return true;
 			}
 		}
+		// 否则返回false
 		return false;
 	}
 
@@ -67,6 +74,10 @@ public abstract class AspectJProxyUtils {
 	 * @param advisor the Advisor to check
 	 */
 	private static boolean isAspectJAdvice(Advisor advisor) {
+		// 如果advisor是InstantiationModelAwarePointcutAdvisor类型的
+		// 或者 advisor的advice是AbstractAspectJAdvice的
+		// 或者 advisor是PointcutAdvisor并且其pointcut是AspectJExpressionPointcut类型的
+		// 那么返回true，说明该advisor包含有AspectJ的advice
 		return (advisor instanceof InstantiationModelAwarePointcutAdvisor ||
 				advisor.getAdvice() instanceof AbstractAspectJAdvice ||
 				(advisor instanceof PointcutAdvisor &&

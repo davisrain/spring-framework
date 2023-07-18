@@ -229,26 +229,38 @@ public abstract class AopUtils {
 			return false;
 		}
 
+		// 获取pointcut的methodMatcher
 		MethodMatcher methodMatcher = pc.getMethodMatcher();
+		// 如果methodMatcher为TRUE，直接返回true
 		if (methodMatcher == MethodMatcher.TRUE) {
 			// No need to iterate the methods if we're matching any method anyway...
 			return true;
 		}
 
+		// 判断methodMatcher是否是IntroductionAwareMethodMatcher类型的，如果是，转型
 		IntroductionAwareMethodMatcher introductionAwareMethodMatcher = null;
 		if (methodMatcher instanceof IntroductionAwareMethodMatcher) {
 			introductionAwareMethodMatcher = (IntroductionAwareMethodMatcher) methodMatcher;
 		}
 
+		// 创建一个set用于保存class
 		Set<Class<?>> classes = new LinkedHashSet<>();
+		// 如果目标类不是被JDK代理过的
 		if (!Proxy.isProxyClass(targetClass)) {
+			// 尝试获取其用户类，即被cglib代理过的目标类，添加进set中
 			classes.add(ClassUtils.getUserClass(targetClass));
 		}
+		// 查找到targetClass所有实现的接口，包括父类实现的接口，添加到set中
 		classes.addAll(ClassUtils.getAllInterfacesForClassAsSet(targetClass));
 
+		// 遍历set中的class
 		for (Class<?> clazz : classes) {
+			// 获取到clazz类中声明的所有方法，并且包含父类中所有声明的方法，
+			// 如果传入的类是接口的话，那么会包括所有实现的接口声明的方法
 			Method[] methods = ReflectionUtils.getAllDeclaredMethods(clazz);
+			// 遍历找到的方法
 			for (Method method : methods) {
+				// 如果存在某个方法匹配了methodMatcher，直接返回true
 				if (introductionAwareMethodMatcher != null ?
 						introductionAwareMethodMatcher.matches(method, targetClass, hasIntroductions) :
 						methodMatcher.matches(method, targetClass)) {
@@ -257,6 +269,7 @@ public abstract class AopUtils {
 			}
 		}
 
+		// 如果没有方法匹配，返回false
 		return false;
 	}
 

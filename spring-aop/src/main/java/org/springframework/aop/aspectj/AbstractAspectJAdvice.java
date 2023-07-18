@@ -77,16 +77,23 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	 * Spring AOP invocation.
 	 */
 	public static JoinPoint currentJoinPoint() {
+		// 获取ExposeInvocationInterceptor中的threadLocal保存的当前的MethodInvocation
 		MethodInvocation mi = ExposeInvocationInterceptor.currentInvocation();
+		// 如果mi不是ProxyMethodInvocation类型的，报错
 		if (!(mi instanceof ProxyMethodInvocation)) {
 			throw new IllegalStateException("MethodInvocation is not a Spring ProxyMethodInvocation: " + mi);
 		}
 		ProxyMethodInvocation pmi = (ProxyMethodInvocation) mi;
+		// 尝试通过JoinPoint类的全限定名获取pmi中对应的JoinPoint类型的属性
 		JoinPoint jp = (JoinPoint) pmi.getUserAttribute(JOIN_POINT_KEY);
+		// 如果不存在对应的属性
 		if (jp == null) {
+			// 那么通过pmi生成一个MethodInvocationProceedingJoinPoint
 			jp = new MethodInvocationProceedingJoinPoint(pmi);
+			// 并且存入MethodInvocation的属性中
 			pmi.setUserAttribute(JOIN_POINT_KEY, jp);
 		}
+		// 返回jp
 		return jp;
 	}
 
@@ -714,10 +721,12 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	 */
 	@Nullable
 	protected JoinPointMatch getJoinPointMatch() {
+		// 获取暴露在ExposeInvocationInterceptor中的threadLocal中的MethodInvocation
 		MethodInvocation mi = ExposeInvocationInterceptor.currentInvocation();
 		if (!(mi instanceof ProxyMethodInvocation)) {
 			throw new IllegalStateException("MethodInvocation is not a Spring ProxyMethodInvocation: " + mi);
 		}
+		// 调用getJoinPointMatch方法根据MethodInvocation获取到当前连接点的匹配
 		return getJoinPointMatch((ProxyMethodInvocation) mi);
 	}
 
@@ -729,7 +738,9 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	// are guaranteed to bind in exactly the same way.
 	@Nullable
 	protected JoinPointMatch getJoinPointMatch(ProxyMethodInvocation pmi) {
+		// 获取到当前aspectJAdvice持有的pointcut的expression
 		String expression = this.pointcut.getExpression();
+		// 以expression作为key尝试从ProxyMethodInvocation的属性中获取JoinPointMatch
 		return (expression != null ? (JoinPointMatch) pmi.getUserAttribute(expression) : null);
 	}
 

@@ -136,13 +136,19 @@ public class BeanFactoryAspectInstanceFactory implements MetadataAwareAspectInst
 	 */
 	@Override
 	public int getOrder() {
+		// 从beanFactory中获取name对应的beanType
 		Class<?> type = this.beanFactory.getType(this.name);
+		// 如果beanType不为null
 		if (type != null) {
+			// 如果是属于Ordered类型的 并且 是单例
 			if (Ordered.class.isAssignableFrom(type) && this.beanFactory.isSingleton(this.name)) {
+				// 直接调用getOrder方法
 				return ((Ordered) this.beanFactory.getBean(this.name)).getOrder();
 			}
+			// 否则调用OrderUtils.getOrder方法，查找type上标注的@Order注解或者@javax.annotation.Priority注解的value属性，作为order
 			return OrderUtils.getOrder(type, Ordered.LOWEST_PRECEDENCE);
 		}
+		// 如果beanType为null，直接返回最低优先级
 		return Ordered.LOWEST_PRECEDENCE;
 	}
 

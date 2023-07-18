@@ -48,13 +48,17 @@ public abstract class AbstractPointcutAdvisor implements PointcutAdvisor, Ordere
 
 	@Override
 	public int getOrder() {
+		// 如果自身的order不为null，返回自身的order
 		if (this.order != null) {
 			return this.order;
 		}
+		// 否则查看持有的advice是否实现了Ordered接口
 		Advice advice = getAdvice();
+		// 如果实现了，调用advice的getOrder方法
 		if (advice instanceof Ordered) {
 			return ((Ordered) advice).getOrder();
 		}
+		// 否则返回最低的优先级
 		return Ordered.LOWEST_PRECEDENCE;
 	}
 
