@@ -204,16 +204,20 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 	 */
 	@Nullable
 	private Advisor getDeclareParentsAdvisor(Field introductionField) {
+		// 获取字段上标注的@DeclareParents注解
 		DeclareParents declareParents = introductionField.getAnnotation(DeclareParents.class);
+		// 如果注解不存在，返回null
 		if (declareParents == null) {
 			// Not an introduction field
 			return null;
 		}
 
+		// 如果注解的defaultImpl属性为DeclareParents.class 报错
 		if (DeclareParents.class == declareParents.defaultImpl()) {
 			throw new IllegalStateException("'defaultImpl' attribute must be set on DeclareParents");
 		}
 
+		// 根据字段的类型 注解的value属性 和注解的defaultImpl属性生成一个DeclareParentsAdvisor返回
 		return new DeclareParentsAdvisor(
 				introductionField.getType(), declareParents.value(), declareParents.defaultImpl());
 	}

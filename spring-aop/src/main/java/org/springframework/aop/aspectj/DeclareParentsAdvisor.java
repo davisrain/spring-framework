@@ -49,6 +49,7 @@ public class DeclareParentsAdvisor implements IntroductionAdvisor {
 	 * @param defaultImpl the default implementation class
 	 */
 	public DeclareParentsAdvisor(Class<?> interfaceType, String typePattern, Class<?> defaultImpl) {
+		// 字段类型要是接口类型 @DeclareParents的value属性是类型匹配模式 @DeclareParents的defaultImpl属性是默认的实现了接口的类型
 		this(interfaceType, typePattern,
 				new DelegatePerTargetObjectIntroductionInterceptor(defaultImpl, interfaceType));
 	}
@@ -71,12 +72,17 @@ public class DeclareParentsAdvisor implements IntroductionAdvisor {
 	 * @param interceptor the delegation advice as {@link IntroductionInterceptor}
 	 */
 	private DeclareParentsAdvisor(Class<?> interfaceType, String typePattern, IntroductionInterceptor interceptor) {
+		// 将interceptor赋值给advice
 		this.advice = interceptor;
+		// 将字段类型作为接口类型赋值给introducedInterface属性
 		this.introducedInterface = interfaceType;
 
 		// Excludes methods implemented.
+		// 根据@DeclareParents注解的value属性构造一个ClassFilter
 		ClassFilter typePatternFilter = new TypePatternClassFilter(typePattern);
+		// 只有clazz不是属于introducedInterface接口的，才会被增强
 		ClassFilter exclusion = (clazz -> !this.introducedInterface.isAssignableFrom(clazz));
+		// 将两个ClassFilter取交集，需要同时满足
 		this.typePatternClassFilter = ClassFilters.intersection(typePatternFilter, exclusion);
 	}
 

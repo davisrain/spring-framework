@@ -66,9 +66,11 @@ public class SpringObjenesis implements Objenesis {
 	 * @param strategy the instantiator strategy to use
 	 */
 	public SpringObjenesis(InstantiatorStrategy strategy) {
+		// 设置实例化的策略
 		this.strategy = (strategy != null ? strategy : new StdInstantiatorStrategy());
 
 		// Evaluate the "spring.objenesis.ignore" property upfront...
+		// 查看spring.objenesis.ignore参数是否是true，如果是，将worthTrying设置为false
 		if (SpringProperties.getFlag(SpringObjenesis.IGNORE_OBJENESIS_PROPERTY_NAME)) {
 			this.worthTrying = Boolean.FALSE;
 		}

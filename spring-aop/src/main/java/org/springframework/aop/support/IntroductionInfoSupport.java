@@ -70,7 +70,9 @@ public class IntroductionInfoSupport implements IntroductionInfo, Serializable {
 	 * @return whether the interface is part of this introduction
 	 */
 	public boolean implementsInterface(Class<?> ifc) {
+		// 遍历publishedInterfaces
 		for (Class<?> pubIfc : this.publishedInterfaces) {
+			// 如果传入的ifc是接口 并且 pubIfc可以赋值给ifc，返回true
 			if (ifc.isInterface() && ifc.isAssignableFrom(pubIfc)) {
 				return true;
 			}
@@ -92,14 +94,20 @@ public class IntroductionInfoSupport implements IntroductionInfo, Serializable {
 	 * @return whether the invoked method is on an introduced interface
 	 */
 	protected final boolean isMethodOnIntroducedInterface(MethodInvocation mi) {
+		// 查看缓存是否由该方法的结果
 		Boolean rememberedResult = this.rememberedMethods.get(mi.getMethod());
+		// 如果缓存存在，直接返回
 		if (rememberedResult != null) {
 			return rememberedResult;
 		}
+		// 否则
 		else {
 			// Work it out and cache it.
+			// 调用implementsInterface方法来判断自身是否实现了声明该方法的接口
 			boolean result = implementsInterface(mi.getMethod().getDeclaringClass());
+			// 将结果缓存到rememberedMethods中
 			this.rememberedMethods.put(mi.getMethod(), result);
+			// 返回result
 			return result;
 		}
 	}

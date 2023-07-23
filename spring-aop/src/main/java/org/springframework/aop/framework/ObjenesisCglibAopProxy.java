@@ -54,11 +54,15 @@ class ObjenesisCglibAopProxy extends CglibAopProxy {
 
 	@Override
 	protected Object createProxyClassAndInstance(Enhancer enhancer, Callback[] callbacks) {
+		// 调用enhancer的createClass创建出代理类
 		Class<?> proxyClass = enhancer.createClass();
 		Object proxyInstance = null;
 
+		// 如果objenesis的worthTrying不为false的话，这个参数由系统参数spring.objenesis.ignore决定，如果ignore为true，那么该参数为false。
+		// 表示不启用objenesis的实例化策略，采用默认的构造器来实例化
 		if (objenesis.isWorthTrying()) {
 			try {
+				// 采用objenesis的实例化策略
 				proxyInstance = objenesis.newInstance(proxyClass, enhancer.getUseCache());
 			}
 			catch (Throwable ex) {
@@ -67,8 +71,10 @@ class ObjenesisCglibAopProxy extends CglibAopProxy {
 			}
 		}
 
+		// 如果proxyInstance为null的话
 		if (proxyInstance == null) {
 			// Regular instantiation via default constructor...
+			// 采用常规的通过默认构造器来实例化
 			try {
 				Constructor<?> ctor = (this.constructorArgs != null ?
 						proxyClass.getDeclaredConstructor(this.constructorArgTypes) :
@@ -83,6 +89,7 @@ class ObjenesisCglibAopProxy extends CglibAopProxy {
 			}
 		}
 
+		// 将callbacks设置进实例化后的代理对象中
 		((Factory) proxyInstance).setCallbacks(callbacks);
 		return proxyInstance;
 	}

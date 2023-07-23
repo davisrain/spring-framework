@@ -103,7 +103,7 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 		List<Advisor> candidateAdvisors = findCandidateAdvisors();
 		// 然后根据beanClass和beanName查找到可以应用给对应bean的那些advisor
 		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName);
-		// 扩展合格的advisor集合
+		// 扩展合格的advisor集合，会添加advice为ExposeInvocationInterceptor的DefaultPointcutAdvisor到集合的最前面
 		extendAdvisors(eligibleAdvisors);
 		// 如果合格的advisor集合不为空，将其排序
 		// 1.排序逻辑是先按照AnnotationAwareOrderComparator进行排序，比如InstantiationModelAwarePointcutAdvisorImpl就实现了Ordered接口，

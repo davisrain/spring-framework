@@ -247,7 +247,10 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 			}
 
 			// Massage return value if necessary.
+			// 获取方法的返回值类型
 			Class<?> returnType = method.getReturnType();
+			// 如果返回值不为null 并且 返回值等于target 并且 返回值类型不是Object.class 并且 返回值类型是proxy的类型 并且 方法的声明类型不是RawTargetAccess的
+			// 那么将返回值转换为proxy返回
 			if (retVal != null && retVal == target &&
 					returnType != Object.class && returnType.isInstance(proxy) &&
 					!RawTargetAccess.class.isAssignableFrom(method.getDeclaringClass())) {
@@ -256,15 +259,19 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 				// a reference to itself in another returned object.
 				retVal = proxy;
 			}
+			// 如果返回值为null 并且 返回值类型不是void 并且返回值类型是原始类型，报错
 			else if (retVal == null && returnType != Void.TYPE && returnType.isPrimitive()) {
 				throw new AopInvocationException(
 						"Null return value from advice does not match primitive return type for: " + method);
 			}
+			// 将返回值返回
 			return retVal;
 		}
 		finally {
+			// 如果target不为null，并且targetSource不是static的，即每次调用返回的不是同一个target
 			if (target != null && !targetSource.isStatic()) {
 				// Must have come from TargetSource.
+				// 那么需要将target从targetSource中释放，以便下一次调用getTarget的时候重新生成
 				targetSource.releaseTarget(target);
 			}
 			// 如果之前将proxy设置进了AopContext的ThreadLocal中
