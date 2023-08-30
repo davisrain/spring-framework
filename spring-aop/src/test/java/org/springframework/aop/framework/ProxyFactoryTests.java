@@ -16,6 +16,7 @@
 
 package org.springframework.aop.framework;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +34,7 @@ import org.springframework.aop.interceptor.DebugInterceptor;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.aop.support.DefaultIntroductionAdvisor;
 import org.springframework.aop.support.DefaultPointcutAdvisor;
+import org.springframework.aop.target.SingletonTargetSource;
 import org.springframework.aop.testfixture.advice.CountingBeforeAdvice;
 import org.springframework.aop.testfixture.interceptor.NopInterceptor;
 import org.springframework.aop.testfixture.interceptor.TimestampIntroductionInterceptor;
@@ -368,6 +370,46 @@ public class ProxyFactoryTests {
 			return invocation.getMethod().invoke(target, invocation.getArguments());
 		});
 		assertThat(proxy.getName()).isEqualTo("tb");
+	}
+
+	@Test
+	public void testInvokeSuperInCreatedByObjenesis() throws Exception {
+		ProxyFactory proxyFactory = new ProxyFactory();
+		proxyFactory.setProxyTargetClass(true);
+		proxyFactory.setTargetSource(new SingletonTargetSource(new Dog()));
+		proxyFactory.addAdvice(new LogMethodInterceptor());
+		Dog proxy = (Dog) proxyFactory.getProxy();
+		proxy.eat();
+		proxy.sleep();
+	}
+
+	static class Dog {
+
+		private final Object o = new Object();
+
+		public Dog() {
+			System.out.println("invoke Dog.<init>()");
+		}
+
+		public void eat() {
+			System.out.println("dog is eating " + o);
+		}
+
+		public void sleep() {
+			System.out.println("dog is sleeping");
+		}
+	}
+
+	static class LogMethodInterceptor implements MethodInterceptor {
+
+		@Override
+		public Object invoke(MethodInvocation invocation) throws Throwable {
+			String methodName = invocation.getMethod().getName();
+			System.out.println("before method:" + methodName);
+			Object proceed = invocation.proceed();
+			System.out.println("after method:" + methodName);
+			return proceed;
+		}
 	}
 
 

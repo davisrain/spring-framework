@@ -255,6 +255,7 @@ public class ClassWriter extends ClassVisitor {
    */
   public ClassWriter(final ClassReader classReader, final int flags) {
     super(/* latest api = */ Opcodes.ASM7);
+	// 根据classReader是否为null，使用不同的构造函数实例化symbolTable
     symbolTable = classReader == null ? new SymbolTable(this) : new SymbolTable(this, classReader);
     if ((flags & COMPUTE_FRAMES) != 0) {
       this.compute = MethodWriter.COMPUTE_ALL_FRAMES;
@@ -277,13 +278,21 @@ public class ClassWriter extends ClassVisitor {
       final String signature,
       final String superName,
       final String[] interfaces) {
+	  // 设置class文件的java版本号
     this.version = version;
+	// 设置类的访问修饰符
     this.accessFlags = access;
+	// 设置classFile的major_version和className，
+	  // 并且向symbolTable添加一个Entry，并向其持有的constantPool中插入CONSTANT_CLASS_info类型的常量二进制，
+	  // 并返回该常量在常量池中的序号。因此classWriter的thisClass属性是symbolTable中的常量池的序号
     this.thisClass = symbolTable.setMajorVersionAndClassName(version & 0xFFFF, name);
+	// 如果signature不为null，向常量池中添加CONSTANT_UTF8_info类型的常量
     if (signature != null) {
       this.signatureIndex = symbolTable.addConstantUtf8(signature);
     }
+	// 如果superName不为null的话，向常量池中添加CONSTANT_CLASS_info类型的常量，并返回其在常量池中的序号
     this.superClass = superName == null ? 0 : symbolTable.addConstantClass(superName).index;
+	// 如果interfaces不为null且长度大于0的话，遍历向常量池中添加CONSTANT_CLASS_info类型的常量，并创建一个int数组来持有对应的常量池序号
     if (interfaces != null && interfaces.length > 0) {
       interfaceCount = interfaces.length;
       this.interfaces = new int[interfaceCount];
@@ -291,17 +300,23 @@ public class ClassWriter extends ClassVisitor {
         this.interfaces[i] = symbolTable.addConstantClass(interfaces[i]).index;
       }
     }
+	// 如果compute属性为COMPUTE_MAX_STACK_AND_LOCAL 并且 java版本是大于等于1.7的
     if (compute == MethodWriter.COMPUTE_MAX_STACK_AND_LOCAL && (version & 0xFFFF) >= Opcodes.V1_7) {
+		// 那么将compute属性改为COMPUTE_MAX_STACK_AND_LOCAL_FROM_FRAMES
       compute = MethodWriter.COMPUTE_MAX_STACK_AND_LOCAL_FROM_FRAMES;
     }
   }
 
   @Override
   public final void visitSource(final String file, final String debug) {
+	  // 如果file不为null的话
     if (file != null) {
+		// 向symbolTable中添加CONSTANT_UTF8_INFO类型的常量，并返回该常量对应的序号
       sourceFileIndex = symbolTable.addConstantUtf8(file);
     }
+	// 如果debug不为null的话
     if (debug != null) {
+		// 创建一个新的ByteVector，将debug字符串按照UTF8编码方式解析为字节数组赋值给debugExtension
       debugExtension = new ByteVector().encodeUtf8(debug, 0, Integer.MAX_VALUE);
     }
   }
@@ -428,13 +443,18 @@ public class ClassWriter extends ClassVisitor {
       final String descriptor,
       final String signature,
       final Object value) {
+	  // 根据传入的参数创建一个FieldWriter，并且将symbolTable传入
     FieldWriter fieldWriter =
         new FieldWriter(symbolTable, access, name, descriptor, signature, value);
+	// 判断firstField是否存在，如果不存在，将创建的fieldWriter赋值给firstField
     if (firstField == null) {
       firstField = fieldWriter;
-    } else {
+    }
+	// 否则将创建的fieldWriter添加到lastField的fv字段上，形成链表
+	else {
       lastField.fv = fieldWriter;
     }
+	// 然后将lastField指针指向新创建的fieldWriter，然后返回
     return lastField = fieldWriter;
   }
 
@@ -445,13 +465,18 @@ public class ClassWriter extends ClassVisitor {
       final String descriptor,
       final String signature,
       final String[] exceptions) {
+	  // 初始化一个MethodWriter，根据传入的access，name，descriptor，signature，exceptions
     MethodWriter methodWriter =
         new MethodWriter(symbolTable, access, name, descriptor, signature, exceptions, compute);
+	// 如果持有的firstMethod为null的话，将methodWriter赋值给firstMethod
     if (firstMethod == null) {
       firstMethod = methodWriter;
-    } else {
+    }
+	// 否则将创建的methodWriter链接到lastMethod的mv字段上，构成一个链表
+	else {
       lastMethod.mv = methodWriter;
     }
+	// 然后将lastMethod指向新创建的methodWriter，并返回
     return lastMethod = methodWriter;
   }
 
@@ -476,23 +501,38 @@ public class ClassWriter extends ClassVisitor {
     // The magic field uses 4 bytes, 10 mandatory fields (minor_version, major_version,
     // constant_pool_count, access_flags, this_class, super_class, interfaces_count, fields_count,
     // methods_count and attributes_count) use 2 bytes each, and each interface uses 2 bytes too.
+	  // 首先计算出class文件必要的字节数，magic_number4个字节
+	  // 然后minor_version major_version constant_pool_count access_flags this_class super_class interfaces_count
+	  // fields_count methods_count attributes_count这10个无符号数每个占用2个字节。然后每个接口索引占用两个字节
+	  // 所以最开始的size = 24 + 2 * interfaceCount
     int size = 24 + 2 * interfaceCount;
     int fieldsCount = 0;
+	// 获取fieldWriter的链表头firstField
     FieldWriter fieldWriter = firstField;
+	// 当指针不是指向null的时候
     while (fieldWriter != null) {
+		// 将fieldsCount+1
       ++fieldsCount;
+	  // 然后计算field占用的字节数，加到size上
       size += fieldWriter.computeFieldInfoSize();
+	  // 然后将指针指向当前fieldWriter的下一个元素
       fieldWriter = (FieldWriter) fieldWriter.fv;
     }
     int methodsCount = 0;
+	// 获取methodWrite的链表头firstMethod
     MethodWriter methodWriter = firstMethod;
+	// 当指针不为null的时候
     while (methodWriter != null) {
+		// 将methodsCount+1
       ++methodsCount;
+	  // 计算method占用的字节数
       size += methodWriter.computeMethodInfoSize();
+	  // 将指针指向下一个methodWriter
       methodWriter = (MethodWriter) methodWriter.mv;
     }
 
     // For ease of reference, we use here the same attribute order as in Section 4.7 of the JVMS.
+	  // 计算类的属性的size
     int attributesCount = 0;
     if (innerClasses != null) {
       ++attributesCount;
@@ -589,36 +629,49 @@ public class ClassWriter extends ClassVisitor {
       size += 8 + recordSize;
       symbolTable.addConstantUtf8(Constants.RECORD);
     }
+	// 计算类的非标准属性的size
     if (firstAttribute != null) {
       attributesCount += firstAttribute.getAttributeCount();
       size += firstAttribute.computeAttributesSize(symbolTable);
     }
     // IMPORTANT: this must be the last part of the ClassFile size computation, because the previous
     // statements can add attribute names to the constant pool, thereby changing its size!
+	  // 将常量池内容长度添加进size中
     size += symbolTable.getConstantPoolLength();
+	// 获取常量池中常量的个数
     int constantPoolCount = symbolTable.getConstantPoolCount();
+	// 如果个数超过了两个字节，报错
     if (constantPoolCount > 0xFFFF) {
       throw new ClassTooLargeException(symbolTable.getClassName(), constantPoolCount);
     }
 
     // Second step: allocate a ByteVector of the correct size (in order to avoid any array copy in
     // dynamic resizes) and fill it with the ClassFile content.
+	  // 创建一个ByteVector用于保存类的所有字节
     ByteVector result = new ByteVector(size);
+	// 放入魔数和Java版本
     result.putInt(0xCAFEBABE).putInt(version);
+	// 将常量池常量个数和内容都放入
     symbolTable.putConstantPool(result);
+	// 放入访问修饰符 this_class super_class
     int mask = (version & 0xFFFF) < Opcodes.V1_5 ? Opcodes.ACC_SYNTHETIC : 0;
     result.putShort(accessFlags & ~mask).putShort(thisClass).putShort(superClass);
+	// 放入接口
     result.putShort(interfaceCount);
     for (int i = 0; i < interfaceCount; ++i) {
       result.putShort(interfaces[i]);
     }
+	// 放入字段的个数
     result.putShort(fieldsCount);
+	// 然后遍历字段链表，放入字段内容
     fieldWriter = firstField;
     while (fieldWriter != null) {
       fieldWriter.putFieldInfo(result);
       fieldWriter = (FieldWriter) fieldWriter.fv;
     }
+	// 放入方法的个数
     result.putShort(methodsCount);
+	// 然后遍历方法链表，放入方法内容
     boolean hasFrames = false;
     boolean hasAsmInstructions = false;
     methodWriter = firstMethod;
@@ -629,7 +682,9 @@ public class ClassWriter extends ClassVisitor {
       methodWriter = (MethodWriter) methodWriter.mv;
     }
     // For ease of reference, we use here the same attribute order as in Section 4.7 of the JVMS.
+	  // 放入属性的个数
     result.putShort(attributesCount);
+	// 依次放入属性的内容
     if (innerClasses != null) {
       result
           .putShort(symbolTable.addConstantUtf8(Constants.INNER_CLASSES))
@@ -716,6 +771,7 @@ public class ClassWriter extends ClassVisitor {
     }
 
     // Third step: replace the ASM specific instructions, if any.
+	  // 如果存在asm自定义的指令，进行替换
     if (hasAsmInstructions) {
       return replaceAsmInstructions(result.data, hasFrames);
     } else {

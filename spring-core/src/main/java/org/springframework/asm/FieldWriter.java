@@ -125,13 +125,18 @@ final class FieldWriter extends FieldVisitor {
       final String signature,
       final Object constantValue) {
     super(/* latest api = */ Opcodes.ASM7);
+	// 将传入的参数都赋值给自身属性持有
     this.symbolTable = symbolTable;
     this.accessFlags = access;
+	// 向常量池中添加CONSTANT_UTF8_info类型的name为内容的常量，并将常量索引赋值给nameIndex
     this.nameIndex = symbolTable.addConstantUtf8(name);
+	// 向常量池中添加CONSTANT_UTF8_info类型的descriptor为内容的常量，并将常量索引赋值给descriptorIndex
     this.descriptorIndex = symbolTable.addConstantUtf8(descriptor);
+	// 如果signature存在的话，同上
     if (signature != null) {
       this.signatureIndex = symbolTable.addConstantUtf8(signature);
     }
+	// 如果ConstantValue存在的话，同上
     if (constantValue != null) {
       this.constantValueIndex = symbolTable.addConstant(constantValue).index;
     }
@@ -190,20 +195,27 @@ final class FieldWriter extends FieldVisitor {
    */
   int computeFieldInfoSize() {
     // The access_flags, name_index, descriptor_index and attributes_count fields use 8 bytes.
+	  // access_flags name_index descriptor_index attributes_count这四个无符号数固定占用8个字节
     int size = 8;
     // For ease of reference, we use here the same attribute order as in Section 4.7 of the JVMS.
+	  // 如果constantValue所指向的常量索引不为0
     if (constantValueIndex != 0) {
       // ConstantValue attributes always use 8 bytes.
+		// 那么向常量池中添加CONSTANT_UTF8_info类型的常量，内容是ConstantValue
       symbolTable.addConstantUtf8(Constants.CONSTANT_VALUE);
+	  // 将size + 8，因为constantValue属性固定占用8个字节 = 2个字节的name_index + 4个字节的length + 2个字节的常量索引
       size += 8;
     }
+	// 计算该字段的属性表size，添加到size中
     size += Attribute.computeAttributesSize(symbolTable, accessFlags, signatureIndex);
+	// 计算字段的注解相关属性的size
     size +=
         AnnotationWriter.computeAnnotationsSize(
             lastRuntimeVisibleAnnotation,
             lastRuntimeInvisibleAnnotation,
             lastRuntimeVisibleTypeAnnotation,
             lastRuntimeInvisibleTypeAnnotation);
+	// 如果存在非基础属性，那么计算整个属性链表的size
     if (firstAttribute != null) {
       size += firstAttribute.computeAttributesSize(symbolTable);
     }

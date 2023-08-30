@@ -184,6 +184,7 @@ public final class Type {
    * @return the {@link Type} corresponding to the given class.
    */
   public static Type getType(final Class<?> clazz) {
+	  // 如果clazz是基础类型，返回对应的基础类型的Type
     if (clazz.isPrimitive()) {
       if (clazz == Integer.TYPE) {
         return INT_TYPE;
@@ -206,7 +207,9 @@ public final class Type {
       } else {
         throw new AssertionError();
       }
-    } else {
+    }
+	// 如果clazz是引用类型，那么获取其类型描述符，根据描述符生成对应的type
+	else {
       return getType(getDescriptor(clazz));
     }
   }
@@ -568,10 +571,12 @@ public final class Type {
   public static String getMethodDescriptor(final Type returnType, final Type... argumentTypes) {
     StringBuilder stringBuilder = new StringBuilder();
     stringBuilder.append('(');
+	// 遍历参数的Type数组，依次调用type的appendDescriptor方法，向sb中添加描述符
     for (Type argumentType : argumentTypes) {
       argumentType.appendDescriptor(stringBuilder);
     }
     stringBuilder.append(')');
+	// 再调用返回值Type的appendDescriptor方法，向sb中添加描述符
     returnType.appendDescriptor(stringBuilder);
     return stringBuilder.toString();
   }
@@ -584,12 +589,16 @@ public final class Type {
    */
   public static String getMethodDescriptor(final Method method) {
     StringBuilder stringBuilder = new StringBuilder();
+	// 添加(符号
     stringBuilder.append('(');
+	// 遍历方法类型数组，依次转换为描述符形式添加进sb中
     Class<?>[] parameters = method.getParameterTypes();
     for (Class<?> parameter : parameters) {
       appendDescriptor(parameter, stringBuilder);
     }
+	// 添加)符号
     stringBuilder.append(')');
+	// 将返回值类型转换为描述符形式添加进sb中
     appendDescriptor(method.getReturnType(), stringBuilder);
     return stringBuilder.toString();
   }
@@ -617,10 +626,12 @@ public final class Type {
    */
   private static void appendDescriptor(final Class<?> clazz, final StringBuilder stringBuilder) {
     Class<?> currentClass = clazz;
+	// 如果当前类是数组类型的，在前面加上[符号，并且将当前类更新为数组的元素类型
     while (currentClass.isArray()) {
       stringBuilder.append('[');
       currentClass = currentClass.getComponentType();
     }
+	// 如果当前类是基本类型，那么根据类型生成对应的描述符，添加进sb中
     if (currentClass.isPrimitive()) {
       char descriptor;
       if (currentClass == Integer.TYPE) {
@@ -645,7 +656,9 @@ public final class Type {
         throw new AssertionError();
       }
       stringBuilder.append(descriptor);
-    } else {
+    }
+	// 如果是引用类型，在前面添加L符号，并且将类名的.转换为/，并且在最后加上;
+	else {
       stringBuilder.append('L').append(getInternalName(currentClass)).append(';');
     }
   }
@@ -686,6 +699,10 @@ public final class Type {
    *     {@code void} and 1 otherwise.
    */
   public int getSize() {
+	  // 根据sort来判断该类型占有的slot的数量。
+	  // 1.void为0
+	  // 2.long或double为2
+	  // 3.其他情况为1
     switch (sort) {
       case VOID:
         return 0;
@@ -730,33 +747,54 @@ public final class Type {
    *     i &gt;&gt; 2}, and returnSize to {@code i &amp; 0x03}).
    */
   public static int getArgumentsAndReturnSizes(final String methodDescriptor) {
+	  // 最开始的参数个数为1的原因是为成员方法默认添加了this参数
     int argumentsSize = 1;
     // Skip the first character, which is always a '('.
+	  // 跳过描述符的(字符，所以偏移量从1开始
     int currentOffset = 1;
+	// 获取当前字符
     int currentChar = methodDescriptor.charAt(currentOffset);
     // Parse the argument types and compute their size, one at a each loop iteration.
-    while (currentChar != ')') {
-      if (currentChar == 'J' || currentChar == 'D') {
-        currentOffset++;
-        argumentsSize += 2;
-      } else {
-        while (methodDescriptor.charAt(currentOffset) == '[') {
-          currentOffset++;
-        }
-        if (methodDescriptor.charAt(currentOffset++) == 'L') {
-          // Skip the argument descriptor content.
-          int semiColumnOffset = methodDescriptor.indexOf(';', currentOffset);
-          currentOffset = Math.max(currentOffset, semiColumnOffset + 1);
-        }
-        argumentsSize += 1;
-      }
-      currentChar = methodDescriptor.charAt(currentOffset);
-    }
+	  // 如果当前字符不等于)
+	  while (currentChar != ')') {
+		  // 判断当前字符是否等于J或者D，即是否是long或者double类型的参数，如果是的话，
+		  // 将偏移量+1，将参数个数+2，因为long或double类型的需要占两个局部变量槽
+		  if (currentChar == 'J' || currentChar == 'D') {
+			  currentOffset++;
+			  argumentsSize += 2;
+		  }
+		  // 如果不是J或D字符
+		  else {
+			  // 如果发现是[字符，说明是数组类型，那么将偏移量+1，跳过，直到不是数组类型的时候
+			  while (methodDescriptor.charAt(currentOffset) == '[') {
+				  currentOffset++;
+			  }
+			  // 如果当前字符是L，说明是引用类型
+			  if (methodDescriptor.charAt(currentOffset++) == 'L') {
+				  // Skip the argument descriptor content.
+				  // 找到从当前偏移量开始的第一个;字符
+				  int semiColumnOffset = methodDescriptor.indexOf(';', currentOffset);
+				  // 将当前偏移量设置为;字符的下一个位置和当前偏移量更大的那一个
+				  currentOffset = Math.max(currentOffset, semiColumnOffset + 1);
+			  }
+			  // 将参数个数+1
+			  argumentsSize += 1;
+		  }
+		  // 然后再次获取当前偏移量对应的字符，直到遇到)字符，跳出循环
+		  currentChar = methodDescriptor.charAt(currentOffset);
+	  }
+	  // 再次获取当前偏移量对应的当前字符
     currentChar = methodDescriptor.charAt(currentOffset + 1);
+	  // 如果字符等于V，表示返回值是void
     if (currentChar == 'V') {
+		// 将参数个数向左移两位
       return argumentsSize << 2;
-    } else {
+    }
+	// 如果返回值不为空
+	else {
+		// 判断返回值的size，如果是J或D类型的，为2，否则为1
       int returnSize = (currentChar == 'J' || currentChar == 'D') ? 2 : 1;
+	  // 将参数个数向左移两位 然后 或上返回值个数，这样后两位就表示返回值的slot个数，前面的位数就表示参数的slot个数
       return argumentsSize << 2 | returnSize;
     }
   }
@@ -773,65 +811,76 @@ public final class Type {
    *     FRETURN.
    */
   public int getOpcode(final int opcode) {
-    if (opcode == Opcodes.IALOAD || opcode == Opcodes.IASTORE) {
-      switch (sort) {
-        case BOOLEAN:
-        case BYTE:
-          return opcode + (Opcodes.BALOAD - Opcodes.IALOAD);
-        case CHAR:
-          return opcode + (Opcodes.CALOAD - Opcodes.IALOAD);
-        case SHORT:
-          return opcode + (Opcodes.SALOAD - Opcodes.IALOAD);
-        case INT:
-          return opcode;
-        case FLOAT:
-          return opcode + (Opcodes.FALOAD - Opcodes.IALOAD);
-        case LONG:
-          return opcode + (Opcodes.LALOAD - Opcodes.IALOAD);
-        case DOUBLE:
-          return opcode + (Opcodes.DALOAD - Opcodes.IALOAD);
-        case ARRAY:
-        case OBJECT:
-        case INTERNAL:
-          return opcode + (Opcodes.AALOAD - Opcodes.IALOAD);
-        case METHOD:
-        case VOID:
-          throw new UnsupportedOperationException();
-        default:
-          throw new AssertionError();
-      }
-    } else {
-      switch (sort) {
-        case VOID:
-          if (opcode != Opcodes.IRETURN) {
-            throw new UnsupportedOperationException();
-          }
-          return Opcodes.RETURN;
-        case BOOLEAN:
-        case BYTE:
-        case CHAR:
-        case SHORT:
-        case INT:
-          return opcode;
-        case FLOAT:
-          return opcode + (Opcodes.FRETURN - Opcodes.IRETURN);
-        case LONG:
-          return opcode + (Opcodes.LRETURN - Opcodes.IRETURN);
-        case DOUBLE:
-          return opcode + (Opcodes.DRETURN - Opcodes.IRETURN);
-        case ARRAY:
-        case OBJECT:
-        case INTERNAL:
-          if (opcode != Opcodes.ILOAD && opcode != Opcodes.ISTORE && opcode != Opcodes.IRETURN) {
-            throw new UnsupportedOperationException();
-          }
-          return opcode + (Opcodes.ARETURN - Opcodes.IRETURN);
-        case METHOD:
-          throw new UnsupportedOperationException();
-        default:
-          throw new AssertionError();
-      }
-    }
+	  // 如果字节码是iaload 或者 iastore
+	  if (opcode == Opcodes.IALOAD || opcode == Opcodes.IASTORE) {
+		  // 根据type的sort类型，进行调整
+		  switch (sort) {
+			  case BOOLEAN:
+			  case BYTE:
+				  return opcode + (Opcodes.BALOAD - Opcodes.IALOAD);
+			  case CHAR:
+				  return opcode + (Opcodes.CALOAD - Opcodes.IALOAD);
+			  case SHORT:
+				  return opcode + (Opcodes.SALOAD - Opcodes.IALOAD);
+			  case INT:
+				  return opcode;
+			  case FLOAT:
+				  return opcode + (Opcodes.FALOAD - Opcodes.IALOAD);
+			  case LONG:
+				  return opcode + (Opcodes.LALOAD - Opcodes.IALOAD);
+			  case DOUBLE:
+				  return opcode + (Opcodes.DALOAD - Opcodes.IALOAD);
+			  case ARRAY:
+			  case OBJECT:
+			  case INTERNAL:
+				  return opcode + (Opcodes.AALOAD - Opcodes.IALOAD);
+			  case METHOD:
+			  case VOID:
+				  throw new UnsupportedOperationException();
+			  default:
+				  throw new AssertionError();
+		  }
+	  }
+	  // 如果是其他情况
+	  else {
+		  // 根据sort进行调整
+		  switch (sort) {
+			  // 如果是void类型的
+			  case VOID:
+				  // 传入的字节码如果不是ireturn的话，报错
+				  if (opcode != Opcodes.IRETURN) {
+					  throw new UnsupportedOperationException();
+				  }
+				  // 如果是ireturn 返回return
+				  return Opcodes.RETURN;
+				  // 如果是低于int类型的，那么保留int类型不变
+			  case BOOLEAN:
+			  case BYTE:
+			  case CHAR:
+			  case SHORT:
+			  case INT:
+				  return opcode;
+				  // 如果是float long double的，加上它们到int类型指令的距离
+			  case FLOAT:
+				  return opcode + (Opcodes.FRETURN - Opcodes.IRETURN);
+			  case LONG:
+				  return opcode + (Opcodes.LRETURN - Opcodes.IRETURN);
+			  case DOUBLE:
+				  return opcode + (Opcodes.DRETURN - Opcodes.IRETURN);
+				  // 如果是array object internal类型的，如果字节码是iload istore ireturn就报错，否则加上areturn到ireturn的距离
+			  case ARRAY:
+			  case OBJECT:
+			  case INTERNAL:
+				  if (opcode != Opcodes.ILOAD && opcode != Opcodes.ISTORE && opcode != Opcodes.IRETURN) {
+					  throw new UnsupportedOperationException();
+				  }
+				  return opcode + (Opcodes.ARETURN - Opcodes.IRETURN);
+			  case METHOD:
+				  throw new UnsupportedOperationException();
+			  default:
+				  throw new AssertionError();
+		  }
+	  }
   }
 
   // -----------------------------------------------------------------------------------------------

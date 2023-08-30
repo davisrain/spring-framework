@@ -39,6 +39,7 @@ public class ClassLoaderAwareGeneratorStrategy extends DefaultGeneratorStrategy 
 			return super.generate(cg);
 		}
 
+		// 获取当前线程的上下文类加载器
 		Thread currentThread = Thread.currentThread();
 		ClassLoader threadContextClassLoader;
 		try {
@@ -49,14 +50,18 @@ public class ClassLoaderAwareGeneratorStrategy extends DefaultGeneratorStrategy 
 			return super.generate(cg);
 		}
 
+		// 如果当前线程的上下文类加载器不等于该generatorStrategy持有的类加载器
 		boolean overrideClassLoader = !this.classLoader.equals(threadContextClassLoader);
 		if (overrideClassLoader) {
+			// 将线程上下文类加载器设置为持有的classloader
 			currentThread.setContextClassLoader(this.classLoader);
 		}
 		try {
+			// 然后调用父类的generate方法
 			return super.generate(cg);
 		}
 		finally {
+			// 如果修改过上下文类加载器，将其设置回来
 			if (overrideClassLoader) {
 				// Reset original thread context ClassLoader.
 				currentThread.setContextClassLoader(threadContextClassLoader);

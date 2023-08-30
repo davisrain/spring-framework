@@ -443,42 +443,68 @@ public class Label {
    *     bytes instead of 2), in ClassReader.
    */
   final boolean resolve(final byte[] code, final int bytecodeOffset) {
+	  // 将label的flag置为resolved，表示知道该label起始的字节码偏移量
     this.flags |= FLAG_RESOLVED;
+	// 将bytecodeOffset赋值给自身的bytecodeOffset属性持有
     this.bytecodeOffset = bytecodeOffset;
+	// 如果forwardReferences为null的话，直接返回false
     if (forwardReferences == null) {
       return false;
     }
+	// 如果forwardReferences存在，进行解析
     boolean hasAsmInstructions = false;
+	// 拿到数组的第一个元素，第一个元素代表的是forwardReference的个数 * 2(那么就是最后一个forwardReference结尾的位置下标)，
+	  // 且每个forwardReference是由两个int值组成的，所以每次遍历将i-2
     for (int i = forwardReferences[0]; i > 0; i -= 2) {
+		// 获取到每个forwardReference的第一个int值，表示的是sourceInsnBytecodeOffset，即对应跳转或分支字节码在code中的偏移量
       final int sourceInsnBytecodeOffset = forwardReferences[i - 1];
+	  // 获取每个forwardReference的第二个int值，
+		// 1.前4位表示的是reference的类型(short或wide)，short代表跳转字节码后面跟的操作数占2个字节，wide代表跳转字节码后面跟的操作数占4个字节；
+		// 2.后28位为对应的跳转字节码的操作数(跳转或分支字节码的操作数就是要跳转到的位置相对于其自身的偏移量)起始位置在code中的偏移量。
+		// 该int由FORWARD_REFERENCE_TYPE_MASK和FORWARD_REFERENCE_HANDLE_MASK组成，其中type占前4位，handle占后28位
       final int reference = forwardReferences[i];
+	  // 查找到跳转指令相对于这个label起始位置的相对偏移量
       final int relativeOffset = bytecodeOffset - sourceInsnBytecodeOffset;
+	  // 获取到handle的值，也就是跳转字节码后面跟的操作数在code中的偏移量
       int handle = reference & FORWARD_REFERENCE_HANDLE_MASK;
+	  // 如果type是short类型的
       if ((reference & FORWARD_REFERENCE_TYPE_MASK) == FORWARD_REFERENCE_TYPE_SHORT) {
+		  // 如果跳转指令相对于label起始位置的相对偏移量不在short的取值范围内。那么需要将跳转字节码转换为asm的跳转字节码，
+		  // 因为asm的跳转字节码后面跟的是无符号的两个字节，最大能到65535，而一个方法的code的长度最大也就限制在了65535，因此肯定能满足条件。
         if (relativeOffset < Short.MIN_VALUE || relativeOffset > Short.MAX_VALUE) {
           // Change the opcode of the jump instruction, in order to be able to find it later in
           // ClassReader. These ASM specific opcodes are similar to jump instruction opcodes, except
           // that the 2 bytes offset is unsigned (and can therefore represent values from 0 to
           // 65535, which is sufficient since the size of a method is limited to 65535 bytes).
+			// 获取到实际的跳转字节码
           int opcode = code[sourceInsnBytecodeOffset] & 0xFF;
+		  // 如果发现字节码小于IFNULL，那么字节码一定不是IFNULL 或者IFNOTNULL，将其加上49，转换成ASM相关的跳转字节码
           if (opcode < Opcodes.IFNULL) {
             // Change IFEQ ... JSR to ASM_IFEQ ... ASM_JSR.
+			  // 将这些对应的跳转字节码IFEQ ... JSR转换成ASM_IFEQ ... ASM_JSR等asm自定义的字节码
             code[sourceInsnBytecodeOffset] = (byte) (opcode + Constants.ASM_OPCODE_DELTA);
-          } else {
+          }
+		  // 如果是IFNULL或者IFNOTNULL，那么将其加上20，转换成ASM相关的字节码
+		  else {
             // Change IFNULL and IFNONNULL to ASM_IFNULL and ASM_IFNONNULL.
             code[sourceInsnBytecodeOffset] = (byte) (opcode + Constants.ASM_IFNULL_OPCODE_DELTA);
           }
+		  // 将存在asm指令的标志置为true
           hasAsmInstructions = true;
         }
+		// 将相对位置放进操作数所在的字节中，short类型的操作数占两个字节
         code[handle++] = (byte) (relativeOffset >>> 8);
         code[handle] = (byte) relativeOffset;
-      } else {
+      }
+	  // 如果type是wide类型的，将相对位置放进操作数所在的字节中，wide类型的操作数占4个字节
+	  else {
         code[handle++] = (byte) (relativeOffset >>> 24);
         code[handle++] = (byte) (relativeOffset >>> 16);
         code[handle++] = (byte) (relativeOffset >>> 8);
         code[handle] = (byte) relativeOffset;
       }
     }
+	// 最后返回是否存在asm的指令
     return hasAsmInstructions;
   }
 

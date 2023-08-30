@@ -593,34 +593,54 @@ final class MethodWriter extends MethodVisitor {
       final String[] exceptions,
       final int compute) {
     super(/* latest api = */ Opcodes.ASM7);
+	// 将传入的symbolTable赋值给自身属性
     this.symbolTable = symbolTable;
+	// 如果方法名是<init>，那么将传入的access和构造器的访问修饰符做或操作，否则，将传入的access赋值给自身的accessFlags属性
     this.accessFlags = "<init>".equals(name) ? access | Constants.ACC_CONSTRUCTOR : access;
+	// 向常量池中添加值为 方法名 的CONSTANT_UTF8_info类型的常量，并返回常量的序号
     this.nameIndex = symbolTable.addConstantUtf8(name);
+	// 将方法名赋值给自身的name属性持有
     this.name = name;
+	// 向常量池中添加值为descriptor的CONSTANT_UTF8_info常量
     this.descriptorIndex = symbolTable.addConstantUtf8(descriptor);
+	// 并且将方法描述符赋值给descriptor属性持有
     this.descriptor = descriptor;
+	// 如果signature不为null，向常量池中添加对应的常量，否则，将signatureIndex赋值为0
     this.signatureIndex = signature == null ? 0 : symbolTable.addConstantUtf8(signature);
+	// 如果方法上声明的要抛出的异常存在
     if (exceptions != null && exceptions.length > 0) {
       numberOfExceptions = exceptions.length;
       this.exceptionIndexTable = new int[numberOfExceptions];
+	  // 遍历异常，向常量池中添加CONSTANT_CLASS_info类型的常量，并且将常量序号保存在exceptionIndexTable中
       for (int i = 0; i < numberOfExceptions; ++i) {
         this.exceptionIndexTable[i] = symbolTable.addConstantClass(exceptions[i]).index;
       }
-    } else {
+    }
+	// 如果不存在声明的异常，将numberOfException赋值为0
+	else {
       numberOfExceptions = 0;
       this.exceptionIndexTable = null;
     }
+	// 赋值compute属性
     this.compute = compute;
+	// 如果compute不等于COMPUTE_NOTHING
     if (compute != COMPUTE_NOTHING) {
       // Update maxLocals and currentLocals.
+		// 根据方法描述符计算方法的参数和返回值个数，其中后两位表示返回值所占的slot个数，前面的位置表示参数所占的slot个数。
+		// 因此将结果向右移2位，获取到的是参数所占的slot个数
       int argumentsSize = Type.getArgumentsAndReturnSizes(descriptor) >> 2;
+	  // 如果方法是static的，那么需要将this参数去掉，所以将参数slot-1
       if ((access & Opcodes.ACC_STATIC) != 0) {
         --argumentsSize;
       }
+	  // 将maxLocals设置为参数所需要的slot个数
       maxLocals = argumentsSize;
+	  // 将currentLocals也设置参数所需的slot个数
       currentLocals = argumentsSize;
       // Create and visit the label for the first basic block.
+		// 创建一个Label赋值给firstBasicBlock
       firstBasicBlock = new Label();
+	  // 然后调用visitLabel方法
       visitLabel(firstBasicBlock);
     }
   }
@@ -859,8 +879,10 @@ final class MethodWriter extends MethodVisitor {
 
   @Override
   public void visitInsn(final int opcode) {
+	  // 将lastBytecodeOffset设置为code.length
     lastBytecodeOffset = code.length;
     // Add the instruction to the bytecode of the method.
+	  // 然后直接向code中添加对应的1个字节的字节码
     code.putByte(opcode);
     // If needed, update the maximum stack size and number of locals, and stack map frames.
     if (currentBasicBlock != null) {
@@ -904,20 +926,38 @@ final class MethodWriter extends MethodVisitor {
   }
 
   @Override
+  // 因为是visitVarInsn方法，因此opcode已经被限制在了iload lload fload dload aload istore lstore fstore dstore astore ret这几个字节码中了。
+  // 可以去Opcodes查看对应的字节码的注释，就能区别出它属于哪个方法
   public void visitVarInsn(final int opcode, final int var) {
+	  // lastBytecodeOffset设置为code的length
     lastBytecodeOffset = code.length;
     // Add the instruction to the bytecode of the method.
+	  // 如果var小于4 并且 opcode不等于ret
     if (var < 4 && opcode != Opcodes.RET) {
+		// 获取优化的字节码
       int optimizedOpcode;
+	  // 如果opcode小于istore，说明是load相关的字节码，由于方法的限制，那么只可能是iload lload fload dload aload，且var < 4
       if (opcode < Opcodes.ISTORE) {
+		  // 将opcode和iload的差值计算出来，又因为load相关的字节码都会存在0 1 2 3这四个值，因此将它们的差距乘4(向左移两位)，
+		  // 就能得到其对应的类型的load_0操作，然后再加上var，就是对应的load_var操作，因为这里的var是小于4的，所以一定能找到对应的字节码。
+		  // 这样就将opcode和var合成了一个字节码了
         optimizedOpcode = Constants.ILOAD_0 + ((opcode - Opcodes.ILOAD) << 2) + var;
-      } else {
+      }
+	  // 同理如果opcode大于等于istore，说明是store相关的字节码，由于方法的限制，那么只可能是istore lstore fstore dstore astore，且var < 4
+	  else {
+		  // 和load进行相同的操作，就能得到合成的一个store_var字节码
         optimizedOpcode = Constants.ISTORE_0 + ((opcode - Opcodes.ISTORE) << 2) + var;
       }
+	  // 将优化后的字节码直接放入code中
       code.putByte(optimizedOpcode);
-    } else if (var >= 256) {
+    }
+	// 如果var大于等于了256，那么一个字节已经包含不下了，需要两个字节，那么需要在字节码前面使用wide字节码，表示下一个字节码需要操作两个字节的操作数
+	else if (var >= 256) {
+		// 向code中添加wide 然后添加1个字节的opcode 添加2个字节的var
       code.putByte(Constants.WIDE).put12(opcode, var);
-    } else {
+    }
+	// 其他情况下，没办法进行字节码和操作数合并的优化操作，那么向code中添加1个字节opcode和1个字节的var
+	else {
       code.put11(opcode, var);
     }
     // If needed, update the maximum stack size and number of locals, and stack map frames.
@@ -969,7 +1009,9 @@ final class MethodWriter extends MethodVisitor {
   public void visitTypeInsn(final int opcode, final String type) {
     lastBytecodeOffset = code.length;
     // Add the instruction to the bytecode of the method.
+	  // 向常量池中添加CONSTANT_CLASS_info类型的常量
     Symbol typeSymbol = symbolTable.addConstantClass(type);
+	// 然后向code中添加一个字节的opcode 和2个字节的CONSTANT_CLASS_info常量索引
     code.put12(opcode, typeSymbol.index);
     // If needed, update the maximum stack size and number of locals, and stack map frames.
     if (currentBasicBlock != null) {
@@ -991,7 +1033,9 @@ final class MethodWriter extends MethodVisitor {
       final int opcode, final String owner, final String name, final String descriptor) {
     lastBytecodeOffset = code.length;
     // Add the instruction to the bytecode of the method.
+	  // 向常量池中添加CONSTANT_FIELDREF_info类型的常量，其中会包括对CONSTANT_CLASS_info和CONSTANT_NameAndType_info常量的添加
     Symbol fieldrefSymbol = symbolTable.addConstantFieldref(owner, name, descriptor);
+	// 然后向code中添加对应的字段操作的字节码，以及对应字段在常量池中的索引
     code.put12(opcode, fieldrefSymbol.index);
     // If needed, update the maximum stack size and number of locals, and stack map frames.
     if (currentBasicBlock != null) {
@@ -1030,15 +1074,23 @@ final class MethodWriter extends MethodVisitor {
       final String name,
       final String descriptor,
       final boolean isInterface) {
+	  // 将lastBytecodeOffset设置为code.length
     lastBytecodeOffset = code.length;
     // Add the instruction to the bytecode of the method.
+	  // 向常量池中添加CONSTANT_METHODREF_info类型的常量，其中会尝试添加CONSTANT_CLASS_info和CONSTANT_NameAndType_info类型的常量
     Symbol methodrefSymbol = symbolTable.addConstantMethodref(owner, name, descriptor, isInterface);
-    if (opcode == Opcodes.INVOKEINTERFACE) {
-      code.put12(Opcodes.INVOKEINTERFACE, methodrefSymbol.index)
-          .put11(methodrefSymbol.getArgumentsAndReturnSizes() >> 2, 0);
-    } else {
-      code.put12(opcode, methodrefSymbol.index);
-    }
+	// 如果字节码是invokeinterface
+	  if (opcode == Opcodes.INVOKEINTERFACE) {
+		  // 1.向code中添加1个字节的invokeinterface字节码 以及 2个字节的CONSTANT_INTERFACE_METHODREF_info常量的索引；
+		  // 2.然后根据method的描述符返回参数和返回值的个数，然后向右移动两位，返回参数的个数。
+		  // 向code中添加1个字节的参数个数，以及一个字节的0
+		  code.put12(Opcodes.INVOKEINTERFACE, methodrefSymbol.index)
+				  .put11(methodrefSymbol.getArgumentsAndReturnSizes() >> 2, 0);
+	  }
+	  // 如果是字节码是其他invoke，那么就添加1个字节的字节码 以及 2个字节的常量索引
+	  else {
+		  code.put12(opcode, methodrefSymbol.index);
+	  }
     // If needed, update the maximum stack size and number of locals, and stack map frames.
     if (currentBasicBlock != null) {
       if (compute == COMPUTE_ALL_FRAMES || compute == COMPUTE_INSERTED_FRAMES) {
@@ -1198,13 +1250,17 @@ final class MethodWriter extends MethodVisitor {
   @Override
   public void visitLabel(final Label label) {
     // Resolve the forward references to this label, if any.
+	  // 解析那些跳转到该label的forwardReferences，并且返回是否存在asm的指令
     hasAsmInstructions |= label.resolve(code.data, code.length);
     // visitLabel starts a new basic block (except for debug only labels), so we need to update the
     // previous and current block references and list of successors.
+	  // 如果label的flag是FLAG_DEBUG_ONLY，直接返回
     if ((label.flags & Label.FLAG_DEBUG_ONLY) != 0) {
       return;
     }
+	// 如果compute等于COMPUTE_ALL_FRAMES
     if (compute == COMPUTE_ALL_FRAMES) {
+		// 如果currentBasicBlock不为null
       if (currentBasicBlock != null) {
         if (label.bytecodeOffset == currentBasicBlock.bytecodeOffset) {
           // We use {@link Label#getCanonicalInstance} to store the state of a basic block in only
@@ -1276,20 +1332,28 @@ final class MethodWriter extends MethodVisitor {
   public void visitLdcInsn(final Object value) {
     lastBytecodeOffset = code.length;
     // Add the instruction to the bytecode of the method.
+	  // 根据value的类型向常量池中添加对应类型的常量，并且返回symbol
     Symbol constantSymbol = symbolTable.addConstant(value);
+	// 获取常量的索引
     int constantIndex = constantSymbol.index;
     char firstDescriptorChar;
+	// 根据symbol的tag判断该常量是什么类型的，是否是long或者double累心功的
     boolean isLongOrDouble =
         constantSymbol.tag == Symbol.CONSTANT_LONG_TAG
             || constantSymbol.tag == Symbol.CONSTANT_DOUBLE_TAG
             || (constantSymbol.tag == Symbol.CONSTANT_DYNAMIC_TAG
                 && ((firstDescriptorChar = constantSymbol.value.charAt(0)) == 'J'
                     || firstDescriptorChar == 'D'));
+	// 如果是long或者double类型的，那么需要向code中添加1个字节的ldc2_w字节码，2个字节的常量索引
     if (isLongOrDouble) {
       code.put12(Constants.LDC2_W, constantIndex);
-    } else if (constantIndex >= 256) {
+    }
+	// 如果常量索引大于了256，1个字节无法包含，那么需要使用ldc_w字节码，然后插入两个字节的常量索引
+	else if (constantIndex >= 256) {
       code.put12(Constants.LDC_W, constantIndex);
-    } else {
+    }
+	// 如果小于256，直接使用ldc字节码，然后插入1个字节的常量索引
+	else {
       code.put11(Opcodes.LDC, constantIndex);
     }
     // If needed, update the maximum stack size and number of locals, and stack map frames.
@@ -1542,6 +1606,7 @@ final class MethodWriter extends MethodVisitor {
 
   @Override
   public void visitMaxs(final int maxStack, final int maxLocals) {
+	  // 如果compute等于COMPUTE_ALL_FRAMES，那么计算maxStack maxLocals 以及 stackMapFrame
     if (compute == COMPUTE_ALL_FRAMES) {
       computeAllFrames();
     } else if (compute == COMPUTE_MAX_STACK_AND_LOCAL) {

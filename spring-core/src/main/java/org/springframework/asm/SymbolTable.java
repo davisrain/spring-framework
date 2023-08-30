@@ -315,8 +315,11 @@ final class SymbolTable {
    * @return the constant pool index of a new or already existing Symbol with the given class name.
    */
   int setMajorVersionAndClassName(final int majorVersion, final String className) {
+	  // 设置symbolTable的major_version和className
     this.majorVersion = majorVersion;
     this.className = className;
+	// 将className添加到常量池，
+	  // 即向symbolTable持有的constantPool中的字节数组插入CONSTANT_CLASS_info类型的常量，然后返回该常量在常量池中的序号
     return addConstantClass(className).index;
   }
 
@@ -404,6 +407,7 @@ final class SymbolTable {
    * @return the given entry
    */
   private Entry put(final Entry entry) {
+	  // 如果数量大于了容量的3/4，进行扩容
     if (entryCount > (entries.length * 3) / 4) {
       int currentCapacity = entries.length;
       int newCapacity = currentCapacity * 2 + 1;
@@ -422,6 +426,7 @@ final class SymbolTable {
     }
     entryCount++;
     int index = entry.hashCode % entries.length;
+	// 采用头插法
     entry.next = entries[index];
     return entries[index] = entry;
   }
@@ -538,6 +543,7 @@ final class SymbolTable {
    */
   Symbol addConstantMethodref(
       final String owner, final String name, final String descriptor, final boolean isInterface) {
+	  // 根据是否是接口，判断使用哪一种tag
     int tag = isInterface ? Symbol.CONSTANT_INTERFACE_METHODREF_TAG : Symbol.CONSTANT_METHODREF_TAG;
     return addConstantMemberReference(tag, owner, name, descriptor);
   }
@@ -558,16 +564,21 @@ final class SymbolTable {
       final int tag, final String owner, final String name, final String descriptor) {
     int hashCode = hash(tag, owner, name, descriptor);
     Entry entry = get(hashCode);
-    while (entry != null) {
-      if (entry.tag == tag
-          && entry.hashCode == hashCode
-          && entry.owner.equals(owner)
-          && entry.name.equals(name)
-          && entry.value.equals(descriptor)) {
-        return entry;
-      }
-      entry = entry.next;
-    }
+	// 尝试从hash桶中获取
+	  while (entry != null) {
+		  // 如果tag owner name descriptor都相等，直接返回
+		  if (entry.tag == tag
+				  && entry.hashCode == hashCode
+				  && entry.owner.equals(owner)
+				  && entry.name.equals(name)
+				  && entry.value.equals(descriptor)) {
+			  return entry;
+		  }
+		  // 否则查看下一个entry
+		  entry = entry.next;
+	  }
+	  // 如果没有找到，那么向常量池中添加1个字节的tag 2个字节的CONSTANT_CLASS_info常量的索引 2个字节的CONSTANT_NameAndType_info常量的索引。
+	  // 根据owner添加class类型的常量，根据name和descriptor添加nameAndType类型的常量，其中又会添加utf8类型的常量
     constantPool.put122(
         tag, addConstantClass(owner).index, addConstantNameAndType(name, descriptor));
     return put(new Entry(constantPoolCount++, tag, owner, name, descriptor, 0, hashCode));
@@ -761,17 +772,24 @@ final class SymbolTable {
    * @return a new or already existing Symbol with the given value.
    */
   int addConstantUtf8(final String value) {
+	  // 计算UTF8_TAG和value的hashcode
     int hashCode = hash(Symbol.CONSTANT_UTF8_TAG, value);
+	// 根据hashcode获取对应的entry
     Entry entry = get(hashCode);
+	// 如果entry不为null
     while (entry != null) {
+		// 如果entry的tag和UTF8_TAG相等 并且 hashcode也相等 并且value也相等，说明该UTF8类型的常量已经存在，直接返回entry的index
       if (entry.tag == Symbol.CONSTANT_UTF8_TAG
           && entry.hashCode == hashCode
           && entry.value.equals(value)) {
         return entry.index;
       }
+	  // 否则循环查看entry的next元素
       entry = entry.next;
     }
+	// 向常量池中放入1个字节的UTF8_TAG，然后再放入value的UTF8编码的字节数组
     constantPool.putByte(Symbol.CONSTANT_UTF8_TAG).putUTF8(value);
+	// 然后向symbolTable中放入一个实例化的Entry，index为当前constantPoolCount
     return put(new Entry(constantPoolCount++, Symbol.CONSTANT_UTF8_TAG, value, hashCode)).index;
   }
 
@@ -996,15 +1014,23 @@ final class SymbolTable {
    * @return a new or already existing Symbol with the given value.
    */
   private Symbol addConstantUtf8Reference(final int tag, final String value) {
+	  // 根据tag和value计算其hashcode
     int hashCode = hash(tag, value);
+	// 然后根据hashcode对table取模，获取到对应下标的Entry
     Entry entry = get(hashCode);
+	// 如果entry不为null的话，说明发生了hash碰撞
     while (entry != null) {
+		// 如果发生当前entry的tag和传入的tag相等，且hashcode都相等，并且value也相等，那么说明该value已经存在于table中
       if (entry.tag == tag && entry.hashCode == hashCode && entry.value.equals(value)) {
+		  // 直接返回entry
         return entry;
       }
+	  // 否则循环查看entry的next元素
       entry = entry.next;
     }
+	// 如果entry为null，将value转换为Constant_UTF8_info类型的常量，然后将tag和UTF8的常量添加进常量池
     constantPool.put12(tag, addConstantUtf8(value));
+	// 初始化一个Entry放入到table中
     return put(new Entry(constantPoolCount++, tag, value, hashCode));
   }
 

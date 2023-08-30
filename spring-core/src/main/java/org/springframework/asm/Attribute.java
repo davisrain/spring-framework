@@ -248,20 +248,28 @@ public class Attribute {
       final SymbolTable symbolTable, final int accessFlags, final int signatureIndex) {
     int size = 0;
     // Before Java 1.5, synthetic fields are represented with a Synthetic attribute.
+	  // 如果字段的访问修饰符上由synthetic，并且java版本小于1.5，说明该字段是合成的，不是用户定义的。
+	  // 会向字段中添加synthetic属性，该属性固定为6个字节=2个字节的属性名 + 4个字节的属性长度(长度为0，是一个标志属性)
     if ((accessFlags & Opcodes.ACC_SYNTHETIC) != 0
         && symbolTable.getMajorVersion() < Opcodes.V1_5) {
       // Synthetic attributes always use 6 bytes.
+		// 向常量池中添加CONSTANT_UTF8_info类型的内容为Synthetic的常量
       symbolTable.addConstantUtf8(Constants.SYNTHETIC);
       size += 6;
     }
+	// 如果signature的常量索引不为0，说明该字段存在signature，需要向字段添加Signature属性。
+	  // 该属性长度固定为8个字节 = 2个字节的属性名 + 4个字节的长度 + 2个字节的Signature对应的常量索引
     if (signatureIndex != 0) {
       // Signature attributes always use 8 bytes.
+		// 向常量池中添加CONSTANT_UTF8_info类型的内容为Signature的常量
       symbolTable.addConstantUtf8(Constants.SIGNATURE);
       size += 8;
     }
     // ACC_DEPRECATED is ASM specific, the ClassFile format uses a Deprecated attribute instead.
+	  // 如果访问修饰符存在deprecated，说明该字段已经过时，会向该字段添加Deprecated属性，固定为6个字节，和Synthetic一样，也是标志属性
     if ((accessFlags & Opcodes.ACC_DEPRECATED) != 0) {
       // Deprecated attributes always use 6 bytes.
+		// 向常量池中添加CONSTANT_UTF8_info类型的内容为Deprecated的常量
       symbolTable.addConstantUtf8(Constants.DEPRECATED);
       size += 6;
     }

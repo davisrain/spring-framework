@@ -403,23 +403,34 @@ final class AnnotationWriter extends AnnotationVisitor {
    * @param output where the attribute must be put.
    */
   void putAnnotations(final int attributeNameIndex, final ByteVector output) {
+	  // 计算属性的总长度，最开始有两个字节的原始是num_annotations占两个字节
     int attributeLength = 2; // For num_annotations.
     int numAnnotations = 0;
+	// 根据链表从后往前遍历AnnotationWriter
     AnnotationWriter annotationWriter = this;
     AnnotationWriter firstAnnotation = null;
     while (annotationWriter != null) {
       // In case the user forgot to call visitEnd().
       annotationWriter.visitEnd();
+	  // 将annotationWriter持有的annotation的长度添加到属性总长度中
       attributeLength += annotationWriter.annotation.length;
+	  // 并且将注解数量+1
       numAnnotations++;
+	  // 将firstAnnotation指针指向刚遍历过的注解
       firstAnnotation = annotationWriter;
+	  // 然后将当前指针指向上一个AnnotationWriter
       annotationWriter = annotationWriter.previousAnnotation;
     }
+	// 向class文件的总字节向量中添加2个字节的属性名的常量索引
     output.putShort(attributeNameIndex);
+	// 添加4个字节的属性长度
     output.putInt(attributeLength);
+	// 添加2个字节的注解个数
     output.putShort(numAnnotations);
+	// 从第一个注解开始遍历
     annotationWriter = firstAnnotation;
     while (annotationWriter != null) {
+		// 添加注解的内容
       output.putByteArray(annotationWriter.annotation.data, 0, annotationWriter.annotation.length);
       annotationWriter = annotationWriter.nextAnnotation;
     }

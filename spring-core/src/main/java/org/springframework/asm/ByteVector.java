@@ -128,14 +128,19 @@ public class ByteVector {
    */
   final ByteVector put12(final int byteValue, final int shortValue) {
     int currentLength = length;
+	// 查看是否需要扩容
     if (currentLength + 3 > data.length) {
       enlarge(3);
     }
     byte[] currentData = data;
+	// 插入tag
     currentData[currentLength++] = (byte) byteValue;
+	// 插入两个字节的内容
     currentData[currentLength++] = (byte) (shortValue >>> 8);
     currentData[currentLength++] = (byte) shortValue;
+	// 将长度更新
     length = currentLength;
+	// 返回自身
     return this;
   }
 
@@ -242,10 +247,12 @@ public class ByteVector {
   // DontCheck(AbbreviationAsWordInName): can't be renamed (for backward binary compatibility).
   public ByteVector putUTF8(final String stringValue) {
     int charLength = stringValue.length();
+	// 如果字符串长度超过65535，报错，因为UTF8类型的常量中只有2个字节用于表示长度，因此字符串最长只能65535
     if (charLength > 65535) {
       throw new IllegalArgumentException("UTF8 string too large");
     }
     int currentLength = length;
+	// 如果当前长度 + 2 + 字符串的长度大于了字节数组的长度，那么就需要扩容
     if (currentLength + 2 + charLength > data.length) {
       enlarge(2 + charLength);
     }
@@ -254,18 +261,26 @@ public class ByteVector {
     // (which requires two loops), we assume the byte length is equal to char length (which is the
     // most frequent case), and we start serializing the string right away. During the
     // serialization, if we find that this assumption is wrong, we continue with the general method.
+	  // 将字符串中的字符长度添加到字节数组中
     currentData[currentLength++] = (byte) (charLength >>> 8);
     currentData[currentLength++] = (byte) charLength;
+	// 遍历字符串的字符
     for (int i = 0; i < charLength; ++i) {
       char charValue = stringValue.charAt(i);
+	  // 如果字符是属于ASCII范围内的，那么UTF8编码方式中的一个字符就等于一个字节，直接添加进字节数组就行
       if (charValue >= '\u0001' && charValue <= '\u007F') {
         currentData[currentLength++] = (byte) charValue;
-      } else {
+      }
+	  // 如果不是，再进行UTF8编码的解析
+	  else {
+		  // 将当前的长度赋值给length
         length = currentLength;
         return encodeUtf8(stringValue, i, 65535);
       }
     }
+	// 如果字符都是ASCII字符，那么将当前长度赋值给length
     length = currentLength;
+	// 直接返回this
     return this;
   }
 
@@ -354,7 +369,9 @@ public class ByteVector {
   private void enlarge(final int size) {
     int doubleCapacity = 2 * data.length;
     int minimalCapacity = length + size;
+	// 比较两倍的数组容量 和 最小需要的容量，选择更大的那一个，根据这个长度创建一个新数组
     byte[] newData = new byte[doubleCapacity > minimalCapacity ? doubleCapacity : minimalCapacity];
+	// 将老数组的内容赋值到新数组
     System.arraycopy(data, 0, newData, 0, length);
     data = newData;
   }
