@@ -136,7 +136,9 @@ public abstract class TransactionSynchronizationManager {
 	 */
 	@Nullable
 	public static Object getResource(Object key) {
+		// 将key unwrap为实际的key
 		Object actualKey = TransactionSynchronizationUtils.unwrapResourceIfNecessary(key);
+		// 然后调用doGetResource获取对应的value并返回
 		Object value = doGetResource(actualKey);
 		if (value != null && logger.isTraceEnabled()) {
 			logger.trace("Retrieved value [" + value + "] for key [" + actualKey + "] bound to thread [" +
@@ -150,20 +152,27 @@ public abstract class TransactionSynchronizationManager {
 	 */
 	@Nullable
 	private static Object doGetResource(Object actualKey) {
+		// 首先根据resources这个ThreadLocal获取当前线程的ThreadLocalMap中存储的Map
 		Map<Object, Object> map = resources.get();
+		// 如果当前线程中不存在对应的map，返回null
 		if (map == null) {
 			return null;
 		}
+		// 如果存在，根据actualKey获取map中对应的value
 		Object value = map.get(actualKey);
 		// Transparently remove ResourceHolder that was marked as void...
+		// 如果value是ResourceHolder类型的并且是空的，将其从map中删除
 		if (value instanceof ResourceHolder && ((ResourceHolder) value).isVoid()) {
 			map.remove(actualKey);
 			// Remove entire ThreadLocal if empty...
+			// 如果map为空的话，将其从当前线程的ThreadLocalMap中删除
 			if (map.isEmpty()) {
 				resources.remove();
 			}
+			// 将value设置为null
 			value = null;
 		}
+		// 返回value
 		return value;
 	}
 

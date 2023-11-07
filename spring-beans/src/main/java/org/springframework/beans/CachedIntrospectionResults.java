@@ -101,6 +101,7 @@ public final class CachedIntrospectionResults {
 			SpringProperties.getFlag(IGNORE_BEANINFO_PROPERTY_NAME);
 
 	/** Stores the BeanInfoFactory instances. */
+	// 会从MEAT-INF/spring.factories文件中获取BeanInfoFactory类型的对象，默认是ExtendedBeanInfoFactory
 	private static final List<BeanInfoFactory> beanInfoFactories = SpringFactoriesLoader.loadFactories(
 			BeanInfoFactory.class, CachedIntrospectionResults.class.getClassLoader());
 

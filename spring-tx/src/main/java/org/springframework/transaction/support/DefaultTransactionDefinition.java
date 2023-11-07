@@ -50,6 +50,8 @@ public class DefaultTransactionDefinition implements TransactionDefinition, Seri
 
 
 	/** Constants instance for TransactionDefinition. */
+	// 初始化一个Constants对象，将TransactionDefinition中的静态字段名和值都存入Constants中的一个map中，
+	// 并且将Constants的className字段设置为TransactionDefinition的全限定名
 	static final Constants constants = new Constants(TransactionDefinition.class);
 
 	private int propagationBehavior = PROPAGATION_REQUIRED;

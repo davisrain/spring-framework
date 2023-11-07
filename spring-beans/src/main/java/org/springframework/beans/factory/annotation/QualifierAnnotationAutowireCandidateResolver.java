@@ -184,9 +184,10 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 			Class<? extends Annotation> type = annotation.annotationType();
 			boolean checkMeta = true;
 			boolean fallbackToMeta = false;
-			// 如果注解类型是@Qualifier类型的或者@javax.inject.Qualifier类型的，或者注解类型上标注了对应的注解类型，返回true
+			// 如果注解类型是@Qualifier类型的或者@javax.inject.Qualifier类型的，或者注解类型上标注了对应类型的元注解，返回true
+			// 比如自定义了一个注解@CustomQualifier，其元注解上标注了@Qualifier注解，也是可以的
 			if (isQualifier(type)) {
-				// 调用checkQualifier方法，如果检查不通过，将fallbackToMeta参数置为true
+				// 调用checkQualifier方法，如果检查不通过，将fallbackToMeta参数置为true，表示需要去元注解上判断
 				if (!checkQualifier(bdHolder, annotation, typeConverter)) {
 					fallbackToMeta = true;
 				}
@@ -207,14 +208,16 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 						foundMeta = true;
 						// Only accept fallback match if @Qualifier annotation has a value...
 						// Otherwise it is just a marker for a custom qualifier annotation.
-						// 如果fallbackToMeta标志位true并且注解的value属性里没有值 或者 检查不通过，返回false
+						// 如果fallbackToMeta标志位true并且注解的value属性里没有值，即元注解上只是单纯的标注了@Qualifier注解，并没有设置其value值，
+						// 说明这里的@Qualifier只是用于标记自定义的注解是一个限定符注解，并不提供属性值来检验是否满足限定符。这种情况直接返回false
+						// 或者 检查不通过，返回false
 						if ((fallbackToMeta && StringUtils.isEmpty(AnnotationUtils.getValue(metaAnn))) ||
 								!checkQualifier(bdHolder, metaAnn, typeConverter)) {
 							return false;
 						}
 					}
 				}
-				// 如果fallbackToMeta为true foundMeta为false，返回false
+				// 如果fallbackToMeta为true foundMeta为false，说明最外层的注解检验失败，并且元注解不存在限定符注解，那么直接返回false
 				if (fallbackToMeta && !foundMeta) {
 					return false;
 				}
@@ -227,11 +230,15 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * Checks whether the given annotation type is a recognized qualifier type.
 	 */
 	protected boolean isQualifier(Class<? extends Annotation> annotationType) {
+		// 遍历qualifier注解的类型集合，其中有Spring提供的@Qualifier注解，也有javax.inject.Qualifier注解
 		for (Class<? extends Annotation> qualifierType : this.qualifierTypes) {
+			// 判断注解类型是否等于qualifierType 或者 注解类型上标注了qualifierType注解
 			if (annotationType.equals(qualifierType) || annotationType.isAnnotationPresent(qualifierType)) {
+				// 如果是，返回true
 				return true;
 			}
 		}
+		// 否则返回false
 		return false;
 	}
 
@@ -312,25 +319,25 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 			if (qualifier != null) {
 				actualValue = qualifier.getAttribute(attributeName);
 			}
-			// 如果实例的value为null，尝试从bd中直接根据属性名获取实际value
+			// 如果实际的value为null，尝试从bd中直接根据属性名获取实际value
 			if (actualValue == null) {
 				// Fall back on bean definition attribute
 				actualValue = bd.getAttribute(attributeName);
 			}
-			// 如果实例的value仍为null 并且 属性名等于value字符串 并且 期待的value是String类型的 并且 期待的value和beanName匹配
+			// 如果实际的value仍为null 并且 属性名等于value字符串 并且 期待的value是String类型的 并且 期待的value和beanName匹配
 			if (actualValue == null && attributeName.equals(AutowireCandidateQualifier.VALUE_KEY) &&
 					expectedValue instanceof String && bdHolder.matchesName((String) expectedValue)) {
 				// Fall back on bean name (or alias) match
 				// 继续遍历循环
 				continue;
 			}
-			// 如果实例的value为null 并且 qualifier不为null的话
+			// 如果实际的value为null 并且 qualifier不为null的话
 			if (actualValue == null && qualifier != null) {
 				// Fall back on default, but only if the qualifier is present
 				// 获取默认值作为实际的value
 				actualValue = AnnotationUtils.getDefaultValue(annotation, attributeName);
 			}
-			// 如果实例的value不为null，将其进行类型转换
+			// 如果实际的value不为null，将其进行类型转换
 			if (actualValue != null) {
 				actualValue = typeConverter.convertIfNecessary(actualValue, expectedValue.getClass());
 			}
@@ -380,11 +387,15 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 */
 	@Override
 	public boolean hasQualifier(DependencyDescriptor descriptor) {
+		// 获取DependencyDescriptor所持有的字段或者方法参数上的注解
 		for (Annotation ann : descriptor.getAnnotations()) {
+			// 判断这些注解中是否包含有Qualifier(1.Spring声明的@Qualifier 2.javax.inject.Qualifier注解)相关的注解
 			if (isQualifier(ann.annotationType())) {
+				// 如果存在，返回true
 				return true;
 			}
 		}
+		// 否则返回false
 		return false;
 	}
 

@@ -554,7 +554,7 @@ class ConfigurationClassBeanDefinitionReader {
 					boolean allSkipped = true;
 					// 判断导入它的那么configClass
 					for (ConfigurationClass importedBy : configClass.getImportedBy()) {
-						// 如果存在任何一个导入它的configClass是被应该被跳过的，那么将allSkipped设为false，跳出循环
+						// 如果存在任何一个导入它的configClass是不应该被跳过的，那么将allSkipped设为false，跳出循环
 						if (!shouldSkip(importedBy)) {
 							allSkipped = false;
 							break;

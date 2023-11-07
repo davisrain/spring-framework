@@ -1288,7 +1288,9 @@ public class ResolvableType implements Serializable {
 	 */
 	public static ResolvableType forField(Field field, int nestingLevel, @Nullable Class<?> implementationClass) {
 		Assert.notNull(field, "Field must not be null");
+		// 获取field对应的owner的resolvableType，以实现类为基类，然后转换为field的声明类的ResolvableType
 		ResolvableType owner = forType(implementationClass).as(field.getDeclaringClass());
+		// 根据field生成一个FieldTypeProvider用于创建ResolvableType，并且获取其嵌套等级下的ResolvableType
 		return forType(null, new FieldTypeProvider(field), owner.asVariableResolver()).getNested(nestingLevel);
 	}
 
@@ -1521,6 +1523,7 @@ public class ResolvableType implements Serializable {
 	static ResolvableType forType(
 			@Nullable Type type, @Nullable TypeProvider typeProvider, @Nullable VariableResolver variableResolver) {
 
+		// 如果type为null  并且 typeProvider不为null的话，将其包装成可序列化的Type
 		if (type == null && typeProvider != null) {
 			type = SerializableTypeWrapper.forTypeProvider(typeProvider);
 		}

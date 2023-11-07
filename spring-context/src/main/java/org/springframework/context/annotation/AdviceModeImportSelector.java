@@ -64,9 +64,11 @@ public abstract class AdviceModeImportSelector<A extends Annotation> implements 
 	 */
 	@Override
 	public final String[] selectImports(AnnotationMetadata importingClassMetadata) {
+		// 解析出实现类上所声明的泛型类型
 		Class<?> annType = GenericTypeResolver.resolveTypeArgument(getClass(), AdviceModeImportSelector.class);
 		Assert.state(annType != null, "Unresolvable type argument for AdviceModeImportSelector");
 
+		// 然后从导入这个类的AnnotationMetadata上找到上一步解析出来的对应的注解类型的属性AnnotationAttributes
 		AnnotationAttributes attributes = AnnotationConfigUtils.attributesFor(importingClassMetadata, annType);
 		if (attributes == null) {
 			throw new IllegalArgumentException(String.format(
@@ -74,11 +76,15 @@ public abstract class AdviceModeImportSelector<A extends Annotation> implements 
 					annType.getSimpleName(), importingClassMetadata.getClassName()));
 		}
 
+		// 从注解属性中找到getAdviceModeAttributeName方法返回的字符串对应的属性值，默认的属性名就是mode。
+		// 然后转换为AdviceMode类型的枚举
 		AdviceMode adviceMode = attributes.getEnum(getAdviceModeAttributeName());
+		// 将枚举传入模板方法selectImports，返回需要导入的类的全限定名数组
 		String[] imports = selectImports(adviceMode);
 		if (imports == null) {
 			throw new IllegalArgumentException("Unknown AdviceMode: " + adviceMode);
 		}
+		// 返回类名数组
 		return imports;
 	}
 

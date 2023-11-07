@@ -376,6 +376,7 @@ public class ConstructorArgumentValues {
 	 * counting both indexed and generic argument values.
 	 */
 	public int getArgumentCount() {
+		// 将 indexed类型的参数个数 + generic类型的参数个数 返回
 		return (this.indexedArgumentValues.size() + this.genericArgumentValues.size());
 	}
 

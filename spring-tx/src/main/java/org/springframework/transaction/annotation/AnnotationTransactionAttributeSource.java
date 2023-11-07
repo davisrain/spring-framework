@@ -90,7 +90,9 @@ public class AnnotationTransactionAttributeSource extends AbstractFallbackTransa
 	 * (typically used with AspectJ class weaving)
 	 */
 	public AnnotationTransactionAttributeSource(boolean publicMethodsOnly) {
+		// 设置publicMethodsOnly，默认为true，因此只有public的标注了@Transaction的方法会被代理
 		this.publicMethodsOnly = publicMethodsOnly;
+		// 根据相关类是否存在来判断向annotationParsers集合中添加哪些parser
 		if (jta12Present || ejb3Present) {
 			this.annotationParsers = new LinkedHashSet<>(4);
 			this.annotationParsers.add(new SpringTransactionAnnotationParser());
@@ -101,6 +103,7 @@ public class AnnotationTransactionAttributeSource extends AbstractFallbackTransa
 				this.annotationParsers.add(new Ejb3TransactionAnnotationParser());
 			}
 		}
+		// 默认添加的是SpringTransactionAnnotationParser，即对Spring的@Transaction注解的解析
 		else {
 			this.annotationParsers = Collections.singleton(new SpringTransactionAnnotationParser());
 		}
@@ -171,8 +174,11 @@ public class AnnotationTransactionAttributeSource extends AbstractFallbackTransa
 	 */
 	@Nullable
 	protected TransactionAttribute determineTransactionAttribute(AnnotatedElement element) {
+		// 遍历持有的TransactionAnnotationParser
 		for (TransactionAnnotationParser parser : this.annotationParsers) {
+			// 调用parser的parseTransactionAnnotation对目标进行解析，返回一个TransactionAttribute
 			TransactionAttribute attr = parser.parseTransactionAnnotation(element);
+			// 如果解析出的attr不为null的话，直接返回
 			if (attr != null) {
 				return attr;
 			}

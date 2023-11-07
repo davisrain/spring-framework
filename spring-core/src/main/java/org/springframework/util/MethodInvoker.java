@@ -306,25 +306,25 @@ public class MethodInvoker {
 	 */
 	public static int getTypeDifferenceWeight(Class<?>[] paramTypes, Object[] args) {
 		int result = 0;
-		// 遍历声明的参数类型
+		// 遍历要求的参数类型
 		for (int i = 0; i < paramTypes.length; i++) {
-			// 如果对应的参数不是能够赋值给参数类型的，直接返回Integer的最大值
+			// 如果 实际参数 不是能够赋值给 要求的参数类型的，直接返回Integer的最大值
 			if (!ClassUtils.isAssignableValue(paramTypes[i], args[i])) {
 				return Integer.MAX_VALUE;
 			}
 			if (args[i] != null) {
-				// 获取对应下标的参数类型
+				// 获取对应下标的 要求的参数类型
 				Class<?> paramType = paramTypes[i];
-				// 获取实际参数类型的父类
+				// 获取 实际参数的父类类型superClass
 				Class<?> superClass = args[i].getClass().getSuperclass();
-				// 如果父类不为null
+				// 如果 实际参数的父类类型superClass 不为null
 				while (superClass != null) {
-					// 判断实际参数类型是否等于父类，如果是，将权重+2，并且将superClass置为null结束循环
+					// 判断 要求的参数类型 是否等于 实际参数的父类superClass，如果是，将权重+2，并且将superClass置为null结束循环
 					if (paramType.equals(superClass)) {
 						result = result + 2;
 						superClass = null;
 					}
-					// 否则，如果superClass可以赋值给参数类型，那么也将权重+2，将superClass置为其自身的父类
+					// 否则，如果superClass可以赋值给 要求的参数类型，那么也将权重+2，将superClass置为其自身的父类
 					else if (ClassUtils.isAssignable(paramType, superClass)) {
 						result = result + 2;
 						superClass = superClass.getSuperclass();

@@ -317,11 +317,15 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * @since 4.0
 	 */
 	public ResolvableType getResolvableType() {
+		// 获取自身持有的resolvableType属性
 		ResolvableType resolvableType = this.resolvableType;
+		// 如果resolvableType为null的话
 		if (resolvableType == null) {
+			// 根据InjectionPoint是field还是methodParameter类型的，选择不同的ResolvableType的工厂方法进行创建
 			resolvableType = (this.field != null ?
 					ResolvableType.forField(this.field, this.nestingLevel, this.containingClass) :
 					ResolvableType.forMethodParameter(obtainMethodParameter()));
+			// 然后将创建好的resolvableType赋值给自身属性
 			this.resolvableType = resolvableType;
 		}
 		return resolvableType;

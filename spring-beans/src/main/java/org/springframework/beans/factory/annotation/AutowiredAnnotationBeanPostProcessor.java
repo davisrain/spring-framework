@@ -326,8 +326,11 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 								"Resolution of declared constructors on bean Class [" + beanClass.getName() +
 								"] from ClassLoader [" + beanClass.getClassLoader() + "] failed", ex);
 					}
+					// 创建一个候选构造器的集合
 					List<Constructor<?>> candidates = new ArrayList<>(rawCandidates.length);
+					// 声明一个变量用于保存required=true的构造器
 					Constructor<?> requiredConstructor = null;
+					// 声明一个变量用于保存default的构造器
 					Constructor<?> defaultConstructor = null;
 					// 如果是kotlin语言，找到primaryConstructor
 					Constructor<?> primaryConstructor = BeanUtils.findPrimaryConstructor(beanClass);
@@ -339,10 +342,12 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 						if (!candidate.isSynthetic()) {
 							nonSyntheticConstructors++;
 						}
+						// 如果构造器是编译器自动生成的，且kotlin的PrimaryConstructor不为null，进入下一次循环。
+						// 一般情况下，是不会存在primaryConstructor的，所以不会走到这一步
 						else if (primaryConstructor != null) {
 							continue;
 						}
-						// 查找构造器上是否标注了autowired相关的注解
+						// 查找构造器上是否标注了autowired相关的注解，即@Autowired @Value @Inject
 						MergedAnnotation<?> ann = findAutowiredAnnotation(candidate);
 						// 如果不存在autowired相关的注解
 						if (ann == null) {
@@ -362,38 +367,43 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 								}
 							}
 						}
-						// 如果找到了对应的注解
+						// 如果在构造器上找到了autowired相关的注解
 						if (ann != null) {
-							// 如果此时requiredConstructor已经不为null了，报错
+							// 如果此时requiredConstructor已经不为null了，说明已经存在required=true的构造器了，
+							// 不能再在其他构造器上标注autowired相关的注解了。如果出现这种情况，抛出异常
 							if (requiredConstructor != null) {
 								throw new BeanCreationException(beanName,
 										"Invalid autowire-marked constructor: " + candidate +
 										". Found constructor with 'required' Autowired annotation already: " +
 										requiredConstructor);
 							}
-							// 判断注解的required属性
+							// 判断注解的required属性，如果是@Autowired注解，判断其required属性的值，如果是@Value @Inject注解，required默认为true
 							boolean required = determineRequiredStatus(ann);
 							// 如果发现注解的required属性是true
 							if (required) {
-								// 并且此时候选集合不为空的话，报错
+								// 并且此时候选集合不为空的话，报错。
+								// 因为如果存在required=true的构造器，那么是不允许出现其他标注了autowired相关注解的构造器的，而candidates不为空，
+								// 说明在遍历到该构造器之前，已经存在标注了autowired相关注解的构造器了，所以报错。
 								if (!candidates.isEmpty()) {
 									throw new BeanCreationException(beanName,
 											"Invalid autowire-marked constructors: " + candidates +
 											". Found constructor with 'required' Autowired annotation: " +
 											candidate);
 								}
-								// 将candidate赋值给requiredConstructor
+								// 将当前遍历到的candidate赋值给requiredConstructor，表示已经找到了required=true的构造器
 								requiredConstructor = candidate;
 							}
-							// 然后将candidate加入到候选集合中
+							// 将当前遍历的candidate加入到candidates集合中。
+							// 根据上述的判断条件，可以确定的是，当存在required=true的构造器时，candidates集合中只能有一个元素，就是required=true的构造器；
+							// 而candidates存在多个元素的必要条件是，这些构造器的required属性都为false
 							candidates.add(candidate);
 						}
-						// 如果没有找到autowired相关的注解，但该构造器的参数为0，将其赋值给defaultConstructor，说明是默认的构造器
+						// 如果在构造器上没有找到autowired相关的注解，但该构造器的参数为0，将其赋值给defaultConstructor，说明是默认的构造器
 						else if (candidate.getParameterCount() == 0) {
 							defaultConstructor = candidate;
 						}
 					}
-					// 如果最后候选集合不为空的话
+					// 如果最后候选集合不为空的话，说明存在标注了@Autowired 或 @Value 或 @Inject注解的构造器
 					if (!candidates.isEmpty()) {
 						// Add default constructor to list of optional constructors, as fallback.
 						// 如果不存在required属性为true的构造器
@@ -402,7 +412,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 							if (defaultConstructor != null) {
 								candidates.add(defaultConstructor);
 							}
-							// 如果候选集合数量为1的话，并且没有默认的构造器，那么该构造器就可以作为注入构造器使用
+							// 如果不存在默认的构造器 且 候选集合数量为1的话，那么该构造器就可以作为注入构造器使用
 							else if (candidates.size() == 1 && logger.isInfoEnabled()) {
 								logger.info("Inconsistent constructor declaration on bean with name '" + beanName +
 										"': single autowire-marked constructor flagged as optional - " +
@@ -413,7 +423,8 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 						// 将候选集合转换为数组
 						candidateConstructors = candidates.toArray(new Constructor<?>[0]);
 					}
-					// 如果声明的构造器只有一个 且是有参构造器的话，将其作为最后候选的构造器
+					// 如果candidates集合为空，说明不存在标注了autowired相关注解的构造器。
+					// 那么如果声明的构造器只有一个 且是有参构造器的话，将其作为最后候选的构造器
 					else if (rawCandidates.length == 1 && rawCandidates[0].getParameterCount() > 0) {
 						candidateConstructors = new Constructor<?>[] {rawCandidates[0]};
 					}

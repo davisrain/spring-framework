@@ -418,12 +418,16 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 
 		// Check if required type matches the type of the actual bean instance.
+		// 如果requiredType不为null 并且 bean不是属于requiredType类型的
 		if (requiredType != null && !requiredType.isInstance(bean)) {
 			try {
+				// 获取typeConverter进行类型转换
 				T convertedBean = getTypeConverter().convertIfNecessary(bean, requiredType);
+				// 如果转换之后的bean为null，报错
 				if (convertedBean == null) {
 					throw new BeanNotOfRequiredTypeException(name, requiredType, bean.getClass());
 				}
+				// 否则返回转换之后的bean
 				return convertedBean;
 			}
 			catch (TypeMismatchException ex) {
@@ -434,6 +438,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				throw new BeanNotOfRequiredTypeException(name, requiredType, bean.getClass());
 			}
 		}
+		// 直接返回bean
 		return (T) bean;
 	}
 

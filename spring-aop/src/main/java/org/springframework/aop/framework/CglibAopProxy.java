@@ -292,9 +292,7 @@ class CglibAopProxy implements AopProxy, Serializable {
 				// 如果不是static 且 不是private的
 				if (!Modifier.isStatic(mod) && !Modifier.isPrivate(mod)) {
 					// 并且是final的，那么会打印日志提示final方法无法被cglib代理，调用它的时候不会路由到被代理对象上面取，而是可能产生一个空指针异常。
-					// 因为调用父类的方法是通过子类持有一个父类的引用来调用的，而这个引用生成的条件是子类的构造方法中调用了父类的构造方法，而隐式的super()方法
-					// 其实是编译器帮我们添加的，而cglib生成类的时候并没有在构造器中添加这一句代码，因此cglib类生成的实例是不持有父类实例的引用的，因此调用父类方法的时候
-					// 会出现空指针异常。
+					// 因为cglib是以继承的形式生成代理类，而final方法没办法进行重写，所以无法代理
 					if (Modifier.isFinal(mod)) {
 						if (logger.isInfoEnabled() && implementsInterface(method, ifcs)) {
 							logger.info("Unable to proxy interface-implementing method [" + method + "] because " +

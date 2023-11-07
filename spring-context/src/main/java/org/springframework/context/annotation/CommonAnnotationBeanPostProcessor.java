@@ -759,7 +759,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 				// 检查ResourceType
 				checkResourceType(resourceType);
 			}
-			// 如果没有指定ResourceType，则模式是Object.class
+			// 如果没有指定ResourceType，则默认是Object.class
 			else {
 				// No resource type specified... check field/method.
 				// 通过field或者method获取对应的resourceType

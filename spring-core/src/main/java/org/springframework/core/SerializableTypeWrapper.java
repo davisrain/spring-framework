@@ -249,6 +249,7 @@ final class SerializableTypeWrapper {
 
 		@Override
 		public Type getType() {
+			// 调用field的getGenericType获取字段的泛型类型
 			return this.field.getGenericType();
 		}
 

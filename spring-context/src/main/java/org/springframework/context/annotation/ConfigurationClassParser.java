@@ -868,6 +868,7 @@ class ConfigurationClassParser {
 		@Override
 		@Nullable
 		public AnnotationMetadata getImportingClassFor(String importedClass) {
+			// 获取最后一个导入importedClass的类的AnnotationMetadata返回
 			return CollectionUtils.lastElement(this.imports.get(importedClass));
 		}
 

@@ -56,6 +56,7 @@ public abstract class AbstractTransactionManagementConfiguration implements Impo
 
 	@Override
 	public void setImportMetadata(AnnotationMetadata importMetadata) {
+		// 获取导入该类的类上标注的@EnableTransactionManagement注解的属性，赋值给enableTx
 		this.enableTx = AnnotationAttributes.fromMap(
 				importMetadata.getAnnotationAttributes(EnableTransactionManagement.class.getName(), false));
 		if (this.enableTx == null) {
@@ -66,13 +67,16 @@ public abstract class AbstractTransactionManagementConfiguration implements Impo
 
 	@Autowired(required = false)
 	void setConfigurers(Collection<TransactionManagementConfigurer> configurers) {
+		// 获取所有容器中的TransactionManagementConfigurer
 		if (CollectionUtils.isEmpty(configurers)) {
 			return;
 		}
+		// 如果configurer数量大于1的话，报错
 		if (configurers.size() > 1) {
 			throw new IllegalStateException("Only one TransactionManagementConfigurer may exist");
 		}
 		TransactionManagementConfigurer configurer = configurers.iterator().next();
+		// 根据configurer获取到TransactionManager，然后赋值给自身的txManager
 		this.txManager = configurer.annotationDrivenTransactionManager();
 	}
 

@@ -46,6 +46,13 @@ public class TransactionManagementConfigurationSelector extends AdviceModeImport
 	@Override
 	protected String[] selectImports(AdviceMode adviceMode) {
 		switch (adviceMode) {
+			// 如果adviceMode是PROXY枚举值，默认是该值，那么需要导入两个类。
+			// 1.第一个是AutoProxyRegistrar，这是一个ImportBeanDefinitionRegistrar的类，因此会递归触发import逻辑，
+			// 该类是用于将AutoProxyCreator这个类型导入进容器，默认导入的是InfrastructureAutoProxyCreator，
+			// 但是如果开启了@EnableAspectJAutoProxy注解的话，导入的是AnnotationAwareAspectJAutoProxyCreator，优先级比Infrastructure高，
+			// 因此Infrastructure的导入不会生效
+			// 2.第二个是ProxyTransactionManagementConfiguration，这是一个配置类，最主要的作用就是添加一个Advisor进容器中，为了对
+			// 标注有@Transaction注解的方法进行aop增强用
 			case PROXY:
 				return new String[] {AutoProxyRegistrar.class.getName(),
 						ProxyTransactionManagementConfiguration.class.getName()};

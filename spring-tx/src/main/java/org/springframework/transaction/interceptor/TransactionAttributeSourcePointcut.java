@@ -42,8 +42,11 @@ abstract class TransactionAttributeSourcePointcut extends StaticMethodMatcherPoi
 
 
 	@Override
+	// 判断目标类的方法是否匹配该advisor
 	public boolean matches(Method method, Class<?> targetClass) {
+		// 通过getTransactionAttributeSource方法获取到TransactionAttributeSource
 		TransactionAttributeSource tas = getTransactionAttributeSource();
+		// 如果tas为null 或者 tas获取到的transactionAttribute不为null，返回true，表示目标类的方法匹配该advisor
 		return (tas == null || tas.getTransactionAttribute(method, targetClass) != null);
 	}
 
@@ -86,12 +89,17 @@ abstract class TransactionAttributeSourcePointcut extends StaticMethodMatcherPoi
 
 		@Override
 		public boolean matches(Class<?> clazz) {
+			// 判断对应的类是否符合该advisor
+			// 如果类是TransactionProxy TransactionManager PersistenceExceptionTranslator类型的，返回false
 			if (TransactionalProxy.class.isAssignableFrom(clazz) ||
 					TransactionManager.class.isAssignableFrom(clazz) ||
 					PersistenceExceptionTranslator.class.isAssignableFrom(clazz)) {
 				return false;
 			}
+			// 获取到外部类，也就是pointcut持有的TransactionAttributeSource。
+			// 如果tas为null 或者 tas判断出clazz是候选的class，返回true，表示类匹配该advisor
 			TransactionAttributeSource tas = getTransactionAttributeSource();
+			// tas的类型是AnnotationTransactionAttributeSource，是根据自身持有的TransactionAnnotationParser来进行判断的
 			return (tas == null || tas.isCandidateClass(clazz));
 		}
 	}

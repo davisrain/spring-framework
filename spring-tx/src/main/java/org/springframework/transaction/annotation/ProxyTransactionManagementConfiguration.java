@@ -44,8 +44,14 @@ public class ProxyTransactionManagementConfiguration extends AbstractTransaction
 	public BeanFactoryTransactionAttributeSourceAdvisor transactionAdvisor(
 			TransactionAttributeSource transactionAttributeSource, TransactionInterceptor transactionInterceptor) {
 
+		// 创建一个BeanFactoryTransactionAttributeSourceAdvisor，该类继承了AbstractBeanFactoryPointcutAdvisor。
+		// 并且该类持有了一个TransactionAttributeSource，跟事务相关的属性就被该对象持有；
+		// 并且该advisor的pointcut也是TransactionAttributeSourcePointcut。该Pointcut的classFilter是TransactionAttributeSourceClassFilter，
+		// 而MethodMatcher就是自身。所有的内容都和TransactionAttributeSource这个类有关
 		BeanFactoryTransactionAttributeSourceAdvisor advisor = new BeanFactoryTransactionAttributeSourceAdvisor();
+		// 将transactionAttributeSource这个类设置进advisor中
 		advisor.setTransactionAttributeSource(transactionAttributeSource);
+		// 设置advisor的advice，该advice是TransactionInterceptor类型，实现了MethodInterceptor，可以直接用于MethodInvocation的proceed
 		advisor.setAdvice(transactionInterceptor);
 		if (this.enableTx != null) {
 			advisor.setOrder(this.enableTx.<Integer>getNumber("order"));
@@ -56,14 +62,17 @@ public class ProxyTransactionManagementConfiguration extends AbstractTransaction
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	public TransactionAttributeSource transactionAttributeSource() {
+		// 创建一个AnnotationTransactionAttributeSource注入到容器中
 		return new AnnotationTransactionAttributeSource();
 	}
 
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	public TransactionInterceptor transactionInterceptor(TransactionAttributeSource transactionAttributeSource) {
+		// 创建一个TransactionInterceptor，并且将transactionAttributeSource注入进该advice
 		TransactionInterceptor interceptor = new TransactionInterceptor();
 		interceptor.setTransactionAttributeSource(transactionAttributeSource);
+		// 如果自身持有了txManager的话，将其设置进interceptor中
 		if (this.txManager != null) {
 			interceptor.setTransactionManager(this.txManager);
 		}

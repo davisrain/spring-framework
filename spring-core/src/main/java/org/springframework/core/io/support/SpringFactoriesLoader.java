@@ -95,14 +95,18 @@ public final class SpringFactoriesLoader {
 		if (classLoaderToUse == null) {
 			classLoaderToUse = SpringFactoriesLoader.class.getClassLoader();
 		}
+		// 根据类型名称获取spring.factories文件中对应类的全限定名下的所有实现类型的全限定名
 		List<String> factoryImplementationNames = loadFactoryNames(factoryType, classLoaderToUse);
 		if (logger.isTraceEnabled()) {
 			logger.trace("Loaded [" + factoryType.getName() + "] names: " + factoryImplementationNames);
 		}
 		List<T> result = new ArrayList<>(factoryImplementationNames.size());
+		// 然后遍历这些类名
 		for (String factoryImplementationName : factoryImplementationNames) {
+			// 调用instantiateFactory方法进行实例化，并添加到结果集合中
 			result.add(instantiateFactory(factoryImplementationName, factoryType, classLoaderToUse));
 		}
+		// 对结果集合按照Ordered进行排序
 		AnnotationAwareOrderComparator.sort(result);
 		return result;
 	}
@@ -118,7 +122,10 @@ public final class SpringFactoriesLoader {
 	 * @see #loadFactories
 	 */
 	public static List<String> loadFactoryNames(Class<?> factoryType, @Nullable ClassLoader classLoader) {
+		// 获取类型的全限定名
 		String factoryTypeName = factoryType.getName();
+		// 获取所有的spring.factories文件，然后将里面的key value转换为Map<key, List<value>>的形式，然后根据类型的全限定名，
+		// 获取所有实现类的全限定名集合
 		return loadSpringFactories(classLoader).getOrDefault(factoryTypeName, Collections.emptyList());
 	}
 

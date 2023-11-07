@@ -155,7 +155,9 @@ public class SimpleApplicationEventMulticaster extends AbstractApplicationEventM
 	 * @since 4.1
 	 */
 	protected void invokeListener(ApplicationListener<?> listener, ApplicationEvent event) {
+		// 获取errorHandle
 		ErrorHandler errorHandler = getErrorHandler();
+		// 如果errorHandle不为null的话，用try-catch格式进行调用，并且使用errorHandle处理异常
 		if (errorHandler != null) {
 			try {
 				doInvokeListener(listener, event);
@@ -164,6 +166,7 @@ public class SimpleApplicationEventMulticaster extends AbstractApplicationEventM
 				errorHandler.handleError(err);
 			}
 		}
+		// 否则直接调用
 		else {
 			doInvokeListener(listener, event);
 		}

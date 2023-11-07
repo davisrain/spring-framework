@@ -561,13 +561,17 @@ public class MethodParameter {
 	private Class<?> computeParameterType() {
 		// 如果参数index小于0，表示的是方法的返回值
 		if (this.parameterIndex < 0) {
+			// 根据自身持有的executable获取Method类型的方法，如果executable是Method类型的，直接返回；
+			// 如果executable是constructor类型的，返回null。
 			Method method = getMethod();
+			// 当method为null时，说明executable时constructor类型的，返回值类型为void.class
 			if (method == null) {
 				return void.class;
 			}
 			if (KotlinDetector.isKotlinReflectPresent() && KotlinDetector.isKotlinType(getContainingClass())) {
 				return KotlinDelegate.getReturnType(method);
 			}
+			// 如果executable是method类型，返回其返回值类型
 			return method.getReturnType();
 		}
 		// 否则返回对应index 的方法参数类型

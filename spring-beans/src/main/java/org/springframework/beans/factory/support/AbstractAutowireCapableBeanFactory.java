@@ -794,7 +794,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		Class<?> commonType = null;
-		// 将factoryMethodToIntrospect赋值给uniqueCandidate
+		// 将factoryMethodToIntrospect赋值给uniqueCandidate，
+		// 在ConfigurationClassBeanDefinitionReader解析@Bean方法的时候，只有@Bean方法的methodMetadata是StandardMethodMetadata类型的，
+		// 才会设置factoryMethodToIntrospect为@Bean方法的反射对象，SimpleMethodMetadata类型的没有该值，且只会设置factoryMethodName。
 		Method uniqueCandidate = mbd.factoryMethodToIntrospect;
 
 		// 如果uniqueCandidate仍为null，进行解析
@@ -1403,34 +1405,64 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		if (resolved) {
 			// 并且自动注入的必要的
 			if (autowireNecessary) {
-				// 调用autowireConstructor方法进行实例化
+				// 调用autowireConstructor方法进行实例化，
+				// 这里不需要传入constructors和explicitArgs的原因是mbd已经存在解析过的resolvedConstructorOrFactoryMethod(Constructor)了，
+				// 并且也mbd的constructorArgumentsResolved的标志也为true，说明存在解析过的构造器参数resolvedConstructorArguments，
+				// 所以不用传入，直接从mbd去获取即可
 				return autowireConstructor(beanName, mbd, null, null);
 			}
 			else {
 				// 否则调用instantiateBean方法进行实例化
+				// 这里直接调用实例化策略进行实例化的原因是：mbd中已经存在解析过的构造器resolvedConstructorOrFactoryMethod(Constructor)，
+				// 并且不存在解析过的构造器参数resolvedConstructorArguments，那么一定是使用无参构造器进行创建，不会涉及到依赖的bean的注入，
+				// 因此直接使用instantiateStrategy进行实例化即可，实例化的时候会自动获取mbd的resolvedConstructorOrFactoryMethod这个构造器的
 				return instantiateBean(beanName, mbd);
 			}
 		}
 
 		// Candidate constructors for autowiring?
+		// 如果走到了这一步，说明bean不是由factoryMethod来创建，在之前也没有解析过，mbd中不存在resolvedConstructorOrFactoryMethod，
+		// 那么就需要选择使用哪一个构造器来进行实例化了，通过beanFactory持有的SmartInstantiationAwareBeanPostProcessor的determineCandidateConstructor方法来选择。
+
 		// 判断类型中是否有候选的构造器用于自动注入
+		// 只有AutowiredAnnotationBeanPostProcessor实现了determineCandidateConstructor方法的逻辑
+		// 判断依据是：
+		// 1.如果存在标注了autowired相关注解(@Autowired @Inject @Value)，且required属性为true的构造器(@Inject @Value的required默认为true，@Autowired可以通过required属性设置)，
+		// 那么不能存在其他标注了这三个注解的构造器了，否则抛出异常。返回的数组中只存在一个元素，就是require为true的那个构造器
+		// 2.如果不存在required属性为true的注解构造器，但是存在required为false的构造器，那么返回的数组中会有多个required为false的构造器，且会包含默认的无参构造器
+		// 3.如果不存在标注了autowired相关注解的构造器，但是类中只存在一个有参构造器，那么返回数组中只包含该有参构造器
+		// 4.如果不存在标注了autowired相关注解的构造器，类中声明了两个构造器，一个是无参默认构造器，一个是kotlin的primary构造器，那么将这两个构造器组成数组返回
+		// 5.如果不存在标注了autowired相关注解的构造器，类中声明只声明了一个构造器，就是kotlin的primary构造器，那么将其转换为数组返回
+		// 其余情况，都是返回空数组，说明没有找到候选的构造器
 		Constructor<?>[] ctors = determineConstructorsFromBeanPostProcessors(beanClass, beanName);
 		// 如果存在候选构造器 或者 mbd解析出来的自动注入模式是构造器模式 或者 mbd持有constructorArgumentValues 或者 args不为空，
 		// 都调用autowireConstructor方法按构造器实例化
+
+		// 1.因为如果ctors数组不为null的话，说明选择到了符合条件的构造器，所以需要使用autowireConstructor来进行实例化
+		// 2.如果mbd的resolvedAutowireMode为constructor的话，说明指定了需要使用构造器的方式来实例化
+		// 3.如果mbd存在constructorArgumentValues，即mbd中存在构造器参数的话，更应该使用autowireConstructor来实例化
+		// 4.如果显式传入的参数不为空的话，也需要使用构造器来实例化
+		// 所以只要满足这四个条件中的任意一个，都应该调用autowireConstructor方法
 		if (ctors != null || mbd.getResolvedAutowireMode() == AUTOWIRE_CONSTRUCTOR ||
 				mbd.hasConstructorArgumentValues() || !ObjectUtils.isEmpty(args)) {
 			return autowireConstructor(beanName, mbd, ctors, args);
 		}
 
 		// Preferred constructors for default construction?
-		// 如果存在首先的构造器，也按构造器进行实例化
+		// 如果走到了这一步，说明
+		// 1.bean不是由factoryMethod来创建的
+		// 2.mbd没有被提前解析过，不存在解析过的构造器和构造器参数
+		// 3.没有找到合适的构造器 并且 mbd的resolvedAutowireMode不是constructor 并且 mbd不存在构造器参数 并且 显式传入的参数也为空
+
+		// 如果存在kotlin的primary构造器，那么使用该构造器，并且调用autowireConstructor方法
 		ctors = mbd.getPreferredConstructors();
 		if (ctors != null) {
 			return autowireConstructor(beanName, mbd, ctors, null);
 		}
 
 		// No special handling: simply use no-arg constructor.
-		// 如果没有特殊的处理的话，简单的使用无参构造器实例化
+		// 如果上述条件都不满足的话，使用instantiateStrategy进行实例化，由于mbd不存在resolvedConstructorOrFactoryMethod，
+		// 那么实例化策略会默认选择类的 无参构造器 进行实例化。
 		return instantiateBean(beanName, mbd);
 	}
 
@@ -1478,11 +1510,15 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected Object getObjectForBeanInstance(
 			Object beanInstance, String name, String beanName, @Nullable RootBeanDefinition mbd) {
 
+		// 如果currentlyCreatedBean不为null的话
 		String currentlyCreatedBean = this.currentlyCreatedBean.get();
 		if (currentlyCreatedBean != null) {
+			// 说明在创建某一个bean的过程中调用了获取其他bean的逻辑，那么将依赖关系注册进容器中。
+			// 说明beanName被currentlyCreatedBean依赖
 			registerDependentBean(beanName, currentlyCreatedBean);
 		}
 
+		// 然后在调用父类的该方法，执行具体的获取逻辑
 		return super.getObjectForBeanInstance(beanInstance, name, beanName, mbd);
 	}
 

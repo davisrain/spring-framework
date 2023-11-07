@@ -112,14 +112,17 @@ public class RollbackRuleAttribute implements Serializable{
 
 
 	private int getDepth(Class<?> exceptionClass, int depth) {
+		// 如果异常类型的全限定名和当前rule的异常名相同，返回depth
 		if (exceptionClass.getName().contains(this.exceptionName)) {
 			// Found it!
 			return depth;
 		}
 		// If we've gone as far as we can go and haven't found it...
+		// 如果异常类型是Throwable的，返回-1
 		if (exceptionClass == Throwable.class) {
 			return -1;
 		}
+		// 否则获取异常类型的父类再次进行比较，并且将depth+1
 		return getDepth(exceptionClass.getSuperclass(), depth + 1);
 	}
 

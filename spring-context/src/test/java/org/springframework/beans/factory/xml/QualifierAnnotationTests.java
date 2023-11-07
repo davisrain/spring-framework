@@ -26,12 +26,14 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.FactoryBean;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.QualifierAnnotationAutowireCandidateResolver;
-import org.springframework.beans.factory.support.AutowireCandidateQualifier;
-import org.springframework.beans.factory.support.BeanDefinitionReader;
-import org.springframework.beans.factory.support.GenericBeanDefinition;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.support.*;
+import org.springframework.context.annotation.ContextAnnotationAutowireCandidateResolver;
 import org.springframework.context.support.StaticApplicationContext;
 
 import static java.lang.String.format;
@@ -218,6 +220,79 @@ public class QualifierAnnotationTests {
 		StaticApplicationContext context = new StaticApplicationContext();
 		BeanDefinitionReader reader = new XmlBeanDefinitionReader(context);
 		reader.loadBeanDefinitions(CONFIG_LOCATION);
+	}
+
+	@Test
+	public void testCustomQualifierAnnotation() {
+		StaticApplicationContext context = new StaticApplicationContext();
+
+		GenericBeanDefinition studentBd = new GenericBeanDefinition();
+		studentBd.setBeanClass(Student.class);
+		AutowireCandidateQualifier qualifier1 = new AutowireCandidateQualifier(NameAndAgeQualifier.class);
+		qualifier1.setAttribute("name", "daizhengyu");
+		qualifier1.setAttribute("age", 27);
+		studentBd.addQualifier(qualifier1);
+
+		context.registerBeanDefinition("student", studentBd);
+
+		GenericBeanDefinition teacherBd = new GenericBeanDefinition();
+		teacherBd.setBeanClass(Teacher.class);
+		AutowireCandidateQualifier qualifier2 = new AutowireCandidateQualifier(NameAndAgeQualifier.class);
+		qualifier2.setAttribute("name", "Doug Lea");
+		qualifier2.setAttribute("age", 55);
+		teacherBd.addQualifier(qualifier2);
+
+		context.registerBeanDefinition("teacher", teacherBd);
+
+		GenericBeanDefinition schoolBd = new GenericBeanDefinition();
+		schoolBd.setBeanClass(School.class);
+		context.registerBeanDefinition("school", schoolBd);
+
+		// 创建一个ContextAnnotationAutowireCandidateResolver，并添加一个QualifierType类型
+		ContextAnnotationAutowireCandidateResolver autowireCandidateResolver = new ContextAnnotationAutowireCandidateResolver();
+		autowireCandidateResolver.addQualifierType(NameAndAgeQualifier.class);
+		DefaultListableBeanFactory beanFactory = (DefaultListableBeanFactory)context.getBeanFactory();
+
+		// 将自定义的autowireCandidateResolver设置进beanFactory中
+		beanFactory.setAutowireCandidateResolver(autowireCandidateResolver);
+
+		// 添加一个AutowiredAnnotationBeanPostProcessor，因为其实现了SmartInstantiationAwareBeanPostProcessor接口，实现了determineCandidateConstructor方法，
+		// 可以在createBeanInstance中选择使用可以用于实例化bean的构造器数组
+		beanFactory.addBeanPostProcessor(new AutowiredAnnotationBeanPostProcessor());
+
+		context.refresh();
+		School school = (School) context.getBean("school");
+		System.out.println(school.schoolMember);
+	}
+
+	@Retention(RetentionPolicy.RUNTIME)
+	private @interface NameAndAgeQualifier {
+
+		String name();
+
+		int age();
+
+	}
+
+	private interface SchoolMember {
+
+	}
+
+	private static class School {
+
+		private SchoolMember schoolMember;
+
+		School(@NameAndAgeQualifier(name = "daizhengyu", age = 27) SchoolMember schoolMember) {
+			this.schoolMember = schoolMember;
+		}
+	}
+
+	private static class Teacher implements SchoolMember {
+
+	}
+
+	private static class Student implements SchoolMember {
+
 	}
 
 

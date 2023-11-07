@@ -170,9 +170,12 @@ public abstract class JdbcTransactionObjectSupport implements SavepointManager, 
 	 */
 	@Override
 	public void rollbackToSavepoint(Object savepoint) throws TransactionException {
+		// 获取持有的connectionHolder
 		ConnectionHolder conHolder = getConnectionHolderForSavepoint();
 		try {
+			// 获取connection，调用connection的rollback方法，并将savepoint传入
 			conHolder.getConnection().rollback((Savepoint) savepoint);
+			// 将connHolder的rollbackOnly属性置为false
 			conHolder.resetRollbackOnly();
 		}
 		catch (Throwable ex) {
@@ -186,6 +189,7 @@ public abstract class JdbcTransactionObjectSupport implements SavepointManager, 
 	 */
 	@Override
 	public void releaseSavepoint(Object savepoint) throws TransactionException {
+		// 调用持有的连接的releaseSavepoint方法，并键savepoint传入
 		ConnectionHolder conHolder = getConnectionHolderForSavepoint();
 		try {
 			conHolder.getConnection().releaseSavepoint((Savepoint) savepoint);
