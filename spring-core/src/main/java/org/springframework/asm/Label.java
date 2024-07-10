@@ -162,6 +162,7 @@ public class Label {
    * The offset of this label in the bytecode of its method, in bytes. This value is set if and only
    * if the {@link #FLAG_RESOLVED} flag is set.
    */
+  // 该label在当前方法的code属性里面的字节偏移量，只有当label的flag被设置为FLAG_RESOLVED的时候，这个值才会被设置
   int bytecodeOffset;
 
   /**
@@ -187,6 +188,8 @@ public class Label {
    * instruction uses a 4 bytes bytecode offset operand stored one to four bytes after the start of
    * the instruction itself).
    */
+  // 数组的第一个元素用来表示有多少个跳转到当前label的reference，然后之后的元素每两个元素为一组，
+  // 其中第一个元素代表的是跳转到该label的字节码在code中的偏移量，第二个元素包含了跳转到该label的reference的类型以及forward reference需要在字节码中占用的字节。
   private int[] forwardReferences;
 
   // -----------------------------------------------------------------------------------------------

@@ -45,6 +45,7 @@ final class MethodWriter extends MethodVisitor {
    * Indicates that the maximum stack size and the maximum number of local variables must be
    * computed, from scratch.
    */
+  // 表示需要计算最大栈深度和最大布局变量数量
   static final int COMPUTE_MAX_STACK_AND_LOCAL = 1;
 
   /**
@@ -53,6 +54,7 @@ final class MethodWriter extends MethodVisitor {
    * control flow graph algorithm used for {@link #COMPUTE_MAX_STACK_AND_LOCAL}, by using a linear
    * scan of the bytecode instructions.
    */
+  // 表示需要从存在的stack map frame中计算出最大栈深度和最大局部变量数量，这种算法比线性扫描字节码更高效
   static final int COMPUTE_MAX_STACK_AND_LOCAL_FROM_FRAMES = 2;
 
   /**
@@ -61,12 +63,14 @@ final class MethodWriter extends MethodVisitor {
    * the F_INSERT frames, together with the bytecode instructions between a F_NEW and a F_INSERT
    * frame - and without any knowledge of the type hierarchy (by definition of F_INSERT).
    */
+  // 表示F_INSERT类型的stack map frame需要被计算，其他frame不需要
   static final int COMPUTE_INSERTED_FRAMES = 3;
 
   /**
    * Indicates that all the stack map frames must be computed. In this case the maximum stack size
    * and the maximum number of local variables is also computed.
    */
+  // 表示所有的stack map frame都需要被计算，在这种情况下最大栈深度 和 最大局部变量数量也同样被计算了
   static final int COMPUTE_ALL_FRAMES = 4;
 
   /** Indicates that {@link #STACK_SIZE_DELTA} is not applicable (not constant or never used). */
@@ -78,6 +82,7 @@ final class MethodWriter extends MethodVisitor {
    *
    * @see <a href="https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-6.html">JVMS 6</a>
    */
+  // 该数组是所有字节码对应的栈slot的变化量
   private static final int[] STACK_SIZE_DELTA = {
     0, // nop = 0 (0x0)
     1, // aconst_null = 1 (0x1)
@@ -513,6 +518,10 @@ final class MethodWriter extends MethodVisitor {
    * the method, so this relative size is also equal to the absolute maximum stack size after the
    * last visited instruction.
    */
+  // 在最后一个visit指令结束之后的相对最大size，这个size是currentBasicBlock的开始栈size的相对值。
+  // 也就是说，真实的最大stack size等于currentBasicBlock的inputStackSize + maxRelativeStackSize。
+  // 当compute等于COMPUTE_MAX_STACK_AND_LOCAL_FROM_FRAMES的时候，currentBasicBlock总是等于方法的开始，所以这个相对的最大stack size
+  // 也就是绝对的stack size了
   private int maxRelativeStackSize;
 
   /** The number of local variables in the last visited stack map frame. */
@@ -961,8 +970,12 @@ final class MethodWriter extends MethodVisitor {
       code.put11(opcode, var);
     }
     // If needed, update the maximum stack size and number of locals, and stack map frames.
+	  // 如果需要的话，更新最大的stack size 和 number of locals，以及stack map frames
+	  // 如果currentBasicBlock不为null
     if (currentBasicBlock != null) {
+		// 并且compute等于COMPUTE_ALL_FRAMES 或者 COMPUTE_INSERTED_FRAMES
       if (compute == COMPUTE_ALL_FRAMES || compute == COMPUTE_INSERTED_FRAMES) {
+		  // 调用currentBasicBlock持有的frame的execute方法
         currentBasicBlock.frame.execute(opcode, var, null, null);
       } else {
         if (opcode == Opcodes.RET) {
@@ -979,8 +992,10 @@ final class MethodWriter extends MethodVisitor {
         }
       }
     }
+	// 如果compute不等于COMPUTE_NOTHING
     if (compute != COMPUTE_NOTHING) {
       int currentMaxLocals;
+	  // 当指令时long或者double相关的，将var + 2；否则将var + 1，作为currentMaxLocals的值
       if (opcode == Opcodes.LLOAD
           || opcode == Opcodes.DLOAD
           || opcode == Opcodes.LSTORE
@@ -989,6 +1004,7 @@ final class MethodWriter extends MethodVisitor {
       } else {
         currentMaxLocals = var + 1;
       }
+	  // 当currentMaxLocals大于了maxLocals，赋值maxLocals属性为currentMaxLocals
       if (currentMaxLocals > maxLocals) {
         maxLocals = currentMaxLocals;
       }
@@ -1250,6 +1266,7 @@ final class MethodWriter extends MethodVisitor {
   @Override
   public void visitLabel(final Label label) {
     // Resolve the forward references to this label, if any.
+	  // 设置label对应的offset，即在code中的字节码偏移量
 	  // 解析那些跳转到该label的forwardReferences，并且返回是否存在asm的指令
     hasAsmInstructions |= label.resolve(code.data, code.length);
     // visitLabel starts a new basic block (except for debug only labels), so we need to update the
@@ -1262,60 +1279,89 @@ final class MethodWriter extends MethodVisitor {
     if (compute == COMPUTE_ALL_FRAMES) {
 		// 如果currentBasicBlock不为null
       if (currentBasicBlock != null) {
+		  // 如果label的字节码偏移量等于 当前basicBlock的字节码偏移量
         if (label.bytecodeOffset == currentBasicBlock.bytecodeOffset) {
           // We use {@link Label#getCanonicalInstance} to store the state of a basic block in only
           // one place, but this does not work for labels which have not been visited yet.
           // Therefore, when we detect here two labels having the same bytecode offset, we need to
           // - consolidate the state scattered in these two instances into the canonical instance:
+			// 我们使用getCanonicalInstance来存储basicBlock的state在一个地方，但是我们这对还没有访问过的label不起作用，
+			// 因此，但我们发现两个label存在相同的偏移量时，我们需要合并他们的state到规范实例中
+			// 将当前label的flags 或上 FLAG_JUMP_TARGET
           currentBasicBlock.flags |= (label.flags & Label.FLAG_JUMP_TARGET);
           // - make sure the two instances share the same Frame instance (the implementation of
           // {@link Label#getCanonicalInstance} relies on this property; here label.frame should be
           // null):
+			// 确保两个实例共享相同的frame实例
           label.frame = currentBasicBlock.frame;
           // - and make sure to NOT assign 'label' into 'currentBasicBlock' or 'lastBasicBlock', so
           // that they still refer to the canonical instance for this bytecode offset.
+			// 并且确保不要将label赋值到currentBasicBlock或者lastBasicBlock引用中，这样我们才仍然能够通过字节码偏移量获取到规范实例
           return;
         }
         // End the current basic block (with one new successor).
+		  // 将当前的basicBlock结束掉，并且将label设置为currentBasicBlock
         addSuccessorToCurrentBasicBlock(Edge.JUMP, label);
       }
       // Append 'label' at the end of the basic block list.
+		// 如果lastBasicBlock不为null的话
       if (lastBasicBlock != null) {
+		  // 判断label的offset是否等于lastBasicBlock的offset
         if (label.bytecodeOffset == lastBasicBlock.bytecodeOffset) {
           // Same comment as above.
+			// 如果相等的话，同上述的情况一样
           lastBasicBlock.flags |= (label.flags & Label.FLAG_JUMP_TARGET);
           // Here label.frame should be null.
           label.frame = lastBasicBlock.frame;
+		  // 将currentBasicBlock设置为lastBasicBlock
           currentBasicBlock = lastBasicBlock;
+		  // 然后直接返回
           return;
         }
+		// 否则将label连接到lastBasicBlock的next属性上
         lastBasicBlock.nextBasicBlock = label;
       }
+	  // 并且将lastBasicBlock引用指向label
       lastBasicBlock = label;
       // Make it the new current basic block.
+		// 并且将currentBasicBlock的引用也指向label
       currentBasicBlock = label;
       // Here label.frame should be null.
+		// 创建一个StackMapFrame赋值给label的frame属性
       label.frame = new Frame(label);
     } else if (compute == COMPUTE_INSERTED_FRAMES) {
+		// 如果currentBasicBlock为null，将label赋值给currentBasicBlock,
+		// 这种情况只会出现一次，就是在MethodWriter的构造方法里面调用visitLabel的时候，
+		// 如果compute等于COMPUTE_INSERTED_FRAMES的话，那么currentBasicBlock不会改变
       if (currentBasicBlock == null) {
         // This case should happen only once, for the visitLabel call in the constructor. Indeed, if
         // compute is equal to COMPUTE_INSERTED_FRAMES, currentBasicBlock stays unchanged.
         currentBasicBlock = label;
-      } else {
+      }
+	  // 如果currentBasicBlock不为null的话，
+	  else {
         // Update the frame owner so that a correct frame offset is computed in Frame.accept().
+		  // 那么更新currentBasicBlock持有的frame的owner属性为传入的label
+		  // 因此一个正确的frame offset就会在Frame.accept()方法中计算
         currentBasicBlock.frame.owner = label;
       }
     } else if (compute == COMPUTE_MAX_STACK_AND_LOCAL) {
+		// 如果currentBasicBlock不为null的话
       if (currentBasicBlock != null) {
         // End the current basic block (with one new successor).
+		  // 将currentBasicBlock的outputStackMax设置为maxRelativeStackSize
         currentBasicBlock.outputStackMax = (short) maxRelativeStackSize;
+		// 并且将label添加到currentBasicBlock的successor上
         addSuccessorToCurrentBasicBlock(relativeStackSize, label);
       }
       // Start a new current basic block, and reset the current and maximum relative stack sizes.
+		// 将currentBasicBlock引用指向label
       currentBasicBlock = label;
+	  // 并且将relativeStackSize和maxRelativeStackSize都重置为0
       relativeStackSize = 0;
       maxRelativeStackSize = 0;
       // Append the new basic block at the end of the basic block list.
+		// 改变lastBasicBlock引用，指向label
       if (lastBasicBlock != null) {
         lastBasicBlock.nextBasicBlock = label;
       }
@@ -1324,6 +1370,7 @@ final class MethodWriter extends MethodVisitor {
       // This case should happen only once, for the visitLabel call in the constructor. Indeed, if
       // compute is equal to COMPUTE_MAX_STACK_AND_LOCAL_FROM_FRAMES, currentBasicBlock stays
       // unchanged.
+		// 这个情况也只会发生一次，并且compute是COMPUTE_MAX_STACK_AND_LOCAL_FROM_FRAMES时，currentBasicBlock也不会改变
       currentBasicBlock = label;
     }
   }
@@ -1844,6 +1891,7 @@ final class MethodWriter extends MethodVisitor {
    * @param successor the successor block to be added to the current basic block.
    */
   private void addSuccessorToCurrentBasicBlock(final int info, final Label successor) {
+	  // 创建一个Edge赋值给currentBasicBlock，向currentBasicBlock添加一个successor
     currentBasicBlock.outgoingEdges = new Edge(info, successor, currentBasicBlock.outgoingEdges);
   }
 
