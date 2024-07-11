@@ -507,6 +507,7 @@ final class MethodWriter extends MethodVisitor {
    * the method, so this relative size is also equal to the absolute stack size after the last
    * visited instruction.
    */
+  // 相对于currentBasicBlock的inputStackSize的相对值，真实的stackSize等于inputStackSize + relativeStackSize
   private int relativeStackSize;
 
   /**
@@ -518,7 +519,7 @@ final class MethodWriter extends MethodVisitor {
    * the method, so this relative size is also equal to the absolute maximum stack size after the
    * last visited instruction.
    */
-  // 在最后一个visit指令结束之后的相对最大size，这个size是currentBasicBlock的开始栈size的相对值。
+  // 在最后一个visit指令结束之后的相对最大size，这个size是currentBasicBlock的inputStackSize的相对值。
   // 也就是说，真实的最大stack size等于currentBasicBlock的inputStackSize + maxRelativeStackSize。
   // 当compute等于COMPUTE_MAX_STACK_AND_LOCAL_FROM_FRAMES的时候，currentBasicBlock总是等于方法的开始，所以这个相对的最大stack size
   // 也就是绝对的stack size了
@@ -978,12 +979,17 @@ final class MethodWriter extends MethodVisitor {
 		  // 调用currentBasicBlock持有的frame的execute方法
         currentBasicBlock.frame.execute(opcode, var, null, null);
       } else {
+		  // 如果指令为RET
         if (opcode == Opcodes.RET) {
           // No stack size delta.
           currentBasicBlock.flags |= Label.FLAG_SUBROUTINE_END;
+		  // 将relativeStackSize设置到currentBasicBlock的outputStackSize中
           currentBasicBlock.outputStackSize = (short) relativeStackSize;
+		  // 然后结束当前block，并且没有successor
           endCurrentBasicBlockWithNoSuccessor();
         } else { // xLOAD or xSTORE
+			// 如果是load或者store指令
+			// 根据指令所带来的stack delta，计算relativeStackSize，并且根据情况更新maxRelativeStackSize
           int size = relativeStackSize + STACK_SIZE_DELTA[opcode];
           if (size > maxRelativeStackSize) {
             maxRelativeStackSize = size;

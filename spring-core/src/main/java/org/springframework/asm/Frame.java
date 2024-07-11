@@ -105,6 +105,8 @@ class Frame {
   // Constants used in the StackMapTable attribute.
   // See https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.7.4.
 
+	// 以下是stackMapTable中所使用到的常量
+	// 这段是frame_type的值
   static final int SAME_FRAME = 0;
   static final int SAME_LOCALS_1_STACK_ITEM_FRAME = 64;
   static final int RESERVED = 128;
@@ -114,6 +116,7 @@ class Frame {
   static final int APPEND_FRAME = 252;
   static final int FULL_FRAME = 255;
 
+  // 这段是verification_type_info的类型
   static final int ITEM_TOP = 0;
   static final int ITEM_INTEGER = 1;
   static final int ITEM_FLOAT = 2;
@@ -134,25 +137,25 @@ class Frame {
   private static final int DIM_SIZE = 6;
   private static final int KIND_SIZE = 4;
   private static final int FLAGS_SIZE = 2;
-  private static final int VALUE_SIZE = 32 - DIM_SIZE - KIND_SIZE - FLAGS_SIZE;
+  private static final int VALUE_SIZE = 32 - DIM_SIZE - KIND_SIZE - FLAGS_SIZE; // 20
 
-  private static final int DIM_SHIFT = KIND_SIZE + FLAGS_SIZE + VALUE_SIZE;
-  private static final int KIND_SHIFT = FLAGS_SIZE + VALUE_SIZE;
-  private static final int FLAGS_SHIFT = VALUE_SIZE;
+  private static final int DIM_SHIFT = KIND_SIZE + FLAGS_SIZE + VALUE_SIZE; // 26
+  private static final int KIND_SHIFT = FLAGS_SIZE + VALUE_SIZE; // 22
+  private static final int FLAGS_SHIFT = VALUE_SIZE; // 20
 
   // Bitmasks to get each field of an abstract type.
 
-  private static final int DIM_MASK = ((1 << DIM_SIZE) - 1) << DIM_SHIFT;
-  private static final int KIND_MASK = ((1 << KIND_SIZE) - 1) << KIND_SHIFT;
-  private static final int VALUE_MASK = (1 << VALUE_SIZE) - 1;
+  private static final int DIM_MASK = ((1 << DIM_SIZE) - 1) << DIM_SHIFT;    // 11111100000000000000000000000000
+  private static final int KIND_MASK = ((1 << KIND_SIZE) - 1) << KIND_SHIFT; // 00000011110000000000000000000000
+  private static final int VALUE_MASK = (1 << VALUE_SIZE) - 1;				 // 00000000000011111111111111111111
 
   // Constants to manipulate the DIM field of an abstract type.
 
   /** The constant to be added to an abstract type to get one with one more array dimension. */
-  private static final int ARRAY_OF = +1 << DIM_SHIFT;
+  private static final int ARRAY_OF = +1 << DIM_SHIFT;			// 00000100000000000000000000000000
 
   /** The constant to be added to an abstract type to get one with one less array dimension. */
-  private static final int ELEMENT_OF = -1 << DIM_SHIFT;
+  private static final int ELEMENT_OF = -1 << DIM_SHIFT;		// 11111100000000000000000000000000
 
   // Possible values for the KIND field of an abstract type.
 
@@ -677,6 +680,7 @@ class Frame {
    * @param argSymbol the Symbol operand of the instruction, if any.
    * @param symbolTable the type table to use to lookup and store type {@link Symbol}.
    */
+  // 模拟字节码在操作数栈上的操作
   void execute(
       final int opcode, final int arg, final Symbol argSymbol, final SymbolTable symbolTable) {
     // Abstract types popped from the stack or read from local variables.
@@ -684,6 +688,7 @@ class Frame {
     int abstractType2;
     int abstractType3;
     int abstractType4;
+	// 根据字节码进行判断
     switch (opcode) {
       case Opcodes.NOP:
       case Opcodes.INEG:
@@ -696,6 +701,7 @@ class Frame {
       case Opcodes.GOTO:
       case Opcodes.RETURN:
         break;
+		// 如果是aconst_null字节码，向操作数栈中push一个null
       case Opcodes.ACONST_NULL:
         push(NULL);
         break;
