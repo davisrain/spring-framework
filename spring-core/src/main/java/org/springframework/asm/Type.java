@@ -302,6 +302,7 @@ public final class Type {
     // Skip the first character, which is always a '('.
     int currentOffset = 1;
     // Parse the argument types, one at a each loop iteration.
+	  // 如果当前字符不为)，持续遍历，找出参数个数
     while (methodDescriptor.charAt(currentOffset) != ')') {
       while (methodDescriptor.charAt(currentOffset) == '[') {
         currentOffset++;
@@ -315,11 +316,13 @@ public final class Type {
     }
 
     // Second step: create a Type instance for each argument type.
+	  // 根据参数个数创建参数类型数组
     Type[] argumentTypes = new Type[numArgumentTypes];
     // Skip the first character, which is always a '('.
     currentOffset = 1;
     // Parse and create the argument types, one at each loop iteration.
     int currentArgumentTypeIndex = 0;
+	// 遍历每个参数的描述符
     while (methodDescriptor.charAt(currentOffset) != ')') {
       final int currentArgumentTypeOffset = currentOffset;
       while (methodDescriptor.charAt(currentOffset) == '[') {
@@ -330,9 +333,11 @@ public final class Type {
         int semiColumnOffset = methodDescriptor.indexOf(';', currentOffset);
         currentOffset = Math.max(currentOffset, semiColumnOffset + 1);
       }
+	  // 根据参数类型描述符，解析为type存入数组中
       argumentTypes[currentArgumentTypeIndex++] =
           getTypeInternal(methodDescriptor, currentArgumentTypeOffset, currentOffset);
     }
+	// 返回参数type数组
     return argumentTypes;
   }
 
@@ -524,11 +529,15 @@ public final class Type {
    * @return the descriptor corresponding to this type.
    */
   public String getDescriptor() {
+	  // 如果类型的sort是OBJECT类型的，将前面的L和最后的;一起返回
     if (sort == OBJECT) {
       return valueBuffer.substring(valueBegin - 1, valueEnd + 1);
-    } else if (sort == INTERNAL) {
+    }
+	// 如果类型的sort是INTERNAL的，在前面添加L，后面添加;返回
+	else if (sort == INTERNAL) {
       return 'L' + valueBuffer.substring(valueBegin, valueEnd) + ';';
     } else {
+		// 否则直接返回begin和end之间的内容
       return valueBuffer.substring(valueBegin, valueEnd);
     }
   }

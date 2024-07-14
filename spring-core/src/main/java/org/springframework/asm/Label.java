@@ -220,14 +220,12 @@ public class Label {
    * The number of elements in the input stack of the basic block corresponding to this label. This
    * field is computed in {@link MethodWriter#computeMaxStackAndLocal}.
    */
-  // 该label开始时候的stackSize
   short inputStackSize;
 
   /**
    * The number of elements in the output stack, at the end of the basic block corresponding to this
    * label. This field is only computed for basic blocks that end with a RET instruction.
    */
-  // 该label结束时候的stackSize
   short outputStackSize;
 
   /**

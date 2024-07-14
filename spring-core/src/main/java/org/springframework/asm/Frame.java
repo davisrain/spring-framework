@@ -172,6 +172,7 @@ class Frame {
    * concrete type is LONG or DOUBLE, TOP should be used instead (because the value has been
    * partially overridden with an xSTORE instruction).
    */
+  // 用来表示那些还未解析的LOCAL_KIND STACK_KIND的flag，如果解析出来的实际类型是LONG或者DOUBLE的，需要将该位置设置为TOP
   private static final int TOP_IF_LONG_OR_DOUBLE_FLAG = 1 << FLAGS_SHIFT;
 
   // Useful predefined abstract types (all the possible CONSTANT_KIND types).
@@ -332,6 +333,8 @@ class Frame {
       case 'D':
         return DOUBLE;
       case 'L':
+		  // 如果L开头的，先获取除去L和;的internalName，然后根据internalName去获取在TypeTable中的下标，同REFERENCE_KIND构建出
+		  // 抽象类型返回
         internalName = buffer.substring(offset + 1, buffer.length() - 1);
         return REFERENCE_KIND | symbolTable.addType(internalName);
       case '[':
@@ -372,6 +375,7 @@ class Frame {
           default:
             throw new IllegalArgumentException();
         }
+		// 根据数组的维度，创建对应dimension的抽象类型返回
         return ((elementDescriptorOffset - offset) << DIM_SHIFT) | typeValue;
       default:
         throw new IllegalArgumentException();
@@ -397,25 +401,35 @@ class Frame {
       final int access,
       final String descriptor,
       final int maxLocals) {
+	  // 根据maxLocals创建一个对应长度的int数组初始化inputLocals
     inputLocals = new int[maxLocals];
+	// 创建一个长度为0的int数组初始化inputStack
     inputStack = new int[0];
     int inputLocalIndex = 0;
+	// 如果方法的accessFlags中不存在static
     if ((access & Opcodes.ACC_STATIC) == 0) {
+		// 并且accessFlags中不存在ACC_CONSTRUCTOR
       if ((access & Constants.ACC_CONSTRUCTOR) == 0) {
+		  // 向inputLocals对应的index中设置一个REFERENCE_KIND的抽象类型，其中value等于TypeTable的下标
         inputLocals[inputLocalIndex++] =
             REFERENCE_KIND | symbolTable.addType(symbolTable.getClassName());
       } else {
+		  // 如果是构造方法，向inputLocals中存入一个CONSTANT_KIND类型的UNINITIALIZED_THIS
         inputLocals[inputLocalIndex++] = UNINITIALIZED_THIS;
       }
     }
+	// 遍历参数的type数组
     for (Type argumentType : Type.getArgumentTypes(descriptor)) {
+		// 根据参数的type的描述符获取抽象类型放入到inputLocals中
       int abstractType =
           getAbstractTypeFromDescriptor(symbolTable, argumentType.getDescriptor(), 0);
       inputLocals[inputLocalIndex++] = abstractType;
+	  // 如果抽象类型是LONG或者DOUBLE，那么还需要将下一个inputLocal设置为TOP
       if (abstractType == LONG || abstractType == DOUBLE) {
         inputLocals[inputLocalIndex++] = TOP;
       }
     }
+	// 如果没有将inputLocals数组填充满，剩余的位置填充TOP
     while (inputLocalIndex < maxLocals) {
       inputLocals[inputLocalIndex++] = TOP;
     }
@@ -481,12 +495,17 @@ class Frame {
    * @return the abstract type stored at the given local variable index in the output frame.
    */
   private int getLocal(final int localIndex) {
+	  // 如果outputLocals为null或者localIndex大于了outputLocals数组的长度
     if (outputLocals == null || localIndex >= outputLocals.length) {
       // If this local has never been assigned in this basic block, it is still equal to its value
       // in the input frame.
+		// 返回LOCAL_KIND | localIndex
       return LOCAL_KIND | localIndex;
     } else {
+		// 否则，获取outputLocals数组对应index的抽象类型
       int abstractType = outputLocals[localIndex];
+	  // 如果抽象类型为0，将outputLocals对应的index设置为LOCAL_KIND | localIndex
+		// 并且返回抽象类型
       if (abstractType == 0) {
         // If this local has never been assigned in this basic block, so it is still equal to its
         // value in the input frame.
@@ -504,9 +523,11 @@ class Frame {
    */
   private void setLocal(final int localIndex, final int abstractType) {
     // Create and/or resize the output local variables array if necessary.
+	  // 如果outputLocals为null，创建一个数组
     if (outputLocals == null) {
       outputLocals = new int[10];
     }
+	// 如果容量不够，扩容
     int outputLocalsLength = outputLocals.length;
     if (localIndex >= outputLocalsLength) {
       int[] newOutputLocals = new int[Math.max(localIndex + 1, 2 * outputLocalsLength)];
@@ -514,6 +535,7 @@ class Frame {
       outputLocals = newOutputLocals;
     }
     // Set the local variable.
+	  // 设置outputLocals数组对应index的值为传入的抽象类型
     outputLocals[localIndex] = abstractType;
   }
 
@@ -528,16 +550,20 @@ class Frame {
       outputStack = new int[10];
     }
     int outputStackLength = outputStack.length;
+	// 如果outputStackTop大于等于了outputStackLength，进行扩容
     if (outputStackTop >= outputStackLength) {
       int[] newOutputStack = new int[Math.max(outputStackTop + 1, 2 * outputStackLength)];
       System.arraycopy(outputStack, 0, newOutputStack, 0, outputStackLength);
       outputStack = newOutputStack;
     }
     // Pushes the abstract type on the output stack.
+	  // 将抽象类型push进outputStack中
     outputStack[outputStackTop++] = abstractType;
     // Updates the maximum size reached by the output stack, if needed (note that this size is
     // relative to the input stack size, which is not known yet).
+	  // 计算出outputStack的size
     short outputStackSize = (short) (outputStackStart + outputStackTop);
+	// 如果outputStackSize比label的outputStackMax还大的话，更新label的outputStackMax
     if (outputStackSize > owner.outputStackMax) {
       owner.outputStackMax = outputStackSize;
     }
@@ -550,11 +576,16 @@ class Frame {
    * @param descriptor a type or method descriptor (in which case its return type is pushed).
    */
   private void push(final SymbolTable symbolTable, final String descriptor) {
+	  // 如果描述符是以(开头的，说明是参数和返回值的描述符
+	  // 或者到其返回值类型在描述符中的偏移量
     int typeDescriptorOffset =
         descriptor.charAt(0) == '(' ? Type.getReturnTypeOffset(descriptor) : 0;
+	// 获取到返回值描述符对应的抽象类型
     int abstractType = getAbstractTypeFromDescriptor(symbolTable, descriptor, typeDescriptorOffset);
     if (abstractType != 0) {
+		// 将抽象类型压入栈中
       push(abstractType);
+	  // 如果是LONG或者DOUBLE的抽象类型，再压入一个TOP到栈中
       if (abstractType == LONG || abstractType == DOUBLE) {
         push(TOP);
       }
@@ -596,13 +627,19 @@ class Frame {
    *
    * @param descriptor a type or method descriptor (in which case its argument types are popped).
    */
+  // 从outputStack中pop出descriptor对应数量的抽象类型
   private void pop(final String descriptor) {
     char firstDescriptorChar = descriptor.charAt(0);
+	// 如果描述符是以(开头的，说明是参数和返回值的描述符，
     if (firstDescriptorChar == '(') {
+		// 根据描述符获取到参数个数，并且将数量-1，剔除掉隐藏的this参数，得到最终需要pop出栈的参数个数
+		// 调用pop
       pop((Type.getArgumentsAndReturnSizes(descriptor) >> 2) - 1);
     } else if (firstDescriptorChar == 'J' || firstDescriptorChar == 'D') {
+		// 如果descriptor是J或者D，出栈2个元素
       pop(2);
     } else {
+		// 其他情况出栈一个元素
       pop(1);
     }
   }
@@ -795,14 +832,21 @@ class Frame {
       case Opcodes.ASTORE:
         abstractType1 = pop();
         setLocal(arg, abstractType1);
+		// 如果arg大于0
         if (arg > 0) {
+			// 获取到locals中arg-1位置的抽象类型
           int previousLocalType = getLocal(arg - 1);
+		  // 如果抽象类型是LONG或者DOUBLE
           if (previousLocalType == LONG || previousLocalType == DOUBLE) {
+			  // 将arg-1位置的抽象类型设置为TOP
             setLocal(arg - 1, TOP);
-          } else if ((previousLocalType & KIND_MASK) == LOCAL_KIND
+          }
+		  // 如果抽象类型的KIND是LOCAL或者STACK
+		  else if ((previousLocalType & KIND_MASK) == LOCAL_KIND
               || (previousLocalType & KIND_MASK) == STACK_KIND) {
             // The type of the previous local variable is not known yet, but if it later appears
             // to be LONG or DOUBLE, we should then use TOP instead.
+			  // 设置其FLAG为TOP_IF_LONG_OR_DOUBLE_FLAG，表示如果后续发现它是LONG或者DOUBLE类型的，需要替换为TOP
             setLocal(arg - 1, previousLocalType | TOP_IF_LONG_OR_DOUBLE_FLAG);
           }
         }
@@ -870,11 +914,13 @@ class Frame {
         pop(2);
         break;
       case Opcodes.DUP:
+		  // 复制第一个元素，并插入到第一个元素后
         abstractType1 = pop();
         push(abstractType1);
         push(abstractType1);
         break;
       case Opcodes.DUP_X1:
+		  // 复制栈顶一个元素，并插入到第二个元素后
         abstractType1 = pop();
         abstractType2 = pop();
         push(abstractType1);
@@ -882,6 +928,7 @@ class Frame {
         push(abstractType1);
         break;
       case Opcodes.DUP_X2:
+		  // 复制栈顶一个元素，并插入到第三个元素后
         abstractType1 = pop();
         abstractType2 = pop();
         abstractType3 = pop();
@@ -891,6 +938,7 @@ class Frame {
         push(abstractType1);
         break;
       case Opcodes.DUP2:
+		  // 复制栈顶两个元素，并插入到第二个元素后
         abstractType1 = pop();
         abstractType2 = pop();
         push(abstractType2);
@@ -899,6 +947,7 @@ class Frame {
         push(abstractType1);
         break;
       case Opcodes.DUP2_X1:
+		  // 复制栈顶两个元素，并插入到第三个元素后
         abstractType1 = pop();
         abstractType2 = pop();
         abstractType3 = pop();
@@ -909,6 +958,7 @@ class Frame {
         push(abstractType1);
         break;
       case Opcodes.DUP2_X2:
+		  // 复制栈顶两个元素，并插入到第四个元素后
         abstractType1 = pop();
         abstractType2 = pop();
         abstractType3 = pop();
@@ -1039,13 +1089,19 @@ class Frame {
       case Opcodes.INVOKESPECIAL:
       case Opcodes.INVOKESTATIC:
       case Opcodes.INVOKEINTERFACE:
+		  // 根据方法描述符，出栈对应的元素个数
         pop(argSymbol.value);
+		// 如果方法不是静态调用
         if (opcode != Opcodes.INVOKESTATIC) {
+			// 需要将方法接收者这个对象也出栈
           abstractType1 = pop();
+		  // 如果字节码是invokespecial并且方法是<init>方法
           if (opcode == Opcodes.INVOKESPECIAL && argSymbol.name.charAt(0) == '<') {
+			  // 向initializations数组中添加方法接收者的抽象类型
             addInitializedType(abstractType1);
           }
         }
+		// 根据方法描述符，将返回返回值压入栈中
         push(symbolTable, argSymbol.value);
         break;
       case Opcodes.INVOKEDYNAMIC:
@@ -1056,9 +1112,11 @@ class Frame {
         push(UNINITIALIZED_KIND | symbolTable.addUninitializedType(argSymbol.value, arg));
         break;
       case Opcodes.NEWARRAY:
+		  // 将数组长度出栈
         pop();
         switch (arg) {
           case Opcodes.T_BOOLEAN:
+			  // 将一个一维数组的抽象类型入栈
             push(ARRAY_OF | BOOLEAN);
             break;
           case Opcodes.T_CHAR:
@@ -1359,43 +1417,64 @@ class Frame {
   final void accept(final MethodWriter methodWriter) {
     // Compute the number of locals, ignoring TOP types that are just after a LONG or a DOUBLE, and
     // all trailing TOP types.
+	  // 计算locals的数量
     int[] localTypes = inputLocals;
     int numLocal = 0;
     int numTrailingTop = 0;
     int i = 0;
+	// 遍历inputLocals，返回local的数量，忽略LONG和DOUBLE后面的TOP，以及填充的TOP
     while (i < localTypes.length) {
       int localType = localTypes[i];
+	  // 如果是LONG或DOUBLE类型的，i += 2，否则i += 1
       i += (localType == LONG || localType == DOUBLE) ? 2 : 1;
+	  // 如果是TOP类型的，将numTrailingTop++
       if (localType == TOP) {
         numTrailingTop++;
       } else {
+		  // 否则将numLocal加上numTrailingTop + 1，也就是说如果是处于两个有效local中间的TOP，且不是紧跟在LONG或DOUBLE后面的，
+		  // 需要将其算作一个local变量
         numLocal += numTrailingTop + 1;
+		// 然后将numTrailingTop置为0
         numTrailingTop = 0;
       }
     }
     // Compute the stack size, ignoring TOP types that are just after a LONG or a DOUBLE.
+	  // 计算stack的size
     int[] stackTypes = inputStack;
     int numStack = 0;
     i = 0;
+	// 遍历inputStack
     while (i < stackTypes.length) {
       int stackType = stackTypes[i];
+	  // 如果类型是LONG或者DOUBLE，i += 2，否则i += 1
       i += (stackType == LONG || stackType == DOUBLE) ? 2 : 1;
+	  // 将numStack++
       numStack++;
     }
     // Visit the frame and its content.
+	  // 访问frame和它的内容
+	  // 调用methodWriter的visitFrameStart方法
+	  // frameIndex固定返回3，表示下一个要填入currentFrame数组的下标
     int frameIndex = methodWriter.visitFrameStart(owner.bytecodeOffset, numLocal, numStack);
     i = 0;
+	// 遍历inputLocals
     while (numLocal-- > 0) {
+		// 获取到对应的local的抽象类型
       int localType = localTypes[i];
+	  // 如果抽象类型为LONG或者DOUBLE的话，i += 2，否则i += 1
       i += (localType == LONG || localType == DOUBLE) ? 2 : 1;
+	  // 调用methodWriter的visitAbstractType，将获取到的抽象类型放入到currentFrame的frameIndex下标中
       methodWriter.visitAbstractType(frameIndex++, localType);
     }
     i = 0;
+	// 遍历inputStack
     while (numStack-- > 0) {
+		// 将对应的抽象类型放入到currentFrame的栈顶下标中
       int stackType = stackTypes[i];
       i += (stackType == LONG || stackType == DOUBLE) ? 2 : 1;
       methodWriter.visitAbstractType(frameIndex++, stackType);
     }
+	// 调用methodWriter的visitFrameEnd方法结束frame的访问
     methodWriter.visitFrameEnd();
   }
 
@@ -1412,18 +1491,28 @@ class Frame {
    */
   static void putAbstractType(
       final SymbolTable symbolTable, final int abstractType, final ByteVector output) {
+	  // 首先获取抽象类型的数组维度
     int arrayDimensions = (abstractType & Frame.DIM_MASK) >> DIM_SHIFT;
+	// 如果数组维度为0，说明不是数组类型
     if (arrayDimensions == 0) {
+		// 获取抽象类型的value
       int typeValue = abstractType & VALUE_MASK;
+	  // 根据抽象类型的KIND进行分类
       switch (abstractType & KIND_MASK) {
+		  // 如果是CONSTANT_KIND，直接将value设置进字节数组就行，默认为ITEM的值
         case CONSTANT_KIND:
           output.putByte(typeValue);
           break;
+		  // 如果是REFERENCE_KIND
         case REFERENCE_KIND:
           output
+				  // 先设置一个字节ITEM_OBJECT
               .putByte(ITEM_OBJECT)
+				  // 然后根据抽象类型的value(TypeTable中的下标)获取到其在TypeTable中的symbol持有的类型名称，
+				  // 然后将类型名称添加到常量池成为一个CONSTANT_class_info的常量，将其在常量池的索引index设置到字节数组
               .putShort(symbolTable.addConstantClass(symbolTable.getType(typeValue).value).index);
           break;
+		  // 如果是UNINITIALIZED_KIND
         case UNINITIALIZED_KIND:
           output.putByte(ITEM_UNINITIALIZED).putShort((int) symbolTable.getType(typeValue).data);
           break;

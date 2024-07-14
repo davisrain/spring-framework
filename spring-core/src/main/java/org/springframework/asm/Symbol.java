@@ -236,6 +236,7 @@ abstract class Symbol {
    */
   int getArgumentsAndReturnSizes() {
     if (info == 0) {
+		// 根据value，也就是描述符，获取对应的参数和返回值个数
       info = Type.getArgumentsAndReturnSizes(value);
     }
     return info;

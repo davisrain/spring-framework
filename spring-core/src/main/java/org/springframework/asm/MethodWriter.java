@@ -546,6 +546,7 @@ final class MethodWriter extends MethodVisitor {
    * but restricted to {@link Frame#CONSTANT_KIND}, {@link Frame#REFERENCE_KIND} or {@link
    * Frame#UNINITIALIZED_KIND} abstract types. Long and double types use only one array entry.
    */
+  // 第一个元素是frame的字节码偏移量，第二个元素是locals的数量，第三个元素是stackSize，然后之后一次是local variables和 operand stack entry
   private int[] currentFrame;
 
   /** Whether this method contains subroutines. */
@@ -1118,17 +1119,23 @@ final class MethodWriter extends MethodVisitor {
       if (compute == COMPUTE_ALL_FRAMES || compute == COMPUTE_INSERTED_FRAMES) {
         currentBasicBlock.frame.execute(opcode, 0, methodrefSymbol, symbolTable);
       } else {
+		  // 根据描述符获取参数和返回值个数
         int argumentsAndReturnSize = methodrefSymbol.getArgumentsAndReturnSizes();
+		// 使用返回值的个数减去参数的个数，得到stackSize需要变动的量
         int stackSizeDelta = (argumentsAndReturnSize & 3) - (argumentsAndReturnSize >> 2);
         int size;
+		// 如果是invokestatic，参数会少一个this，那么需要将delta + 1；
+		  // 其余请不需要将delta + 1，计算出相对的stackSize
         if (opcode == Opcodes.INVOKESTATIC) {
           size = relativeStackSize + stackSizeDelta + 1;
         } else {
           size = relativeStackSize + stackSizeDelta;
         }
+		// 如果size大于了最大的相对stackSize，更新maxRelativeStackSize的值
         if (size > maxRelativeStackSize) {
           maxRelativeStackSize = size;
         }
+		// 将size赋值给relativeStackSize
         relativeStackSize = size;
       }
     }
@@ -1675,6 +1682,7 @@ final class MethodWriter extends MethodVisitor {
   /** Computes all the stack map frames of the method, from scratch. */
   private void computeAllFrames() {
     // Complete the control flow graph with exception handler blocks.
+	  // 根据异常处理的block完成控制流程图
     Handler handler = firstHandler;
     while (handler != null) {
       String catchTypeDescriptor =
@@ -1695,8 +1703,12 @@ final class MethodWriter extends MethodVisitor {
     }
 
     // Create and visit the first (implicit) frame.
+	  // 创建并且访问first frame
+	  // 获取firstBasicBlock的frame对象
     Frame firstFrame = firstBasicBlock.frame;
+	// 根据方法的descriptor accessFlags maxLocals设置firstFrame
     firstFrame.setInputFrameFromDescriptor(symbolTable, accessFlags, descriptor, this.maxLocals);
+	// 调用firstFrame的accept方法，将methodWriter传入
     firstFrame.accept(this);
 
     // Fix point algorithm: add the first basic block to a list of blocks to process (i.e. blocks
@@ -1898,6 +1910,8 @@ final class MethodWriter extends MethodVisitor {
    */
   private void addSuccessorToCurrentBasicBlock(final int info, final Label successor) {
 	  // 创建一个Edge赋值给currentBasicBlock，向currentBasicBlock添加一个successor
+	  // currentBasicBlock作为图的一个顶点，创建其指向successor顶点的边，
+	  // 并且将currentBasicBlock原本的那些边添加到当前edge的next，构成currentBasicBlock指出边的链表
     currentBasicBlock.outgoingEdges = new Edge(info, successor, currentBasicBlock.outgoingEdges);
   }
 
@@ -1936,10 +1950,14 @@ final class MethodWriter extends MethodVisitor {
    * @return the index of the next element to be written in this frame.
    */
   int visitFrameStart(final int offset, final int numLocal, final int numStack) {
+	  // 先定义frame数组的length为3 + numLocal + numStack
     int frameLength = 3 + numLocal + numStack;
+	// 如果currentFrame为null 或者 currentFrame的length 比 计算出来的frameLength小的话
+	  // 根据frameLength创建一个int数组赋值给currentFrame
     if (currentFrame == null || currentFrame.length < frameLength) {
       currentFrame = new int[frameLength];
     }
+	// 设置currentFrame的前三个元素
     currentFrame[0] = offset;
     currentFrame[1] = numLocal;
     currentFrame[2] = numStack;
@@ -1962,29 +1980,45 @@ final class MethodWriter extends MethodVisitor {
    * which is implicit in StackMapTable). Then resets {@link #currentFrame} to {@literal null}.
    */
   void visitFrameEnd() {
+	  // 如果previousFrame不为null的话，因为如果为null的话，说明是第一个frame，不会体现在StackMapTable属性中
     if (previousFrame != null) {
+		// 并且stackMapTableEntries也不为null的话
       if (stackMapTableEntries == null) {
+		  // 初始化stackMapTableEntries为一个ByteVector，即字节数组
         stackMapTableEntries = new ByteVector();
       }
+	  // 然后调用putFrame方法，将currentFrame的信息存入到StackMapFrameEntries中
       putFrame();
+	  // 将stackMapTable中的entries数量+1
       ++stackMapTableNumberOfEntries;
     }
+	// 然后将currentFrame赋值给previousFrame
     previousFrame = currentFrame;
+	// 将currentFrame置为null
     currentFrame = null;
   }
 
   /** Compresses and writes {@link #currentFrame} in a new StackMapTable entry. */
   private void putFrame() {
+	  // 获取locals和stack的数量
     final int numLocal = currentFrame[1];
     final int numStack = currentFrame[2];
+	// 如果class文件的版本小于1.6
     if (symbolTable.getMajorVersion() < Opcodes.V1_6) {
       // Generate a StackMap attribute entry, which are always uncompressed.
+		// 总是生成一个未压缩的StackMapEntry，相当于之后的full_frame类型
+		// 1.首先设置2个字节的字节码偏移量
+		// 2.然后设置2个字节的numLocal
+		// 3.设置locals到entry中
+		// 4.设置2个字节的numStack
+		// 5.设置stack到entry中
       stackMapTableEntries.putShort(currentFrame[0]).putShort(numLocal);
       putAbstractTypes(3, 3 + numLocal);
       stackMapTableEntries.putShort(numStack);
       putAbstractTypes(3 + numLocal, 3 + numLocal + numStack);
       return;
     }
+	// 大于等于1.6版本的class文件，会使用压缩后的frame，即根据frame_type来区分
     final int offsetDelta =
         stackMapTableNumberOfEntries == 0
             ? currentFrame[0]
@@ -2074,6 +2108,7 @@ final class MethodWriter extends MethodVisitor {
    * @param end index of last type in {@link #currentFrame} to write (exclusive).
    */
   private void putAbstractTypes(final int start, final int end) {
+	  // 遍历currentFrame从start到end下标的抽象类型，依次放入到stackMapTableEntries这个字节数组中
     for (int i = start; i < end; ++i) {
       Frame.putAbstractType(symbolTable, currentFrame[i], stackMapTableEntries);
     }

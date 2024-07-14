@@ -1169,6 +1169,7 @@ final class SymbolTable {
       }
       entry = entry.next;
     }
+	// value为类型名称，tag为asm特有的TYPE_TAG，该tag不会出现在常量池中，而是保存在asm独有的TypeTable中
     return addTypeInternal(new Entry(typeCount, Symbol.TYPE_TAG, value, hashCode));
   }
 
@@ -1193,6 +1194,7 @@ final class SymbolTable {
       }
       entry = entry.next;
     }
+	// 将UNINITIALIZED_TYPE_TAG的entry添加到typeTable中，并且返回其在typeTable这个数组中的index
     return addTypeInternal(
         new Entry(typeCount, Symbol.UNINITIALIZED_TYPE_TAG, value, bytecodeOffset, hashCode));
   }
