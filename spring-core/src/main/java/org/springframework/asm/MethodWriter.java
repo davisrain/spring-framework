@@ -1706,9 +1706,13 @@ final class MethodWriter extends MethodVisitor {
 	  // 创建并且访问first frame
 	  // 获取firstBasicBlock的frame对象
     Frame firstFrame = firstBasicBlock.frame;
-	// 根据方法的descriptor accessFlags maxLocals设置firstFrame
+	// 根据方法的descriptor accessFlags maxLocals设置firstFrame，
+	  // 填充firstFrame的inputLocals和inputStack
     firstFrame.setInputFrameFromDescriptor(symbolTable, accessFlags, descriptor, this.maxLocals);
 	// 调用firstFrame的accept方法，将methodWriter传入
+	  // 根据firstFrame的inputLocals，生成MethodWriter的currentFrame对应的int数组，
+	  // 然后依次调用visitAbstractType方法，将inputLocals和inputStack中的抽象类型读到currentFrame中
+	  // 最后调用visitFrameEnd方法，根据currentFrame和previousFrame来生成code属性中的StackMapTable属性的内容
     firstFrame.accept(this);
 
     // Fix point algorithm: add the first basic block to a list of blocks to process (i.e. blocks
@@ -1722,20 +1726,31 @@ final class MethodWriter extends MethodVisitor {
     int maxStackSize = 0;
     while (listOfBlocksToProcess != Label.EMPTY_LIST) {
       // Remove a basic block from the list of blocks to process.
+		// 获取链表的头元素
       Label basicBlock = listOfBlocksToProcess;
+	  // 然后将listOfBlocksToProcess指针指向链表的下一个元素
       listOfBlocksToProcess = listOfBlocksToProcess.nextListElement;
+	  // 将获取到的元素的nextListElement指针指向null，即从链表中断开
       basicBlock.nextListElement = null;
       // By definition, basicBlock is reachable.
+		// 将basicBlock的flags中添加FLAG_REACHABLE
       basicBlock.flags |= Label.FLAG_REACHABLE;
       // Update the (absolute) maximum stack size.
+		// 计算basicBlock所持有的frame的 maxBlockStackSize = inputStackSize + outputStackMax
       int maxBlockStackSize = basicBlock.frame.getInputStackSize() + basicBlock.outputStackMax;
+	  // 如果maxBlockStackSize大于了maxStackSize，将maxStackSize赋值为maxBlockStackSize
       if (maxBlockStackSize > maxStackSize) {
         maxStackSize = maxBlockStackSize;
       }
       // Update the successor blocks of basicBlock in the control flow graph.
+		// 获取到basicBlock在控制流程图里面的出边
       Edge outgoingEdge = basicBlock.outgoingEdges;
+	  // 如果存在出边的话
       while (outgoingEdge != null) {
+		  // 获取到出边指向的下一个basicBlock顶点successorBlock
+		  // 如果存在多个basicBlock持有一个frame，那么获取到最开始创建这个frame的label
         Label successorBlock = outgoingEdge.successor.getCanonicalInstance();
+		// 调用basicBlock持有的frame的merge方法，对successorBlock的frame进行merge操作
         boolean successorBlockChanged =
             basicBlock.frame.merge(symbolTable, successorBlock.frame, outgoingEdge.info);
         if (successorBlockChanged && successorBlock.nextListElement == null) {
@@ -1980,7 +1995,7 @@ final class MethodWriter extends MethodVisitor {
    * which is implicit in StackMapTable). Then resets {@link #currentFrame} to {@literal null}.
    */
   void visitFrameEnd() {
-	  // 如果previousFrame不为null的话，因为如果为null的话，说明是第一个frame，不会体现在StackMapTable属性中
+	  // 如果previousFrame不为null的话，才执行下面的逻辑，因为如果为null的话，说明是第一个frame，不会体现在StackMapTable属性中
     if (previousFrame != null) {
 		// 并且stackMapTableEntries也不为null的话
       if (stackMapTableEntries == null) {
@@ -2019,42 +2034,62 @@ final class MethodWriter extends MethodVisitor {
       return;
     }
 	// 大于等于1.6版本的class文件，会使用压缩后的frame，即根据frame_type来区分
+	  // 首先计算offsetDelta，如果是第二个stackMapFrame(第一个stackMapFrame会被忽略)，offsetDelta就等于字节码的偏移量
+	  // 后续的offsetDelta都等于自身的字节码偏移量 - 前一个frame的字节码偏移量 - 1
     final int offsetDelta =
         stackMapTableNumberOfEntries == 0
             ? currentFrame[0]
             : currentFrame[0] - previousFrame[0] - 1;
+	// 获取前一个frame的inputLocals的数量
     final int previousNumlocal = previousFrame[1];
+	// 用当前frame的inputLocals数量 - previousNumLocal，得到inputLocals的差值
     final int numLocalDelta = numLocal - previousNumlocal;
+	// 默认的frame_type是FULL_FRAME，即255
     int type = Frame.FULL_FRAME;
+	// 如果当前frame的inputStack数量为0
     if (numStack == 0) {
+		// 根据inputLocals数量的差值进行判断
       switch (numLocalDelta) {
         case -3:
         case -2:
         case -1:
+			// 如果差值等于-3 -2 -1，那么frame_type是CHOP_FRAME类型，取值区间为[248,250]
           type = Frame.CHOP_FRAME;
           break;
+		  // 如果差值等于0，根据offsetDelta来判断，如果小于64的话，是SAME_FRAME[0-63]，否则是SAME_FRAME_EXTENDED = 251
         case 0:
           type = offsetDelta < 64 ? Frame.SAME_FRAME : Frame.SAME_FRAME_EXTENDED;
           break;
+		  // 如果差值等于1 2 3
         case 1:
         case 2:
         case 3:
+			// frame_type是APPEND_FRAME，取值区间是[252,254]
           type = Frame.APPEND_FRAME;
           break;
+		  // 其他情况都是FULL_FRAME
         default:
           // Keep the FULL_FRAME type.
           break;
       }
-    } else if (numLocalDelta == 0 && numStack == 1) {
+    }
+	// 当inputLocals的数量差为0，并且当前frame存在一个inputStack
+	else if (numLocalDelta == 0 && numStack == 1) {
+		// 根据offsetDelta来判断frame_type是SAME_LOCALS_1_STACK_ITEM_FRAME(取值范围是[64,127))
+		// 还是 SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED(取值范围是 = 247)
       type =
           offsetDelta < 63
               ? Frame.SAME_LOCALS_1_STACK_ITEM_FRAME
               : Frame.SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED;
     }
+	// 如果type不是FULL_FRAME
     if (type != Frame.FULL_FRAME) {
       // Verify if locals are the same as in the previous frame.
       int frameIndex = 3;
+	  // 验证当前frame和previousFrame的inputLocals是否一致
+		// i要小于当前的frame的local数量并且也要小于previousFrame的local数量
       for (int i = 0; i < previousNumlocal && i < numLocal; i++) {
+		  // 如果不一致的话，将type转换为FULL_FRAME
         if (currentFrame[frameIndex] != previousFrame[frameIndex]) {
           type = Frame.FULL_FRAME;
           break;
@@ -2062,34 +2097,47 @@ final class MethodWriter extends MethodVisitor {
         frameIndex++;
       }
     }
+	// 根据上面得出的frame_type，向stackMapTable的字节数组中添加字节
     switch (type) {
+		// 如果是SAME_FRAME，将offsetDelta作为frame_type存入，取值只能为[0,63]
       case Frame.SAME_FRAME:
         stackMapTableEntries.putByte(offsetDelta);
         break;
+		// SAME_LOCALS_1_STACK_ITEM_FRAME，将offsetDelta + 64作为frame_type存入，取值范围为[64,127)
       case Frame.SAME_LOCALS_1_STACK_ITEM_FRAME:
         stackMapTableEntries.putByte(Frame.SAME_LOCALS_1_STACK_ITEM_FRAME + offsetDelta);
+		// 然后存入第一个inputStack的抽象类型对应的verification_type_info
         putAbstractTypes(3 + numLocal, 4 + numLocal);
         break;
+		// SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED，frame_type默认127，然后再存入两个字节的offsetDelta，
+		// 然后存入第一个inputStack的抽象类型对应的verification_type_info
       case Frame.SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED:
         stackMapTableEntries
             .putByte(Frame.SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED)
             .putShort(offsetDelta);
         putAbstractTypes(3 + numLocal, 4 + numLocal);
         break;
+		// SAME_FRAME_EXTENDED, frame_type默认为251，然后存入两个字节offsetDelta
       case Frame.SAME_FRAME_EXTENDED:
         stackMapTableEntries.putByte(Frame.SAME_FRAME_EXTENDED).putShort(offsetDelta);
         break;
+		// CHOP_FRAME，frame_type取值范围是[248,250]，根据inputLocals的数量差来决定，先存入一个字节的frame_type，
+		// 然后存入两个字节的offsetDelta
       case Frame.CHOP_FRAME:
         stackMapTableEntries
             .putByte(Frame.SAME_FRAME_EXTENDED + numLocalDelta)
             .putShort(offsetDelta);
         break;
+		// APPEND_FRAME，frame_type取值范围[252,254]，也是根据inputLocals的数量差来决定，先存入一个字节的frame_type,
+		// 然后存入两个字节的offsetDelta，然后在存入新增加的inputLocals对应的抽象类型对应的verification_type_info
       case Frame.APPEND_FRAME:
         stackMapTableEntries
             .putByte(Frame.SAME_FRAME_EXTENDED + numLocalDelta)
             .putShort(offsetDelta);
         putAbstractTypes(3 + previousNumlocal, 3 + numLocal);
         break;
+		// 其他情况都是FULL_FRAME，存入一个字节的frame_type，默认为255，然后存入两个字节的offsetDelta，
+		// 然后存入当前frame全量的inputLocals和inputStack
       case Frame.FULL_FRAME:
       default:
         stackMapTableEntries.putByte(Frame.FULL_FRAME).putShort(offsetDelta).putShort(numLocal);

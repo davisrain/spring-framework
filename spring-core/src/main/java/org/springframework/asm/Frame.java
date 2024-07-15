@@ -598,10 +598,13 @@ class Frame {
    * @return the abstract type that has been popped from the output frame stack.
    */
   private int pop() {
+	  // 如果outputStackTop大于0，从数组中获取对应的抽象类型返回，并且将outputStackTop-1
     if (outputStackTop > 0) {
       return outputStack[--outputStackTop];
     } else {
       // If the output frame stack is empty, pop from the input stack.
+		// 如果outputStack是空的，那么从inputStack中返回，先将outputStackStart - 1，然后再取反，代表inputStack栈顶的第几个元素，
+		// 然后和STACK_KIND一起作为一个抽象类型返回
       return STACK_KIND | -(--outputStackStart);
     }
   }
@@ -1514,23 +1517,30 @@ class Frame {
           break;
 		  // 如果是UNINITIALIZED_KIND
         case UNINITIALIZED_KIND:
+			// 先设置一个字节ITEM_UNINITIALIZED
+			// 然后根据抽象类型的value，获取到TypeTable对应的entry，然后将entry的data放入output中，占用两个字节
           output.putByte(ITEM_UNINITIALIZED).putShort((int) symbolTable.getType(typeValue).data);
           break;
         default:
           throw new AssertionError();
       }
     } else {
+		// 如果数组维度不为0，说明是数组类型的
       // Case of an array type, we need to build its descriptor first.
+		// 首先构造它的描述符
       StringBuilder typeDescriptor = new StringBuilder(32);  // SPRING PATCH: larger initial size
+		// 根据数组维度在前面添加相等数量的[
       while (arrayDimensions-- > 0) {
         typeDescriptor.append('[');
       }
+	  // 如果KIND类型是REFERENCE_KIND，根据value获取到TypeTable中的entry的value，即类型名称，然后在其前后添加L和;
       if ((abstractType & KIND_MASK) == REFERENCE_KIND) {
         typeDescriptor
             .append('L')
             .append(symbolTable.getType(abstractType & VALUE_MASK).value)
             .append(';');
       } else {
+		  // 如果不是引用类型，那么根据其value对应的ITEM类型，添加对应的基本类型描述符
         switch (abstractType & VALUE_MASK) {
           case Frame.ITEM_ASM_BOOLEAN:
             typeDescriptor.append('Z');
@@ -1561,7 +1571,9 @@ class Frame {
         }
       }
       output
+			  // 添加一个字节的ITEM_OBJECT
           .putByte(ITEM_OBJECT)
+			  // 再添加两个字节的对应数组类型描述符在常量池当中的index
           .putShort(symbolTable.addConstantClass(typeDescriptor.toString()).index);
     }
   }

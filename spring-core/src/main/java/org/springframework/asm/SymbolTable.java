@@ -1194,7 +1194,7 @@ final class SymbolTable {
       }
       entry = entry.next;
     }
-	// 将UNINITIALIZED_TYPE_TAG的entry添加到typeTable中，并且返回其在typeTable这个数组中的index
+	// 将UNINITIALIZED_TYPE_TAG的entry添加到typeTable和entries中，并且返回所在TypeTable数组的index
     return addTypeInternal(
         new Entry(typeCount, Symbol.UNINITIALIZED_TYPE_TAG, value, bytecodeOffset, hashCode));
   }
