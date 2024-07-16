@@ -659,9 +659,11 @@ class Frame {
    */
   private void addInitializedType(final int abstractType) {
     // Create and/or resize the initializations array if necessary.
+	  // 如果initializations为null的话，初始化它
     if (initializations == null) {
       initializations = new int[2];
     }
+	// 如果容量不够，扩容
     int initializationsLength = initializations.length;
     if (initializationCount >= initializationsLength) {
       int[] newInitializations =
@@ -670,6 +672,7 @@ class Frame {
       initializations = newInitializations;
     }
     // Store the abstract type.
+	  // 将抽象类型存入到数组中，存入的都是UNINITIALIZED_KIND类型的
     initializations[initializationCount++] = abstractType;
   }
 
@@ -683,22 +686,30 @@ class Frame {
    *     constructor is invoked in the basic block. Otherwise returns abstractType.
    */
   private int getInitializedType(final SymbolTable symbolTable, final int abstractType) {
+	  // 如果抽象类型是UNINITIALIZED_THIS 或者 REFERENCE_KIND是UNINITIALIZED_KIND 且数组维度为0，
     if (abstractType == UNINITIALIZED_THIS
         || (abstractType & (DIM_MASK | KIND_MASK)) == UNINITIALIZED_KIND) {
+		// 遍历initializations数组
       for (int i = 0; i < initializationCount; ++i) {
+		  // 遍历每一个initializedType
         int initializedType = initializations[i];
         int dim = initializedType & DIM_MASK;
         int kind = initializedType & KIND_MASK;
         int value = initializedType & VALUE_MASK;
+		// 如果是LOCAL_KIND或者STACK_KIND，根据inputLocals或者inputStack替换为实际的抽象了悉尼港
         if (kind == LOCAL_KIND) {
           initializedType = dim + inputLocals[value];
         } else if (kind == STACK_KIND) {
           initializedType = dim + inputStack[inputStack.length - value];
         }
+		// 如果传入的抽象类型 等于 遍历到的initializedType
         if (abstractType == initializedType) {
+			// 如果等于UNINITIALIZED_THIS，将其转换为REFERENCE_KIND，type为当前类对象
           if (abstractType == UNINITIALIZED_THIS) {
             return REFERENCE_KIND | symbolTable.addType(symbolTable.getClassName());
           } else {
+			  // 否则，将其转换为REFERENCE_KIND，type为抽象类型的value（TypeTable数组的下标）对应的Type在TypeTable数组中的下标
+			  // 感觉在套娃。。
             return REFERENCE_KIND
                 | symbolTable.addType(symbolTable.getType(abstractType & VALUE_MASK).value);
           }
@@ -1187,29 +1198,44 @@ class Frame {
    * @return the concrete output type corresponding to 'abstractOutputType'.
    */
   private int getConcreteOutputType(final int abstractOutputType, final int numStack) {
+	  // 获取抽象类型的 数组维度 和 KIND
     int dim = abstractOutputType & DIM_MASK;
     int kind = abstractOutputType & KIND_MASK;
+	// 如果kind等于了LOCAL_KIND
     if (kind == LOCAL_KIND) {
       // By definition, a LOCAL_KIND type designates the concrete type of a local variable at
       // the beginning of the basic block corresponding to this frame (which is known when
       // this method is called, but was not when the abstract type was computed).
+		// 说明生成这个抽象类型的时候，inputLocals还没有初始化，但是当调用到这个方法的时候，
+		// inputLocals已经初始化好了，所以能够进行解析
+		// 获取抽象类型里面的value部分的内容，表示的是inputLocals中变量对应的下标
+		// 然后加上高位的数组维度，解析出实际的outputType
       int concreteOutputType = dim + inputLocals[abstractOutputType & VALUE_MASK];
+	  // 如果抽象类型中TOP_IF_LONG_OR_DOUBLE_FLAG为1，并且concreteOutputType等于LONG或者DOUBLE，
+		// 那么需要将concreteOutputType设置为TOP
       if ((abstractOutputType & TOP_IF_LONG_OR_DOUBLE_FLAG) != 0
           && (concreteOutputType == LONG || concreteOutputType == DOUBLE)) {
         concreteOutputType = TOP;
       }
+	  // 返回concreteOutputType
       return concreteOutputType;
     } else if (kind == STACK_KIND) {
+		// 如果kind是STACK_KIND
       // By definition, a STACK_KIND type designates the concrete type of a local variable at
       // the beginning of the basic block corresponding to this frame (which is known when
       // this method is called, but was not when the abstract type was computed).
+		// 抽象类型的value代表的是inputStack栈顶的第几个元素，因此，通过将numStack - 对应的value，
+		// 得到的就是变量在inputStack里面的下标，根据下标获取到concreteOutputType
       int concreteOutputType = dim + inputStack[numStack - (abstractOutputType & VALUE_MASK)];
+	  // 同上，进行TOP的条件替换
       if ((abstractOutputType & TOP_IF_LONG_OR_DOUBLE_FLAG) != 0
           && (concreteOutputType == LONG || concreteOutputType == DOUBLE)) {
         concreteOutputType = TOP;
       }
+	  // 返回concreteOutputType
       return concreteOutputType;
     } else {
+		// 如果是其他KIND的抽象类型，直接返回
       return abstractOutputType;
     }
   }
@@ -1233,24 +1259,33 @@ class Frame {
     // Compute the concrete types of the local variables at the end of the basic block corresponding
     // to this frame, by resolving its abstract output types, and merge these concrete types with
     // those of the local variables in the input frame of dstFrame.
+	  // 获取当前frame的inputLocals和inputStack的数量
     int numLocal = inputLocals.length;
     int numStack = inputStack.length;
+	// 如果dstFrame的inputLocals为null，初始化它，使用当前frame的inputLocals的数量
     if (dstFrame.inputLocals == null) {
       dstFrame.inputLocals = new int[numLocal];
+	  // 然后将frameChanged设置为true
       frameChanged = true;
     }
+	// 根据numLocal进行循环
     for (int i = 0; i < numLocal; ++i) {
       int concreteOutputType;
+	  // 如果当前frame的outputLocals不为null，并且i小于了outputLocals的长度
       if (outputLocals != null && i < outputLocals.length) {
+		  // 获取对应outputLocals对应下标的抽象类型
         int abstractOutputType = outputLocals[i];
+		// 如果abstractOutputType为0，说明其没有被赋值，那么将其赋值为inputLocals中对应下标的抽象类型
         if (abstractOutputType == 0) {
           // If the local variable has never been assigned in this basic block, it is equal to its
           // value at the beginning of the block.
           concreteOutputType = inputLocals[i];
         } else {
+			// 否则，根据抽象类型获取其实际的类型，该方法解析的是LOCAL_KIND和STACK_KIND类型的抽象变量
           concreteOutputType = getConcreteOutputType(abstractOutputType, numStack);
         }
       } else {
+		  // 如果i大于了outputLocals的length，那么concreteOutputType就等于inputLocals对应i的元素
         // If the local variable has never been assigned in this basic block, it is equal to its
         // value at the beginning of the block.
         concreteOutputType = inputLocals[i];
@@ -1258,7 +1293,10 @@ class Frame {
       // concreteOutputType might be an uninitialized type from the input locals or from the input
       // stack. However, if a constructor has been called for this class type in the basic block,
       // then this type is no longer uninitialized at the end of basic block.
+		// concreteOutputType可能是从inputLocals或者inputStack里面获取的未初始化的type，即REFERENCE_KIND是UNINITIALIZED_KIND的，
+		// 但是，如果一个类型的构造方法在这个basicBlock里被调用了的话，那么它的type在该basicBlock结束时就不会再是未初始化的了
       if (initializations != null) {
+		  // 因此对未初始化的抽象类型进行解析，将UNINITIALIZED_KIND的抽象类型 或者 UNINITIALIZED_THIS转换为REFERENCE_KIND类型的抽象类型
         concreteOutputType = getInitializedType(symbolTable, concreteOutputType);
       }
       frameChanged |= merge(symbolTable, concreteOutputType, dstFrame.inputLocals, i);
@@ -1332,34 +1370,46 @@ class Frame {
       final int sourceType,
       final int[] dstTypes,
       final int dstIndex) {
+	  // 获取对应下标的dstType
     int dstType = dstTypes[dstIndex];
+	// 如果dstType == sourceType，没有变化，返回false
     if (dstType == sourceType) {
       // If the types are equal, merge(sourceType, dstType) = dstType, so there is no change.
       return false;
     }
+	// 将sourceType赋值给srcType
     int srcType = sourceType;
+	// 如果sourceType去除掉 数组维度 等于NULL
     if ((sourceType & ~DIM_MASK) == NULL) {
+		// 并且dstType也等于NULL，返回false
       if (dstType == NULL) {
         return false;
       }
+	  // 如果dstType不等于NULL，将srcType置为NULL
       srcType = NULL;
     }
+	// 如果dstType等于0，说明其没有被赋值过，那么直接将srcType设置进dstTypes数组对应下标，然后返回true即可
     if (dstType == 0) {
       // If dstTypes[dstIndex] has never been assigned, merge(srcType, dstType) = srcType.
       dstTypes[dstIndex] = srcType;
       return true;
     }
     int mergedType;
+	// 如果dstType的数组维度不为0 或者 dstType是REFERENCE_KIND类型的
     if ((dstType & DIM_MASK) != 0 || (dstType & KIND_MASK) == REFERENCE_KIND) {
       // If dstType is a reference type of any array dimension.
+		// 如果srcType等于NULL，这种情况下的merge操作返回dstType，没有变化，所以直接返回false
       if (srcType == NULL) {
         // If srcType is the NULL type, merge(srcType, dstType) = dstType, so there is no change.
         return false;
       } else if ((srcType & (DIM_MASK | KIND_MASK)) == (dstType & (DIM_MASK | KIND_MASK))) {
+		  // 如果srcType和dstType的数组维度 和 KIND都相等
         // If srcType has the same array dimension and the same kind as dstType.
+		  // 如果dstType是REFERENCE_KIND
         if ((dstType & KIND_MASK) == REFERENCE_KIND) {
           // If srcType and dstType are reference types with the same array dimension,
           // merge(srcType, dstType) = dim(srcType) | common super class of srcType and dstType.
+			// mergeType等于 数组维度 | REFERENCE_KIND | srcType 和 dstType的共同父类在TypeTable数组的index
           mergedType =
               (srcType & DIM_MASK)
                   | REFERENCE_KIND

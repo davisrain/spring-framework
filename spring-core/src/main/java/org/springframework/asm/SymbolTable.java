@@ -1211,6 +1211,7 @@ final class SymbolTable {
    *     corresponding to the common super class of the given types.
    */
   int addMergedType(final int typeTableIndex1, final int typeTableIndex2) {
+	  // 将两个index合并为一个long，其中更大的index在高32位
     long data =
         typeTableIndex1 < typeTableIndex2
             ? typeTableIndex1 | (((long) typeTableIndex2) << 32)
@@ -1223,9 +1224,12 @@ final class SymbolTable {
       }
       entry = entry.next;
     }
+	// 获取到两个type对应的typeName
     String type1 = typeTable[typeTableIndex1].value;
     String type2 = typeTable[typeTableIndex2].value;
+	// 然后根据typeName获取到共同的父类，添加进TypeTable中，返回其在TypeTable中的index
     int commonSuperTypeIndex = addType(classWriter.getCommonSuperClass(type1, type2));
+	// 然后创建一个tag为MERGED_TYPE_TAG的entry，存入entries，并且将其info设置为commonSuperTypeIndex
     put(new Entry(typeCount, Symbol.MERGED_TYPE_TAG, data, hashCode)).info = commonSuperTypeIndex;
     return commonSuperTypeIndex;
   }
