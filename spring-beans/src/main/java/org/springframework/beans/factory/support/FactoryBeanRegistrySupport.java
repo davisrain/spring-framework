@@ -36,7 +36,10 @@ import org.springframework.lang.Nullable;
  * {@link org.springframework.beans.factory.FactoryBean} instances,
  * integrated with {@link DefaultSingletonBeanRegistry}'s singleton management.
  *
+ * 支持那些需要去处理FactoryBean实例的singletonRegistries的基类，整合了DefaultSingletonBeanRegistry的单例管理能力
+ *
  * <p>Serves as base class for {@link AbstractBeanFactory}.
+ * 被用作AbstractBeanFactory的基类
  *
  * @author Juergen Hoeller
  * @since 2.5.1
@@ -44,6 +47,7 @@ import org.springframework.lang.Nullable;
 public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanRegistry {
 
 	/** Cache of singleton objects created by FactoryBeans: FactoryBean name to object. */
+	// 缓存那些被FactoryBean创建的单例，key为factoryBean的beanName，value为FactoryBean创建出来的实例
 	private final Map<String, Object> factoryBeanObjectCache = new ConcurrentHashMap<>(16);
 
 

@@ -86,6 +86,10 @@ import org.springframework.util.StringValueResolver;
  * as base class for bean factory implementations which obtain bean definitions
  * from some backend resource (where bean definition access is an expensive operation).
  *
+ * BeanFactory实现的抽象基类，提供了ConfigurableBeanFactory接口的全部能力。
+ * 不假设一个listable的beanFactory，因此也被用作从某些后端资源持有beanDefinitions的beanFactory的实现基类，
+ * 这些资源访问beanDefinition是一个昂贵的操作
+ *
  * <p>This class provides a singleton cache (through its base class
  * {@link org.springframework.beans.factory.support.DefaultSingletonBeanRegistry},
  * singleton/prototype determination, {@link org.springframework.beans.factory.FactoryBean}
@@ -95,11 +99,17 @@ import org.springframework.util.StringValueResolver;
  * hierarchy (delegating to the parent in case of an unknown bean), through implementing
  * the {@link org.springframework.beans.factory.HierarchicalBeanFactory} interface.
  *
+ * 这个类提供了一个单例缓存，通过它继承的DefaultSingletonBeanRegistry，
+ * 单例/原型的测定，FactoryBean的处理，别名，beanDefinition的合并以及bean的销毁（DisposableBean接口，自定义的destroy方法。
+ * 此外，它可以管理一个beanFactory的层次结构，通过实现HierarchicalBeanFactory将不认识的bean委托给父工厂
+ *
  * <p>The main template methods to be implemented by subclasses are
  * {@link #getBeanDefinition} and {@link #createBean}, retrieving a bean definition
  * for a given bean name and creating a bean instance for a given bean definition,
  * respectively. Default implementations of those operations can be found in
  * {@link DefaultListableBeanFactory} and {@link AbstractAutowireCapableBeanFactory}.
+ * 主要的需要子类去实现的模板方法是getBeanDefinition 和 createBean，通过给的beanName去查找一个BeanDefinition
+ * 以及通过给出的beanDefinition去创建一个bean，这些操作的默认实现在DefaultListableBeanFactory和AbstractAutowireCapableBeanFactory能够被找到
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
@@ -131,6 +141,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	private boolean cacheBeanMetadata = true;
 
 	/** Resolution strategy for expressions in bean definition values. */
+	// beanDefinition的values中的表达式的解析策略
 	@Nullable
 	// 在refresh的prepareBeanFactory方法中会添加一个StandardBeanExpressionResolver进来，并且该类初始化的时候需要传入一个classLoader，
 	// 传入的就是beanFactory持有的beanClassLoader
@@ -161,12 +172,15 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	private final List<BeanPostProcessor> beanPostProcessors = new CopyOnWriteArrayList<>();
 
 	/** Indicates whether any InstantiationAwareBeanPostProcessors have been registered. */
+	// 显示是否有InstantiationAwareBeanPostProcessors类型的processor被注册进来
 	private volatile boolean hasInstantiationAwareBeanPostProcessors;
 
 	/** Indicates whether any DestructionAwareBeanPostProcessors have been registered. */
+	// 指示是否有DestructionAwareBeanPostProcessors类型的processor被注册进来
 	private volatile boolean hasDestructionAwareBeanPostProcessors;
 
 	/** Map from scope identifier String to corresponding Scope. */
+	// scope标识符 映射 对应的Scope的map
 	private final Map<String, Scope> scopes = new LinkedHashMap<>(8);
 
 	/** Security context used when running with a SecurityManager. */
@@ -174,12 +188,15 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	private SecurityContextProvider securityContextProvider;
 
 	/** Map from bean name to merged RootBeanDefinition. */
+	// baneName 映射 合并后的RootBeanDefinition的map
 	private final Map<String, RootBeanDefinition> mergedBeanDefinitions = new ConcurrentHashMap<>(256);
 
 	/** Names of beans that have already been created at least once. */
+	// 那些已经被创建过的bean的beanName会被保存在这里
 	private final Set<String> alreadyCreated = Collections.newSetFromMap(new ConcurrentHashMap<>(256));
 
 	/** Names of beans that are currently in creation. */
+	// 那么正在被创建的bean的beanName会被保存在这里，这个ThreadLocal只针对原型类型的
 	private final ThreadLocal<Object> prototypesCurrentlyInCreation =
 			new NamedThreadLocal<>("Prototype beans currently in creation");
 

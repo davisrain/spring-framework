@@ -94,18 +94,26 @@ import org.springframework.util.StringUtils;
  * wiring (including autowiring), and initialization. Handles runtime bean
  * references, resolves managed collections, calls initialization methods, etc.
  * Supports autowiring constructors, properties by name, and properties by type.
+ * 提供了bean创建（包括构造器解析）、属性填充、注入（包括自动注入）和初始化功能。
+ * 处理运行时的bean引用，解析被管理的集合，调用初始化方法等。
+ * 支持自动注入的构造器，按名称填充属性，按类型填充属性
+ *
  *
  * <p>The main template method to be implemented by subclasses is
  * {@link #resolveDependency(DependencyDescriptor, String, Set, TypeConverter)},
  * used for autowiring by type. In case of a factory which is capable of searching
  * its bean definitions, matching beans will typically be implemented through such
  * a search. For other factory styles, simplified matching algorithms can be implemented.
+ * 主要的需要被子类实现的模板方法是resolveDependency，被用来按类型自动注入。
+ * 在一个有能力搜索它持有的beanDefinitions的factory的情况下，匹配bean将通常使用这样的搜索方法来实现。
+ * 对于其他类型的factory，简化的匹配算法可以被实现
  *
  * <p>Note that this class does <i>not</i> assume or implement bean definition
  * registry capabilities. See {@link DefaultListableBeanFactory} for an implementation
  * of the {@link org.springframework.beans.factory.ListableBeanFactory} and
  * {@link BeanDefinitionRegistry} interfaces, which represent the API and SPI
  * view of such a factory, respectively.
+ * 注意这个类没有假设或实现beanDefinitionRegistry的能力
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
