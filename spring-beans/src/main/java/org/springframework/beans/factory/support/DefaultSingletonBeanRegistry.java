@@ -292,7 +292,9 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 				catch (IllegalStateException ex) {
 					// Has the singleton object implicitly appeared in the meantime ->
 					// if yes, proceed with it since the exception indicates that state.
+					// 判断单例对象是否在这期间隐式地出现了，如果是，获取一级缓存中的单例对象，并且将异常吞掉
 					singletonObject = this.singletonObjects.get(beanName);
+					// 如果没有的话，继续抛出异常
 					if (singletonObject == null) {
 						throw ex;
 					}
@@ -318,7 +320,10 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					afterSingletonCreation(beanName);
 				}
 				// 如果newSingleton标志为true，将生成的singletonObject放入一级缓存中，并且将二三级缓存中的内容都删除。
-				// 并且将beanName放入到registeredSingletons集合中
+				// 并且将beanName放入到registeredSingletons集合中。
+
+				// newSingleton为true，表示单例对象是本次调用创建的，而不是通过捕获IllegalStateException赋值的，说明
+				// 单例对象还未在一级缓存中，因此需要添加进去，如果是false的话，不用添加
 				if (newSingleton) {
 					addSingleton(beanName, singletonObject);
 				}

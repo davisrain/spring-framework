@@ -31,6 +31,7 @@ import org.springframework.lang.Nullable;
 public class BeanMetadataAttributeAccessor extends AttributeAccessorSupport implements BeanMetadataElement {
 
 	@Nullable
+	// 表示bean元数据的配置来源对象
 	private Object source;
 
 

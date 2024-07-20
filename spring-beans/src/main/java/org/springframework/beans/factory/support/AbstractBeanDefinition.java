@@ -43,6 +43,9 @@ import org.springframework.util.StringUtils;
  * factoring out common properties of {@link GenericBeanDefinition},
  * {@link RootBeanDefinition}, and {@link ChildBeanDefinition}.
  *
+ * 具象的、成熟的BeanDefinition的基类
+ * 提取出了GenericBeanDefinition RootBeanDefinition ChildBeanDefinition的公共参数
+ *
  * <p>The autowire constants match the ones defined in the
  * {@link org.springframework.beans.factory.config.AutowireCapableBeanFactory}
  * interface.
@@ -63,30 +66,35 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * Constant for the default scope name: {@code ""}, equivalent to singleton
 	 * status unless overridden from a parent bean definition (if applicable).
 	 */
+	// 默认的scopeName，等同于singleton
 	public static final String SCOPE_DEFAULT = "";
 
 	/**
 	 * Constant that indicates no external autowiring at all.
 	 * @see #setAutowireMode
 	 */
+	// 表示完全没有外部的自动注入
 	public static final int AUTOWIRE_NO = AutowireCapableBeanFactory.AUTOWIRE_NO;
 
 	/**
 	 * Constant that indicates autowiring bean properties by name.
 	 * @see #setAutowireMode
 	 */
+	// 表示bean的属性值都是按名称来自动注入
 	public static final int AUTOWIRE_BY_NAME = AutowireCapableBeanFactory.AUTOWIRE_BY_NAME;
 
 	/**
 	 * Constant that indicates autowiring bean properties by type.
 	 * @see #setAutowireMode
 	 */
+	// 表示bean的属性值都是按类型来自动注入
 	public static final int AUTOWIRE_BY_TYPE = AutowireCapableBeanFactory.AUTOWIRE_BY_TYPE;
 
 	/**
 	 * Constant that indicates autowiring a constructor.
 	 * @see #setAutowireMode
 	 */
+	// 表示自动注入一个构造器
 	public static final int AUTOWIRE_CONSTRUCTOR = AutowireCapableBeanFactory.AUTOWIRE_CONSTRUCTOR;
 
 	/**
@@ -103,12 +111,14 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * Constant that indicates no dependency check at all.
 	 * @see #setDependencyCheck
 	 */
+	// 表示完全没有依赖检查
 	public static final int DEPENDENCY_CHECK_NONE = 0;
 
 	/**
 	 * Constant that indicates dependency checking for object references.
 	 * @see #setDependencyCheck
 	 */
+	// 表示只进行对象引用的依赖检查
 	public static final int DEPENDENCY_CHECK_OBJECTS = 1;
 
 	/**
@@ -116,6 +126,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @see #setDependencyCheck
 	 * @see org.springframework.beans.BeanUtils#isSimpleProperty
 	 */
+	// 表示只进行简单属性的依赖检查
 	public static final int DEPENDENCY_CHECK_SIMPLE = 2;
 
 	/**
@@ -123,6 +134,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * (object references as well as "simple" properties).
 	 * @see #setDependencyCheck
 	 */
+	// 表示进行所有属性的依赖检查，包括简单属性和对象引用
 	public static final int DEPENDENCY_CHECK_ALL = 3;
 
 	/**
@@ -135,72 +147,100 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * <p>Currently, the method names detected during destroy method inference
 	 * are "close" and "shutdown", if present on the specific bean class.
 	 */
+	// 指示容器应该去推断destroy方法的名称而不是显示的指定一个方法名，这个常量的值特地用了非法的字符，保证不会和真实的方法名冲突。
+	// destroy方法名的推断会去找名为close或者shutdown的方法
 	public static final String INFER_METHOD = "(inferred)";
 
 
 	@Nullable
+	// 表示这个beanDefinition的对应的beanClass，可能是类的全限定名也可能是类对象
 	private volatile Object beanClass;
 
 	@Nullable
+	// 代表这个beanDefinition所属的scopeName，同abstractBeanFactory的scopeMap对应
 	private String scope = SCOPE_DEFAULT;
 
+	// 表示这个beanDefinition是不是抽象的，抽象的只能作为parent使用，不会单独创建为bean
 	private boolean abstractFlag = false;
 
 	@Nullable
+	// 是否懒加载
 	private Boolean lazyInit;
 
+	// 自动注入的模式，默认不进行自动注入
 	private int autowireMode = AUTOWIRE_NO;
 
+	// 依赖检查的模式，默认不进行依赖检查
 	private int dependencyCheck = DEPENDENCY_CHECK_NONE;
 
 	@Nullable
+	// 表示当前beanDefinition依赖哪些bean，在创建当前bean之前会将依赖的那些bean先创建好
 	private String[] dependsOn;
 
+	// 表示当前beanDefinition是否是自动注入的候选bean，如果是的话，才会在自动注入的时候选到该bean
 	private boolean autowireCandidate = true;
 
+	// 当前beanDefinition是否是主要的，如果是的话，根据类型获取bean的时候，如果存在多个相同类型的bean，会优先返回这个bean
 	private boolean primary = false;
 
+	// 当前beanDefinition所包含的自动注入候选类的限定符，即自动注入的时候可以添加限定符来缩小查找范围，如果自动注入的限定符的话，就不会被选中
 	private final Map<String, AutowireCandidateQualifier> qualifiers = new LinkedHashMap<>();
 
 	@Nullable
+	// 实例的提供器
 	private Supplier<?> instanceSupplier;
 
+	// 表示是否允许非public属性的访问，默认是true
 	private boolean nonPublicAccessAllowed = true;
 
+	// 表示是否宽松的构造器解析，默认是true
 	private boolean lenientConstructorResolution = true;
 
 	@Nullable
+	// 构造bean的 工厂bean的名称，和factoryMethodName配套使用，
+	// 该参数表示bean的beanName，factoryMethodName表示工厂bean中标注了@Bean注解的方法的名称。
+	// 场景就是该bean是通过某个其他bean的某个标注了@Bean注解的方法注册进ioc容器的，
+	// 那么在创建该bean的时候就需要调用对应bean的@Bean方法
 	private String factoryBeanName;
 
 	@Nullable
 	private String factoryMethodName;
 
 	@Nullable
+	// 表示通过构造器创建bean的时候需要的那些构造器参数
 	private ConstructorArgumentValues constructorArgumentValues;
 
 	@Nullable
+	// 表示需要填充进实例化后的bean的那些属性值
 	private MutablePropertyValues propertyValues;
 
+	// 表示那些需要在运行时被ioc容器进行重写的bean的方法
 	private MethodOverrides methodOverrides = new MethodOverrides();
 
 	@Nullable
+	// bean的初始化方法
 	private String initMethodName;
 
 	@Nullable
+	// bean的摧毁房啊
 	private String destroyMethodName;
 
 	private boolean enforceInitMethod = true;
 
 	private boolean enforceDestroyMethod = true;
 
+	// 表示这个beanDefinition是否是合成的，即不是用户代码创建的
 	private boolean synthetic = false;
 
+	// 表示这个beanDefinition的角色，是应用级别的还是基础框架级别的
 	private int role = BeanDefinition.ROLE_APPLICATION;
 
 	@Nullable
+	// 表示beanDefinition的描述
 	private String description;
 
 	@Nullable
+	// 表示该beanDefinition的资源，比如通过扫描class文件生成的，该字段就会指向对应文件资源
 	private Resource resource;
 
 
@@ -226,40 +266,62 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @param original the original bean definition to copy from
 	 */
 	protected AbstractBeanDefinition(BeanDefinition original) {
+		// 设置parentName
 		setParentName(original.getParentName());
+		// 设置beanClassName
 		setBeanClassName(original.getBeanClassName());
+		// 设置scopeName
 		setScope(original.getScope());
+		// 设置抽象标志
 		setAbstract(original.isAbstract());
+		// 设置factoryBeanName
 		setFactoryBeanName(original.getFactoryBeanName());
+		// 设置factoryMethodName
 		setFactoryMethodName(original.getFactoryMethodName());
+		// 设置role
 		setRole(original.getRole());
+		// 设置beanMetadata的source
 		setSource(original.getSource());
+		// 将original持有的attributeMap都复制过来
 		copyAttributesFrom(original);
 
+		// 如果original也是AbstractBeanDefinition类型的
 		if (original instanceof AbstractBeanDefinition) {
 			AbstractBeanDefinition originalAbd = (AbstractBeanDefinition) original;
+			// 查看original的beanClass是否已经解析，如果解析好了，复制过来
 			if (originalAbd.hasBeanClass()) {
 				setBeanClass(originalAbd.getBeanClass());
 			}
+			// 判断original是否有构造器参数，如果有，也复制过来
 			if (originalAbd.hasConstructorArgumentValues()) {
 				setConstructorArgumentValues(new ConstructorArgumentValues(original.getConstructorArgumentValues()));
 			}
+			// 判断original是否有属性值，如果有，也复制过来
 			if (originalAbd.hasPropertyValues()) {
 				setPropertyValues(new MutablePropertyValues(original.getPropertyValues()));
 			}
+			// 判断original是否有要重写的方法，如果有，也复制过来
 			if (originalAbd.hasMethodOverrides()) {
 				setMethodOverrides(new MethodOverrides(originalAbd.getMethodOverrides()));
 			}
+			// 设置懒加载
 			Boolean lazyInit = originalAbd.getLazyInit();
 			if (lazyInit != null) {
 				setLazyInit(lazyInit);
 			}
+			// 设置自动注入模式
 			setAutowireMode(originalAbd.getAutowireMode());
+			// 设置依赖检查
 			setDependencyCheck(originalAbd.getDependencyCheck());
+			// 设置依赖的bean数组
 			setDependsOn(originalAbd.getDependsOn());
+			// 设置自动注入的候选
 			setAutowireCandidate(originalAbd.isAutowireCandidate());
+			// 设置primary
 			setPrimary(originalAbd.isPrimary());
+			// 复制自动注入的限定符
 			copyQualifiersFrom(originalAbd);
+			// ...
 			setInstanceSupplier(originalAbd.getInstanceSupplier());
 			setNonPublicAccessAllowed(originalAbd.isNonPublicAccessAllowed());
 			setLenientConstructorResolution(originalAbd.isLenientConstructorResolution());
@@ -270,6 +332,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 			setSynthetic(originalAbd.isSynthetic());
 			setResource(originalAbd.getResource());
 		}
+		// 如果不是abstractBeanDefinition类型的，只进行构造参数、属性值、懒加载和资源描述的复制
 		else {
 			setConstructorArgumentValues(new ConstructorArgumentValues(original.getConstructorArgumentValues()));
 			setPropertyValues(new MutablePropertyValues(original.getPropertyValues()));
@@ -462,6 +525,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 */
 	@Nullable
 	public Class<?> resolveBeanClass(@Nullable ClassLoader classLoader) throws ClassNotFoundException {
+		// 获取beanClassName
 		String className = getBeanClassName();
 		if (className == null) {
 			return null;

@@ -61,6 +61,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	private AnnotatedElement qualifiedElement;
 
 	/** Determines if the definition needs to be re-merged. */
+	// 决定这个definition是否需要被重新合并
 	volatile boolean stale;
 
 	boolean allowCaching = true;
@@ -239,6 +240,9 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	/**
 	 * Create a new RootBeanDefinition as deep copy of the given
 	 * bean definition.
+	 *
+	 * 根据提供的RootBeanDefinition深拷贝一个新的RootBeanDefinition出来
+	 *
 	 * @param original the original bean definition to copy from
 	 */
 	public RootBeanDefinition(RootBeanDefinition original) {

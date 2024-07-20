@@ -494,6 +494,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	/**
 	 * Central method of this class: creates a bean instance,
 	 * populates the bean instance, applies post-processors, etc.
+	 *
+	 * 这个类的核心方法，创建bean实例，填充bean实例并且应用beanPostProcessor等
 	 * @see #doCreateBean
 	 */
 	@Override
@@ -508,9 +510,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Make sure bean class is actually resolved at this point, and
 		// clone the bean definition in case of a dynamically resolved Class
 		// which cannot be stored in the shared merged bean definition.
+		// 确保beanClass在这个点已经实际的解析了，并且克隆这个beanDefinition以防 动态解析的类 无法保存在共享的mdb的情况
 		// 解析mbd的beanClass
 		Class<?> resolvedClass = resolveBeanClass(mbd, beanName);
-		// 如果解析出的beanClass不为null 并且mbd中的beanClass并不是Class类型的 而是 String类型的
+		// 如果解析出的beanClass不为null 并且mbd中的beanClass并不是Class类型的 而是 String类型的，
+		// 说明该beanClass是通过dynamicLoader解析的，无法缓存在共享的mdb对象中，那么克隆一个mdb，将beanClass存入，以便后续的使用，
+		// 并且将要使用的mbdToUse引用指向克隆出来的带beanClass的这个mbd
 		if (resolvedClass != null && !mbd.hasBeanClass() && mbd.getBeanClassName() != null) {
 			// 因为beanClass是被动态解析出来的，不能存入共享的mbd中，因此克隆一个mbd出来使用，并且将解析后的class设置进去
 			mbdToUse = new RootBeanDefinition(mbd);

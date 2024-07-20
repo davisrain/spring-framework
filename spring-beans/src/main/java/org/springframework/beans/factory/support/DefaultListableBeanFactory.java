@@ -166,6 +166,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	private final Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
 
 	/** Map from bean name to merged BeanDefinitionHolder. */
+	// 用于保存beanName到 mergedBeanDefinitionHolder的映射
 	private final Map<String, BeanDefinitionHolder> mergedBeanDefinitionHolders = new ConcurrentHashMap<>(256);
 
 	/** Map of singleton and non-singleton bean names, keyed by dependency type. */
@@ -864,7 +865,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 	@Override
 	protected void clearMergedBeanDefinition(String beanName) {
+		// 调用父类的clearMergedBeanDefinition方法
 		super.clearMergedBeanDefinition(beanName);
+		// 删除mergedBeanDefinitionHolders这个map中beanName这个key对应的value
 		this.mergedBeanDefinitionHolders.remove(beanName);
 	}
 
