@@ -154,6 +154,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 	@Nullable
 	// 表示这个beanDefinition的对应的beanClass，可能是类的全限定名也可能是类对象
+	// 当bean是使用factoryMethod来实例化的话，如果factoryMethod是静态方法，那么beanClass的值是声明factoryMethod这个方法的类的全限定名
 	private volatile Object beanClass;
 
 	@Nullable
@@ -215,6 +216,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	private MutablePropertyValues propertyValues;
 
 	// 表示那些需要在运行时被ioc容器进行重写的bean的方法
+	// 比如被@Lookup注解标注的方法，该方法会被ioc重写为返回beanName等于@Lookup注解的value值的bean的逻辑
 	private MethodOverrides methodOverrides = new MethodOverrides();
 
 	@Nullable
@@ -991,6 +993,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 	/**
 	 * Return if there are method overrides defined for this bean.
+	 * 返回这个bean中是否存在定义过的method overrides
 	 * @since 5.0.2
 	 */
 	public boolean hasMethodOverrides() {
@@ -1200,6 +1203,10 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	/**
 	 * Validate and prepare the method overrides defined for this bean.
 	 * Checks for existence of a method with the specified name.
+	 *
+	 * 验证和准备这个bean里面定义的方法重写
+	 * 根据指定的名称去检查方法的存在
+	 *
 	 * @throws BeanDefinitionValidationException in case of validation failure
 	 */
 	public void prepareMethodOverrides() throws BeanDefinitionValidationException {
@@ -1229,6 +1236,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		// 如果count等于1，说明只存在一个方法，将重载标志设置为false
 		else if (count == 1) {
 			// Mark override as not overloaded, to avoid the overhead of arg type checking.
+			// 标记这个重写是没有被重载过的，这样可以避免参数类型检查的开销
 			mo.setOverloaded(false);
 		}
 	}

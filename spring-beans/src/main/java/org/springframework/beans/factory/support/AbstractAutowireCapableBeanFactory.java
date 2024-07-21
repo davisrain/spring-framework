@@ -771,11 +771,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		if (targetType == null) {
 			// 判断mbd的factoryMethodName是否为null
 			targetType = (mbd.getFactoryMethodName() != null ?
-					// 如果不为null，根据factoryMethod获取type，因为如果存在factoryMethod的话，生成的bean是根据返回的返回值来的，而不是根据beanClass来
+					// 如果不为null，根据factoryMethod获取type，因为如果存在factoryMethod的话，生成的bean是根据factoryMethod返回值来的，
+					// 而不是根据beanClass来，此时beanDefinition的beanClass只是factoryMethod(比如@Bean标注的方法)的所在类。
 					getTypeForFactoryMethod(beanName, mbd, typesToMatch) :
 					// 否则根据beanClass解析targetType
 					resolveBeanClass(mbd, beanName, typesToMatch));
-			// 如果typesToMatch为空或者 TempClassLoader为null的话，将targetType设置进mbd中
+			// 如果typesToMatch为空或者 TempClassLoader为null的话，
+			// 说明不是单纯的进行类型检查，可以将targetType设置进mbd中缓存起来
 			if (ObjectUtils.isEmpty(typesToMatch) || getTempClassLoader() == null) {
 				mbd.resolvedTargetType = targetType;
 			}
@@ -788,9 +790,15 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * Determine the target type for the given bean definition which is based on
 	 * a factory method. Only called if there is no singleton instance registered
 	 * for the target bean already.
+	 *
+	 * 找出给定的以factoryMethod为基础的beanDefinition的targetType，只在没有target bean的单例已经注册过的情况下调用
+	 *
 	 * <p>This implementation determines the type matching {@link #createBean}'s
 	 * different creation strategies. As far as possible, we'll perform static
 	 * type checking to avoid creation of the target bean.
+	 *
+	 * 这个实现确定类型匹配的不同创建策略，我们尽可能地只做静态类型检查 避免去创建targetBean
+	 *
 	 * @param beanName the name of the bean (for error handling purposes)
 	 * @param mbd the merged bean definition for the bean
 	 * @param typesToMatch the types to match in case of internal type matching purposes
@@ -918,11 +926,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					}
 					// 如果候选方法上没有声明泛型变量
 					else {
-						// 如果commonType为null的话，将候选方法赋值给uniqueCandidate，表示找到了唯一的候选方法
+						// 如果commonType为null的话，将候选方法赋值给uniqueCandidate，表示找到了唯一的候选方法。
+						// 如果commonType有值，说明在前面的遍历中就找到了候选方法，这次遍历又找到了，那么将uniqueCandidate置为null，因为candidate方法已经不唯一
 						uniqueCandidate = (commonType == null ? candidate : null);
 						// 根据方法的返回值类型和commonType一起找到一个共同的祖先类
 						commonType = ClassUtils.determineCommonAncestor(candidate.getReturnType(), commonType);
-						// 如果没有找到，返回null
+						// 如果没有找到共同父类，返回null，因为存在不同返回类型的candidate方法
 						if (commonType == null) {
 							// Ambiguous return types found: return null to indicate "not determinable".
 							return null;
@@ -941,7 +950,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Common return type found: all factory methods return same type. For a non-parameterized
 		// unique candidate, cache the full type declaration context of the target factory method.
-		// 根据是否找到了唯一的候选方法，通过不同的方式生成cachedReturnType
+		// 根据是否找到了唯一的候选方法，如果找到了，使用唯一方法的返回值；
+		// 如果找到的候选方法不唯一，但是它们的返回值有共同的父类，使用共同父类作为cachedReturnType
 		cachedReturnType = (uniqueCandidate != null ?
 				ResolvableType.forMethodReturnType(uniqueCandidate) : ResolvableType.forClass(commonType));
 		// 将returnType赋值给mbd的factoryMethodReturnType
@@ -961,6 +971,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * <p>The shortcut check for a FactoryBean is only applied in case of a singleton
 	 * FactoryBean. If the FactoryBean instance itself is not kept as singleton,
 	 * it will be fully created to check the type of its exposed object.
+	 *
+	 * 1、这个实现企图去查询FactoryBean持有的attribute属性来获取ObjectType，key为factoryBeanObjectType。
+	 * 2、如果不存在，那么说明FactoryBean是被声明为了一个rawType，那么就去检查FactoryBean的getObjectType方法通过一个FactoryBean的平铺实例，
+	 * 该实例不会有任何bean属性的应用。
+	 * 3、如果仍然没有返回的话，且allowInit参数为true，那么创建一个完整的FactoryBean对象作为一个兜底策略，这个会被委托给父类方法去执行
+	 *
+	 * 快捷方法检查只会被应用在单例的FactoryBean，如果不是单例的话，每次都需要创建FactoryBean实例
 	 */
 	@Override
 	protected ResolvableType getTypeForFactoryBean(String beanName, RootBeanDefinition mbd, boolean allowInit) {
@@ -1306,6 +1323,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	/**
 	 * Apply before-instantiation post-processors, resolving whether there is a
 	 * before-instantiation shortcut for the specified bean.
+	 *
+	 * 应用beforeInstantiation post processor，解析看这个指定的bean是否存在一个before-instantiation的快捷方式，
+	 * 能够直接获取实例对象，而不用创建
 	 * @param beanName the name of the bean
 	 * @param mbd the bean definition for the bean
 	 * @return the shortcut-determined bean instance, or {@code null} if none
@@ -1313,7 +1333,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	@Nullable
 	protected Object resolveBeforeInstantiation(String beanName, RootBeanDefinition mbd) {
 		Object bean = null;
-		// 如果mbd的beforeInstantiationResolved标志不为false的话
+		// 如果mbd的beforeInstantiationResolved标志不为false的话，
+		// 表示该mbd还没有应用过InstantiationAwareBeanPostProcessor的postProcessBeforeInstantiation方法
 		if (!Boolean.FALSE.equals(mbd.beforeInstantiationResolved)) {
 			// Make sure bean class is actually resolved at this point.
 			// 如果mbd不是合成的 并且 beanFactory中持有InstantiationAwareBeanProcessor类型的后置处理器的话
@@ -1330,8 +1351,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					}
 				}
 			}
+			// 根据是否有获取到shortcutBean来决定是否将mbd的beforeInstantiationResolved置为true
 			mbd.beforeInstantiationResolved = (bean != null);
 		}
+		// 返回bean
 		return bean;
 	}
 

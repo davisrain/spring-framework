@@ -347,6 +347,12 @@ public interface BeanFactory {
 	 * uninitialized {@code FactoryBean} if no early type information is available.
 	 * <p>Translates aliases back to the corresponding canonical bean name.
 	 * <p>Will ask the parent factory if the bean cannot be found in this factory instance.
+	 *
+	 * 找出给出的name对饮功的bean的类型，具体说，就是找出getBean方法根据name获取到的bean的类型/
+	 * 对于一个FactoryBean来说，返回的是FactoryBean创建的对象的类型，也就是FactoryBean.getObjectType返回的值。
+	 * 根据allowFactoryBeanInit标志，这个方法可能会导致之前没有初始化的FactoryBean的初始化，如果没有更早的类型信息可以提供的话。
+	 * 会将别名转换为规范的beanName，如果当前beanFactory中没有找到对应的bean的话，会去父beanFactory中查找
+	 *
 	 * @param name the name of the bean to query
 	 * @param allowFactoryBeanInit whether a {@code FactoryBean} may get initialized
 	 * just for the purpose of determining its object type

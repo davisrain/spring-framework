@@ -40,11 +40,19 @@ import org.springframework.util.Assert;
  * typically registered as {@link GenericBeanDefinition GenericBeanDefinitions}.
  * A root bean definition is essentially the 'unified' bean definition view at runtime.
  *
+ * 一个rootBeanDefinition表示了合并的beanDefinition，支持了spring bean factory运行时的一个指定的bean。
+ * 它也许会从多个原始的互相继承的beanDefinition合并而来，特别是以GenericBeanDefinition注册的那些。
+ * 一个root bean definition在运行时需要保证一个统一的外观
+ *
  * <p>Root bean definitions may also be used for registering individual bean definitions
  * in the configuration phase. However, since Spring 2.5, the preferred way to register
  * bean definitions programmatically is the {@link GenericBeanDefinition} class.
  * GenericBeanDefinition has the advantage that it allows to dynamically define
  * parent dependencies, not 'hard-coding' the role as a root bean definition.
+ *
+ * root bean definition也同样会被用在 配置解析阶段 来注册独立的bean definition。
+ * 然后，自从spring2.5，更受欢迎的注册方式是将其注册为generic bean definition，
+ * generic bean definition的优势在于它允许动态的定义父依赖，不用像root bean definition这样进行硬编码
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
@@ -55,6 +63,7 @@ import org.springframework.util.Assert;
 public class RootBeanDefinition extends AbstractBeanDefinition {
 
 	@Nullable
+	// 被当前bean definition装饰的bean definition
 	private BeanDefinitionHolder decoratedDefinition;
 
 	@Nullable
@@ -66,25 +75,31 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 
 	boolean allowCaching = true;
 
+	// 表示factoryMethod是否是唯一的
 	boolean isFactoryMethodUnique;
 
 	@Nullable
+	// 表示该beanDefinition所表示的bean的Type类型
 	volatile ResolvableType targetType;
 
 	/** Package-visible field for caching the determined Class of a given bean definition. */
 	@Nullable
+	// 表示该beanDefinition表示的bean的Type类型解析之后的class类型
 	volatile Class<?> resolvedTargetType;
 
 	/** Package-visible field for caching if the bean is a factory bean. */
 	@Nullable
+	// 表示该bd对应的bean是否是一个FactoryBean类型的
 	volatile Boolean isFactoryBean;
 
 	/** Package-visible field for caching the return type of a generically typed factory method. */
 	@Nullable
+	// 如果是通过factoryMethod来实例化bean的bd，该字段表示的是factoryMethod的返回类型
 	volatile ResolvableType factoryMethodReturnType;
 
 	/** Package-visible field for caching a unique factory method candidate for introspection. */
 	@Nullable
+	// 该字段表示的是用于introspect的唯一的factoryMethod候选
 	volatile Method factoryMethodToIntrospect;
 
 	/** Package-visible field for caching a resolved destroy method name (also for inferred). */
@@ -95,17 +110,21 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	final Object constructorArgumentLock = new Object();
 
 	/** Package-visible field for caching the resolved constructor or factory method. */
+	// 表示的是创建bean实例的 解析后的构造器 或者 factoryMethod
 	@Nullable
 	Executable resolvedConstructorOrFactoryMethod;
 
 	/** Package-visible field that marks the constructor arguments as resolved. */
+	// 表示构造器的参数 或者 factoryMethod的参数是否已经被解析了
 	boolean constructorArgumentsResolved = false;
 
 	/** Package-visible field for caching fully resolved constructor arguments. */
+	// 表示的是解析后的构造器参数 或者 factoryMethod参数
 	@Nullable
 	Object[] resolvedConstructorArguments;
 
 	/** Package-visible field for caching partly prepared constructor arguments. */
+	// 表示的是准备好的构造器参数 或者 factoryMethod参数
 	@Nullable
 	Object[] preparedConstructorArguments;
 
@@ -113,19 +132,25 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	final Object postProcessingLock = new Object();
 
 	/** Package-visible field that indicates MergedBeanDefinitionPostProcessor having been applied. */
+	// 表示该rbd创建的bean实例是否已经应用过postProcessor了
 	boolean postProcessed = false;
 
 	/** Package-visible field that indicates a before-instantiation post-processor having kicked in. */
+	// 表示的是，该rbd对应的bean是否已经应用过postProcessBeforeInstantiation方法
 	@Nullable
 	volatile Boolean beforeInstantiationResolved;
 
 	@Nullable
+	// 表示的是那些外部管理的 配置成员，比如被标注了@Autowired 或 @Resource注解的那些需要注入的字段或者setter方法
+	// 主要在CommonAnnotationBeanPostProcessor和AutowiredAnnotationBeanPostProcessor类里面进行解析填充
 	private Set<Member> externallyManagedConfigMembers;
 
 	@Nullable
+	// 表示的是那些外部管理的初始化方法，比如@PostConstruct注解标注的那些初始化方法，主要在CommonAnnotationBeanPostProcessor这个类里面进行解析填充
 	private Set<String> externallyManagedInitMethods;
 
 	@Nullable
+	// 表示的是那些外部管理的destroy方法，比如@PreDestroy注解标注的那些destroy方法，主要在CommonAnnotationBeanPostProcessor这个类里面进行解析填充
 	private Set<String> externallyManagedDestroyMethods;
 
 
@@ -287,6 +312,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	/**
 	 * Return the target definition that is being decorated by this bean definition, if any.
 	 */
+	// 返回被当前bean definition装饰的目标definition
 	@Nullable
 	public BeanDefinitionHolder getDecoratedDefinition() {
 		return this.decoratedDefinition;
