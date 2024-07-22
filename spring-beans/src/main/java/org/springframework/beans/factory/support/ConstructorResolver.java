@@ -67,7 +67,10 @@ import org.springframework.util.StringUtils;
 /**
  * Delegate for resolving constructors and factory methods.
  *
+ * 解析构造器和factory method的委托类
+ *
  * <p>Performs constructor resolution through argument matching.
+ * 通过参数匹配执行构造器解析
  *
  * @author Juergen Hoeller
  * @author Rob Harrop

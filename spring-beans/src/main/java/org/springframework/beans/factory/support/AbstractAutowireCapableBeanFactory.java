@@ -132,13 +132,16 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		implements AutowireCapableBeanFactory {
 
 	/** Strategy for creating bean instances. */
+	// 创建bean实例的策略
 	private InstantiationStrategy instantiationStrategy = new CglibSubclassingInstantiationStrategy();
 
 	/** Resolver strategy for method parameter names. */
+	// 参数名字的发现器
 	@Nullable
 	private ParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
 
 	/** Whether to automatically try to resolve circular references between beans. */
+	// 是否允许循环引用
 	private boolean allowCircularReferences = true;
 
 	/**
@@ -151,12 +154,15 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * Dependency types to ignore on dependency check and autowire, as Set of
 	 * Class objects: for example, String. Default is none.
 	 */
+	// 需要在依赖检查和自动注入阶段忽略的类型
 	private final Set<Class<?>> ignoredDependencyTypes = new HashSet<>();
 
 	/**
 	 * Dependency interfaces to ignore on dependency check and autowire, as Set of
 	 * Class objects. By default, only the BeanFactory interface is ignored.
 	 */
+	// 需要在依赖检查和自动注入阶段忽略的接口
+
 	// 在该类的构造方法中添加BeanFactoryAware BeanNameAware BeanClassLoaderAware接口进来，
 	// 在AbstractApplicationContext的refresh阶段的prepareBeanFactory方法中，又添加了ApplicationContext相关的Aware接口进来。
 	private final Set<Class<?>> ignoredDependencyInterfaces = new HashSet<>();
@@ -572,6 +578,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * at this point, e.g. checking {@code postProcessBeforeInstantiation} callbacks.
 	 * <p>Differentiates between default bean instantiation, use of a
 	 * factory method, and autowiring a constructor.
+	 *
+	 * 实际创建指定的bean，创建的前置处理都已经在这个点之前完成了，比如检查postProcessBeforeInstantiation回调
+	 * 和默认的bean实例化不同的点在于，使用一个factoryMethod 或者 自动注入一个构造器
+	 *
 	 * @param beanName the name of the bean
 	 * @param mbd the merged bean definition for the bean
 	 * @param args explicit arguments to use for constructor or factory method invocation
@@ -589,6 +599,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// 如果mbd是单例的
 		if (mbd.isSingleton()) {
 			// 尝试从factoryBeanInstanceCache缓存中根据beanName获取对应的BeanWrapper对象
+			// 因为FactoryBean可能在getTypeForFactoryBean的时候就创建过未初始化完成的BeanWrapper对象，并且缓存起来了。
 			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
 		}
 		// 如果instanceWrapper仍为null的话，调用createBeanInstance方法进行创建
@@ -1416,6 +1427,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	/**
 	 * Create a new instance for the specified bean, using an appropriate instantiation strategy:
 	 * factory method, constructor autowiring, or simple instantiation.
+	 *
+	 * 为指定的bean创建一个新的实例，使用一种合适的实例化策略：
+	 * factoryMethod 或者 构造器注入 或者 简单的实例化
+	 *
 	 * @param beanName the name of the bean
 	 * @param mbd the bean definition for the bean
 	 * @param args explicit arguments to use for constructor or factory method invocation
@@ -1449,6 +1464,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// Shortcut when re-creating the same bean...
+		// 当重复创建同样的bean的时候返回一个快捷方式，根据mbd缓存的resolvedConstructorOrFactoryMethod
+		// 以及resolvedConstructorArguments
+
 		boolean resolved = false;
 		boolean autowireNecessary = false;
 		// 如果args为null的话
@@ -1531,6 +1549,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 	/**
 	 * Obtain a bean instance from the given supplier.
+	 *
+	 * 从给定的supplier里获取一个bean实例
+	 *
 	 * @param instanceSupplier the configured supplier
 	 * @param beanName the corresponding bean name
 	 * @return a BeanWrapper for the new instance
@@ -1670,6 +1691,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * <p>This corresponds to constructor injection: In this mode, a Spring
 	 * bean factory is able to host components that expect constructor-based
 	 * dependency resolution.
+	 *
+	 * 自动注入构造器，通过按构造器的参数类型从beanFactory中获取bean作为参数的行为。
+	 * 同样也应用于显示的构造器参数被指定，剩余的参数就通过beanFactory来进行bean的匹配。
+	 *
+	 * 这个对应于构造器注入：在这种模式下，spring bean factory持有作为构造器依赖解析的components
+	 *
+	 *
 	 * @param beanName the name of the bean
 	 * @param mbd the bean definition for the bean
 	 * @param ctors the chosen candidate constructors

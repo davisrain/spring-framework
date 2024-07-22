@@ -144,8 +144,10 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	@Nullable
 	private ConfigurableListableBeanFactory beanFactory;
 
+	// 用于保存解析过lookup注解的那些bean的beanName
 	private final Set<String> lookupMethodsChecked = Collections.newSetFromMap(new ConcurrentHashMap<>(256));
 
+	// 用于保存解析之后的beanClass对应的 候选构造器数组
 	private final Map<Class<?>, Constructor<?>[]> candidateConstructorsCache = new ConcurrentHashMap<>(256);
 
 	private final Map<String, InjectionMetadata> injectionMetadataCache = new ConcurrentHashMap<>(256);
