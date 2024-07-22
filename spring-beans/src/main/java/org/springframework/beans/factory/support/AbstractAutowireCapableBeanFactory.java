@@ -168,6 +168,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	private final NamedThreadLocal<String> currentlyCreatedBean = new NamedThreadLocal<>("Currently created bean");
 
 	/** Cache of unfinished FactoryBean instances: FactoryBean name to BeanWrapper. */
+	// 用于缓存没有初始化完成的FactoryBean实例，key为FactoryBean的beanName，value为BeanWrapper，
+	// 主要是用于getTypeForFactoryBean方法，获取FactoryBean的objectType使用
 	private final ConcurrentMap<String, BeanWrapper> factoryBeanInstanceCache = new ConcurrentHashMap<>();
 
 	/** Cache of candidate factory methods per factory class. */
@@ -820,10 +822,18 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// 才会设置factoryMethodToIntrospect为@Bean方法的反射对象，SimpleMethodMetadata类型的没有该值，且只会设置factoryMethodName。
 		Method uniqueCandidate = mbd.factoryMethodToIntrospect;
 
+
+		// 1.主要的解析逻辑就是找到对应的factoryClass，然后根据factoryMethodName找到对应的方法，然后解析返回的返回值类型。
+		// 如果存在多个候选方法，那么返回它们返回值的共同父类，如果不存在共同父类，返回null
+
 		// 如果uniqueCandidate仍为null，进行解析
 		if (uniqueCandidate == null) {
 			Class<?> factoryClass;
 			boolean isStatic = true;
+
+			// 2.根据factoryBeanName是否存在，来判断factoryMethod是静态还是非静态的，
+			// 如果是静态的，factoryClass直接根据beanClassName获取到；
+			// 如果是非静态的，那么需要通过getType来获取factoryBeanName对应的bean的类型
 
 			// 先找到对应的factoryBeanName
 			String factoryBeanName = mbd.getFactoryBeanName();
@@ -973,15 +983,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * it will be fully created to check the type of its exposed object.
 	 *
 	 * 1、这个实现企图去查询FactoryBean持有的attribute属性来获取ObjectType，key为factoryBeanObjectType。
-	 * 2、如果不存在，那么说明FactoryBean是被声明为了一个rawType，那么就去检查FactoryBean的getObjectType方法通过一个FactoryBean的平铺实例，
-	 * 该实例不会有任何bean属性的应用。
-	 * 3、如果仍然没有返回的话，且allowInit参数为true，那么创建一个完整的FactoryBean对象作为一个兜底策略，这个会被委托给父类方法去执行
+	 * 2、如果FactoryBean是通过实例方法的factoryMethod创建的，尝试通过方法的返回值范型拿到对应的objectType，如果没有拿到，且包含这个factoryMethod
+	 * 的factoryBean没有被创建，直接返回，因为我们不能为了获取这个FactoryBean的objectType去提前创建另一个bean
+	 * 3、如果上述解析没有成功，且没有返回，且allowInit参数为true，
+	 * 那么创建出未设置属性值的不完整的FactoryBean对象(如果是FactoryBean是单例，会将未初始化完全的BeanWrapper缓存在factoryBeanInstanceCache里面)，调用其getObjectType方法来获取类型；
+	 * 如果仍然没有解析成功，那么创建一个完整的FactoryBean对象作为一个兜底策略，这个会被委托给父类方法去执行
+	 * 4、如果allowInit不为true，FactoryBean满足静态方法的factoryMethod创建的，根据静态方法的返回值的范型进行解析
+	 * 5、上述都没有解析出来，尝试根据beanType的范型去解析objectType
 	 *
 	 * 快捷方法检查只会被应用在单例的FactoryBean，如果不是单例的话，每次都需要创建FactoryBean实例
 	 */
 	@Override
 	protected ResolvableType getTypeForFactoryBean(String beanName, RootBeanDefinition mbd, boolean allowInit) {
 		// Check if the bean definition itself has defined the type with an attribute
+		// 1.尝试去mergedBeanDefinition的attribute里根据factoryBeanObjectType获取对应的value返回
+
 		// 尝试从mbd设置的属性中获取属性名为factoryBeanObjectType的属性值
 		ResolvableType result = getTypeForFactoryBeanFromAttributes(mbd);
 		// 如果result不为ResolvableType.NONE的话，说明存在属性，直接返回result
@@ -994,6 +1010,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				(mbd.hasBeanClass() ? ResolvableType.forClass(mbd.getBeanClass()) : ResolvableType.NONE);
 
 		// For instance supplied beans try the target type and bean class
+		// 2.如果instanceSupplier存在，尝试根据mbd的targetType 或 beanType去解析范型获取FactoryBean要创建的bean的类型
+
 		// 如果mbd得到instanceSupplier不为null
 		if (mbd.getInstanceSupplier() != null) {
 			// 尝试解析mbd的targetType
@@ -1011,6 +1029,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// Consider factory methods
+		// 3.考虑FactoryBean是通过factoryMethod来实例化的情况，根据factoryMethod的返回值类型上的范型来解析出实际的beanType
+
 		// 考虑是使用factoryMethod生成的FactoryBean的情况
 		String factoryBeanName = mbd.getFactoryBeanName();
 		String factoryMethodName = mbd.getFactoryMethodName();
@@ -1048,13 +1068,20 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			// If not resolvable above and the referenced factory bean doesn't exist yet,
 			// exit here - we don't want to force the creation of another bean just to
 			// obtain a FactoryBean's object type...
+			// 如果上述的操作没有解析成功 并且 引用的factoryBean不存在
+			// 我们不想去强制创建另一个bean仅仅为了去持有一个FactoryBean的object type
+
+			// 该方法判断的就是factoryBeanName是否存在于alreadyCrated集合中，如果不存在，说明还没有进行创建，
+			// 直接返回NONE，不会为了获取一个FactoryBean的objectType而去提早创建另一个bean
 			if (!isBeanEligibleForMetadataCaching(factoryBeanName)) {
 				return ResolvableType.NONE;
 			}
 		}
 
 		// If we're allowed, we can create the factory bean and call getObjectType() early
-		// 如果是允许init的，那么创建factoryBean并且调用它的getObjectType方法
+		// 4.如果是允许init的，那么创建factoryBean并且调用它的getObjectType方法，
+		// 因为上述的步骤都没有返回，所以说明了当前这个FactoryBean不是由 实例方法的factoryMethod创建的，因此创建这个FactoryBean不需要额外创建出其他bean
+
 		if (allowInit) {
 			// 根据mbd是否是singleton的，选择不同的方法创建FactoryBean
 			FactoryBean<?> factoryBean = (mbd.isSingleton() ?

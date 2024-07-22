@@ -793,6 +793,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		String beanName = transformedBeanName(name);
 
 		// Check manually registered singletons.
+		// 1.判断name是否有已经实例化好的单例，如果存在，根据单例返回类型。
+		// 如果是FactoryBean类型的，FactoryBeanRegistrySupport类的getTypeForFactoryBean方法，实际调用的是FactoryBean对象的getObjectType方法
+
 		// 从一二级缓存中根据beanName获取bean
 		Object beanInstance = getSingleton(beanName, false);
 		// 如果bean存在，且不是NullBean类型的
@@ -808,6 +811,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 
 		// No singleton instance found -> check bean definition.
+		// 2.如果在当前beanFactory中没有找到对应的beanDefinition，尝试去父beanFactory查找
+
 		// 如果自身容器不存在beanName对应的bd，那么从parentBeanFactory中查找
 		BeanFactory parentBeanFactory = getParentBeanFactory();
 		if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
@@ -820,6 +825,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 		// Check decorated bean definition, if any: We assume it'll be easier
 		// to determine the decorated bean's type than the proxy's type.
+		// 3.如果被装饰的beanDefinition存在，尝试使用decorated的beanDefinition来查找
+
 		// 获取mbd的dbd，我们假设从dbd中获取beanType要比从代理对象上获取更容易
 		BeanDefinitionHolder dbd = mbd.getDecoratedDefinition();
 		// 如果dbd不为null 并且 name没有以&开头
@@ -834,10 +841,17 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 		}
 
+		// 4.调用predictBeanType方法，根据beanName和mergedBeanDefinition获取到实际的bean类型。
+		// 实际调用的逻辑就是determineTargetType方法，不过会使用SmartInstantiationAwareBeanPostProcessor的predictBeanType
+		// 来对determineTargetType的返回结果进行增强
+
 		// 根据beanName和mbd推断beanType
 		Class<?> beanClass = predictBeanType(beanName, mbd);
 
 		// Check bean class whether we're dealing with a FactoryBean.
+		// 5.根据predictBeanType返回的类型是否是FactoryBean的，选择不同的策略进行解析。
+		// 如果是FactoryBean类型的，那么调用getTypeForFactoryBean方法来获取到实际的bean类型
+
 		// 如果beanClass不为null 并且是FactoryBean类型的
 		if (beanClass != null && FactoryBean.class.isAssignableFrom(beanClass)) {
 			// 如果name不是以&开头的，说明是要返回FactoryBean创建的bean的类型
