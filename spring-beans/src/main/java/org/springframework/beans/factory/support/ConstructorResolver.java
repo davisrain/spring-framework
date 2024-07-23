@@ -226,7 +226,7 @@ class ConstructorResolver {
 			// 声明一个变量用于保存解析后的构造器参数
 			ConstructorArgumentValues resolvedValues = null;
 
-			// 声明一个变量保存构造器需要的最小的参数个数
+			// 声明一个变量保存 构造器需要的最小的参数个数
 			int minNrOfArgs;
 			// 如果显示传入的参数不为null，获取其数组长度赋值给 minNrOfArgs
 			if (explicitArgs != null) {
@@ -854,7 +854,12 @@ class ConstructorResolver {
 	/**
 	 * Resolve the constructor arguments for this bean into the resolvedValues object.
 	 * This may involve looking up other beans.
+	 *
+	 * 解析这个bean的构造器参数（即beanDefinition持有的ConstructorArgumentValues对象）到resolvedValues这个对象中，
+	 * 这可能会涉及到查找其他bean
+	 *
 	 * <p>This method is also used for handling invocations of static factory methods.
+	 * 这个方法也适用于处理静态factory method的调用
 	 */
 	private int resolveConstructorArguments(String beanName, RootBeanDefinition mbd, BeanWrapper bw,
 			ConstructorArgumentValues cargs, ConstructorArgumentValues resolvedValues) {

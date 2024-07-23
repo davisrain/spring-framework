@@ -40,6 +40,7 @@ public class ManagedList<E> extends ArrayList<E> implements Mergeable, BeanMetad
 	private Object source;
 
 	@Nullable
+	// 集合元素的类型名称
 	private String elementTypeName;
 
 	private boolean mergeEnabled;

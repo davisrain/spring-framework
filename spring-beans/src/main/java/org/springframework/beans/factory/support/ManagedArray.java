@@ -30,6 +30,7 @@ import org.springframework.util.Assert;
 public class ManagedArray extends ManagedList<Object> {
 
 	/** Resolved element type for runtime creation of the target array. */
+	// 解析后的元素类型
 	@Nullable
 	volatile Class<?> resolvedElementType;
 

@@ -50,6 +50,8 @@ import org.springframework.util.StringUtils;
  * resolving values contained in bean definition objects
  * into the actual values applied to the target bean instance.
  *
+ * 在bean factory实现类中使用的帮助类，用于将bean definition包含的value解析为实际的value，到目标bean实例中
+ *
  * <p>Operates on an {@link AbstractBeanFactory} and a plain
  * {@link org.springframework.beans.factory.config.BeanDefinition} object.
  * Used by {@link AbstractAutowireCapableBeanFactory}.
@@ -100,6 +102,16 @@ class BeanDefinitionValueResolver {
 	 * <li>A ManagedMap. In this case the value may be a RuntimeBeanReference
 	 * or Collection that will need to be resolved.
 	 * <li>An ordinary object or {@code null}, in which case it's left alone.
+	 *
+	 * 给出一个PropertyValue，返回一个value，必要时解析指向bean factory其他bean的任一引用。
+	 * value可能是以下几种：
+	 * 1、一个BeanDefinition，会导致去创建一个对应的bean实例，这种内部bean的singleton标志和名字都会被忽略，内部bean就像一个匿名的原型
+	 * 2、一个RuntimeBeanReference，必须被解析的，会被解析为bean factory中的一个bean对象
+	 * 3、一个ManagedList，这是一个特殊的集合可能会包含RuntimeBeanReference或者需要被解析的Collection
+	 * 4、一个ManagedSet，同样可能包含RuntimeBeanReference或者需要被解析的Collection
+	 * 5、一个ManagedMap，这种情况下，value可能是RuntimeBeanReference或者需要被解析的Collection
+	 * 6、一个普通的对象或者null
+	 *
 	 * @param argName the name of the argument that the value is defined for
 	 * @param value the value object to resolve
 	 * @return the resolved object
@@ -112,6 +124,8 @@ class BeanDefinitionValueResolver {
 		if (value instanceof RuntimeBeanReference) {
 			RuntimeBeanReference ref = (RuntimeBeanReference) value;
 			// 调用resolveReference方法进行解析，返回解析到的bean对象
+			// 1、如果RuntimeBeanReference指定的类型不为空，先根据类型获取对应的bean；
+			// 2、否则根据name去获取对应的bean
 			return resolveReference(argName, ref);
 		}
 		// 如果value是RuntimeBeanNameReference类型的
@@ -161,9 +175,13 @@ class BeanDefinitionValueResolver {
 		}
 		else if (value instanceof ManagedArray) {
 			// May need to resolve contained runtime references.
+			// 也许需要去解析其包含的runtime引用
 			ManagedArray array = (ManagedArray) value;
+			// 获取其解析后的元素类型
 			Class<?> elementType = array.resolvedElementType;
+			// 如果elementType为null的话
 			if (elementType == null) {
+				// 获取元素类型名称去解析为class对象
 				String elementTypeName = array.getElementTypeName();
 				if (StringUtils.hasText(elementTypeName)) {
 					try {
@@ -177,10 +195,12 @@ class BeanDefinitionValueResolver {
 								"Error resolving array type for " + argName, ex);
 					}
 				}
+				// 如果元素类型名称都不存在的话，直接使用Object的类对象作为elementType
 				else {
 					elementType = Object.class;
 				}
 			}
+			// 调用resolveManagedArray进行解析
 			return resolveManagedArray(argName, (List<?>) value, elementType);
 		}
 		else if (value instanceof ManagedList) {
@@ -196,33 +216,43 @@ class BeanDefinitionValueResolver {
 			return resolveManagedMap(argName, (Map<?, ?>) value);
 		}
 		else if (value instanceof ManagedProperties) {
+			// 如果value的类型是ManagedProperties的
 			Properties original = (Properties) value;
 			Properties copy = new Properties();
+			// 将其作为Properties对象进行遍历
 			original.forEach((propKey, propValue) -> {
+				// 如果key和value是TypedStringValue类型的，使用evaluate方法进行解析
 				if (propKey instanceof TypedStringValue) {
 					propKey = evaluate((TypedStringValue) propKey);
 				}
 				if (propValue instanceof TypedStringValue) {
 					propValue = evaluate((TypedStringValue) propValue);
 				}
+				// 如果key和value，任一为null，报错
 				if (propKey == null || propValue == null) {
 					throw new BeanCreationException(
 							this.beanDefinition.getResourceDescription(), this.beanName,
 							"Error converting Properties key/value pair for " + argName + ": resolved to null");
 				}
+				// 将解析后的结果放入到一个copy对象中返回
 				copy.put(propKey, propValue);
 			});
 			return copy;
 		}
+		// TypedStringValue和普通String的区别在于，它们都是将字符串当作表达式去进行解析，
+		// 不过TypedStringValue可以限制解析出来的对象的类型
 		else if (value instanceof TypedStringValue) {
 			// Convert value to target type here.
+			// 如果value是TypedStringValue类型的，使用evaluate方法进行解析
 			TypedStringValue typedStringValue = (TypedStringValue) value;
 			Object valueObject = evaluate(typedStringValue);
 			try {
+				// 根据typedStringValue解析出对应的目标类型，然后将valueObject转换为目标类型
 				Class<?> resolvedTargetType = resolveTargetType(typedStringValue);
 				if (resolvedTargetType != null) {
 					return this.typeConverter.convertIfNecessary(valueObject, resolvedTargetType);
 				}
+				// 如果解析后的目标类型为null，直接返回valueObject
 				else {
 					return valueObject;
 				}
@@ -234,9 +264,11 @@ class BeanDefinitionValueResolver {
 						"Error converting typed String value for " + argName, ex);
 			}
 		}
+		// 如果value是NullBean类型的，返回null
 		else if (value instanceof NullBean) {
 			return null;
 		}
+		// 其他情况都调用evaluate方法对value进行解析
 		else {
 			return evaluate(value);
 		}
@@ -249,10 +281,13 @@ class BeanDefinitionValueResolver {
 	 */
 	@Nullable
 	protected Object evaluate(TypedStringValue value) {
+		// 对TypedStringValue中持有的value进行解析
 		Object result = doEvaluate(value.getValue());
+		// 如果解析出的结果和原本的value不相等，将TypedStringValue设置为dynamic的
 		if (!ObjectUtils.nullSafeEquals(result, value.getValue())) {
 			value.setDynamic();
 		}
+		// 返回解析后的结果
 		return result;
 	}
 
@@ -263,9 +298,11 @@ class BeanDefinitionValueResolver {
 	 */
 	@Nullable
 	protected Object evaluate(@Nullable Object value) {
+		// 如果value是String类型的，进行表达式的解析
 		if (value instanceof String) {
 			return doEvaluate((String) value);
 		}
+		// 如果value是String数组类型的，遍历进行表达式解析
 		else if (value instanceof String[]) {
 			String[] values = (String[]) value;
 			boolean actuallyResolved = false;
@@ -280,6 +317,7 @@ class BeanDefinitionValueResolver {
 			}
 			return (actuallyResolved ? resolvedValues : values);
 		}
+		// 其他情况不解析，直接返回value
 		else {
 			return value;
 		}
@@ -451,10 +489,14 @@ class BeanDefinitionValueResolver {
 	 * For each element in the managed array, resolve reference if necessary.
 	 */
 	private Object resolveManagedArray(Object argName, List<?> ml, Class<?> elementType) {
+		// 根据managedArray的大小 和 elementType创建一个对应类型和长度的数组
 		Object resolved = Array.newInstance(elementType, ml.size());
+		// 遍历managedArray里面的每个元素
 		for (int i = 0; i < ml.size(); i++) {
+			// 递归调用resolveValueIfNecessary方法进行解析，并且设置进数组的对应下标中
 			Array.set(resolved, i, resolveValueIfNecessary(new KeyedArgName(argName, i), ml.get(i)));
 		}
+		// 返回解析后的数组
 		return resolved;
 	}
 
@@ -488,6 +530,7 @@ class BeanDefinitionValueResolver {
 	private Map<?, ?> resolveManagedMap(Object argName, Map<?, ?> mm) {
 		Map<Object, Object> resolved = new LinkedHashMap<>(mm.size());
 		mm.forEach((key, value) -> {
+			// 将key和value都递归调用resolveValueIfNeceesary方法进行解析
 			Object resolvedKey = resolveValueIfNecessary(argName, key);
 			Object resolvedValue = resolveValueIfNecessary(new KeyedArgName(argName, key), value);
 			resolved.put(resolvedKey, resolvedValue);

@@ -27,8 +27,13 @@ import org.springframework.util.ObjectUtils;
  * in order to explicitly specify a target type for a String value,
  * for example for collection elements.
  *
+ * 一个类型字符串值的持有类，能够被添加到bean definition中用于通过字符串显示地指定一个目标类型，
+ * 比如集合元素，
+ *
  * <p>This holder will just store the String value and the target type.
  * The actual conversion will be performed by the bean factory.
+ *
+ * 这个持有类将只会存储字符串值 和 目标类型，实际的转换在bean factory中执行
  *
  * @author Juergen Hoeller
  * @since 1.2
@@ -41,6 +46,7 @@ public class TypedStringValue implements BeanMetadataElement {
 	private String value;
 
 	@Nullable
+	// 需要转换为的目标类型，是Class对象
 	private volatile Object targetType;
 
 	@Nullable

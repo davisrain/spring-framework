@@ -446,6 +446,8 @@ public class ConstructorArgumentValues {
 	/**
 	 * Holder for a constructor argument value, with an optional type
 	 * attribute indicating the target type of the actual constructor argument.
+	 *
+	 * 一个构造器参数value的持有类，有一个可选的类型属性用于指示实际的构造器参数的目标类型
 	 */
 	public static class ValueHolder implements BeanMetadataElement {
 
@@ -558,6 +560,7 @@ public class ConstructorArgumentValues {
 		/**
 		 * Return whether this holder contains a converted value already ({@code true}),
 		 * or whether the value still needs to be converted ({@code false}).
+		 * 返回这个holder类是否包含了一个转换过的value 或者 这个类持有的value让需要被转换
 		 */
 		public synchronized boolean isConverted() {
 			return this.converted;
