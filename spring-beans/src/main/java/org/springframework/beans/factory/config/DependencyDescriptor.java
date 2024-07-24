@@ -45,6 +45,9 @@ import org.springframework.util.ObjectUtils;
  * Descriptor for a specific dependency that is about to be injected.
  * Wraps a constructor parameter, a method parameter or a field,
  * allowing unified access to their metadata.
+ * 要被注入的明确的依赖的描述符。
+ * 包装了一个构造器参数 或者 方法参数 或者 一个字段，
+ * 允许统一的访问它们的元数据
  *
  * @author Juergen Hoeller
  * @since 2.5
@@ -52,32 +55,43 @@ import org.springframework.util.ObjectUtils;
 @SuppressWarnings("serial")
 public class DependencyDescriptor extends InjectionPoint implements Serializable {
 
+	// 声明注入点的类
 	private final Class<?> declaringClass;
 
 	@Nullable
+	// 注入点如果是一个方法参数，那么它的方法名，如果注入点是构造器里的参数，该字段为null
 	private String methodName;
 
 	@Nullable
+	// 注入点如果是一个方法参数，那么该方法的参数类型
 	private Class<?>[] parameterTypes;
 
+	// 注入点如果是一个方法参数，那么参数在方法中的位置
 	private int parameterIndex;
 
 	@Nullable
+	// 注入点如果是一个字段，字段名
 	private String fieldName;
 
+	// 该注入点是否是必须的
 	private final boolean required;
 
+	// TODO 含义
 	private final boolean eager;
 
+	// 注入点的嵌套层级
 	private int nestingLevel = 1;
 
 	@Nullable
+	// 包含这个注入点的类
 	private Class<?> containingClass;
 
 	@Nullable
+	// 注入点的可解析类型
 	private transient volatile ResolvableType resolvableType;
 
 	@Nullable
+	// 注入点的类型描述符
 	private transient volatile TypeDescriptor typeDescriptor;
 
 
@@ -164,6 +178,14 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * any variant of a parameter-level {@code Nullable} annotation (such as from
 	 * JSR-305 or the FindBugs set of annotations), or a language-level nullable
 	 * type declaration in Kotlin.
+	 * 返回这个依赖是否是必须的。
+	 *
+	 * 1、如果required属性为false，那么不是必须的
+	 * 2、如果注入点是字段，且类型是Optional的，那么不是必须的
+	 * 3、如果注入点是字段，且标注了@Nullable注解，那么不是必须的
+	 * 4、kotlin相关解析
+	 * 5、如果注入点是方法参数，检验方法参数是否是Optional类型或者标注了@Nullable注解，如果是，那么不是必须的
+	 * 6、其他情况，都是必须的
 	 */
 	public boolean isRequired() {
 		// 如果自身的required为false的话，直接返回false
@@ -400,9 +422,11 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	/**
 	 * Determine the declared (non-generic) type of the wrapped parameter/field.
 	 * @return the declared type (never {@code null})
+	 *
+	 * 查找到被包装的参数或字段声明的类型，不是泛型类型
 	 */
 	public Class<?> getDependencyType() {
-		// 如果持有的field不为null
+		// 如果注入点是字段类型的
 		if (this.field != null) {
 			// 并且嵌套层级大于1
 			if (this.nestingLevel > 1) {

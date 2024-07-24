@@ -32,6 +32,9 @@ import org.springframework.util.ObjectUtils;
  * Also available as an argument for factory methods, reacting to the
  * requesting injection point for building a customized bean instance.
  *
+ * 一个注入点的简单描述符，指向了一个方法或构造器的参数 或者 一个字段。
+ * 也可以当作factory method的一个参数，在构建一个自定义的bean实例的时候对请求注入点做出反应
+ *
  * @author Juergen Hoeller
  * @since 4.3
  * @see UnsatisfiedDependencyException#getInjectionPoint()
@@ -40,12 +43,15 @@ import org.springframework.util.ObjectUtils;
 public class InjectionPoint {
 
 	@Nullable
+	// 要插入的方法参数
 	protected MethodParameter methodParameter;
 
 	@Nullable
+	// 要插入的字段
 	protected Field field;
 
 	@Nullable
+	// 字段上面的注解
 	private volatile Annotation[] fieldAnnotations;
 
 

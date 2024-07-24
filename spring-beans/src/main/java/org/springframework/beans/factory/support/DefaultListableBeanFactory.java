@@ -2015,16 +2015,19 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 	/**
 	 * Create an {@link Optional} wrapper for the specified dependency.
+	 * 为指定的dependency创建一个optional的包装类
 	 */
 	private Optional<?> createOptionalDependency(
 			DependencyDescriptor descriptor, @Nullable String beanName, final Object... args) {
 
 		// 因为实际的依赖对象被Option包装起来的，因此需要创建一个嵌套的依赖描述器将嵌套层级+1来指向实际依赖的类型
 		DependencyDescriptor descriptorToUse = new NestedDependencyDescriptor(descriptor) {
+			// 重写isRequired方法为false
 			@Override
 			public boolean isRequired() {
 				return false;
 			}
+			// 重写resolveCandidate方法
 			@Override
 			public Object resolveCandidate(String beanName, Class<?> requiredType, BeanFactory beanFactory) {
 				return (!ObjectUtils.isEmpty(args) ? beanFactory.getBean(beanName, args) :

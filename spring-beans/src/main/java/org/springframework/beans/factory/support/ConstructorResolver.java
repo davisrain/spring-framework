@@ -1138,6 +1138,7 @@ class ConstructorResolver {
 
 	/**
 	 * Template method for resolving the specified argument which is supposed to be autowired.
+	 * 解析一个期待被注入的指定参数的模板方法
 	 */
 	@Nullable
 	protected Object resolveAutowiredArgument(MethodParameter param, String beanName,

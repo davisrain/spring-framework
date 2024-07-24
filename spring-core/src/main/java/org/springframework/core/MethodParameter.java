@@ -44,6 +44,7 @@ import org.springframework.util.ObjectUtils;
  * Helper class that encapsulates the specification of a method parameter, i.e. a {@link Method}
  * or {@link Constructor} plus a parameter index and a nested type index for a declared generic
  * type. Useful as a specification object to pass along.
+ * 封装指定方法参数的帮助类，一个方法或构造器 加上 参数index 和 嵌套的类型index来表示一个声明的泛型类型
  *
  * <p>As of 4.2, there is a {@link org.springframework.core.annotation.SynthesizingMethodParameter}
  * subclass available which synthesizes annotations with attribute aliases. That subclass is used
@@ -63,16 +64,24 @@ public class MethodParameter {
 	private static final Annotation[] EMPTY_ANNOTATION_ARRAY = new Annotation[0];
 
 
+	// 参数所在的方法或构造器
 	private final Executable executable;
 
+	// 参数在方法参数中的位置
 	private final int parameterIndex;
 
 	@Nullable
+	// 方法参数的反射对象
 	private volatile Parameter parameter;
 
+	// 嵌套层级
 	private int nestingLevel;
 
 	/** Map from Integer level to Integer type index. */
+	// 每个层级的类型index。
+	// 比如Map<String, Set<String>>，第二层存在两个类型，即String和Set<String>，
+	// 如果typeIndexesPerLevel里面有一个entry是key = 2, value = 0
+	// 那么上面的两个类型应该取第0个元素，即String
 	@Nullable
 	Map<Integer, Integer> typeIndexesPerLevel;
 
@@ -81,21 +90,27 @@ public class MethodParameter {
 	private volatile Class<?> containingClass;
 
 	@Nullable
+	// 参数的类型
 	private volatile Class<?> parameterType;
 
 	@Nullable
+	// 参数的泛型类型
 	private volatile Type genericParameterType;
 
 	@Nullable
+	// 参数上的注解
 	private volatile Annotation[] parameterAnnotations;
 
 	@Nullable
+	// 参数名发现器
 	private volatile ParameterNameDiscoverer parameterNameDiscoverer;
 
 	@Nullable
+	// 参数名
 	private volatile String parameterName;
 
 	@Nullable
+	// 嵌套的方法参数
 	private volatile MethodParameter nestedMethodParameter;
 
 
@@ -359,6 +374,8 @@ public class MethodParameter {
 	/**
 	 * Return a variant of this {@code MethodParameter} which points to the
 	 * same parameter but one nesting level deeper.
+	 *
+	 * 返回一个当前对象的变种，其他属性都一致，只不过嵌套的层级更深一层
 	 * @since 4.3
 	 */
 	public MethodParameter nested() {
@@ -479,6 +496,8 @@ public class MethodParameter {
 	 * @return a specific containing class (potentially a subclass of the
 	 * declaring class), or otherwise simply the declaring class itself
 	 * @see #getDeclaringClass()
+	 *
+	 * 返回这个方法参数的持有类，可能是方法声明类的子类，或者就是方法的声明类
 	 */
 	public Class<?> getContainingClass() {
 		// 获取到方法参数的持有类
@@ -784,11 +803,14 @@ public class MethodParameter {
 	 */
 	@Nullable
 	public String getParameterName() {
+		// 如果是方法的返回值，没有参数名，直接返回null
 		if (this.parameterIndex < 0) {
 			return null;
 		}
 		ParameterNameDiscoverer discoverer = this.parameterNameDiscoverer;
+		// 如果参数发现器不为null
 		if (discoverer != null) {
+			// 调用参数发现器去获取参数名称数组
 			String[] parameterNames = null;
 			if (this.executable instanceof Method) {
 				parameterNames = discoverer.getParameterNames((Method) this.executable);
@@ -796,11 +818,14 @@ public class MethodParameter {
 			else if (this.executable instanceof Constructor) {
 				parameterNames = discoverer.getParameterNames((Constructor<?>) this.executable);
 			}
+			// 获取到的参数名数组不为null，根据参数下标获取对应参数名
 			if (parameterNames != null) {
 				this.parameterName = parameterNames[this.parameterIndex];
 			}
+			// 然后将参数发现器置为null
 			this.parameterNameDiscoverer = null;
 		}
+		// 返回参数名
 		return this.parameterName;
 	}
 
