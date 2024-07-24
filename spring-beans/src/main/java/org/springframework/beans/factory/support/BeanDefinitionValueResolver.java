@@ -121,6 +121,10 @@ class BeanDefinitionValueResolver {
 		// We must check each value to see whether it requires a runtime reference
 		// to another bean to be resolved.
 		// 如果value是RuntimeBeanReference类型的
+		// <bean class="foo.bar">
+		// 		<property name = "propertyName" ref = "otherBeanName"/>
+		// </bean>
+		// ref类型就会被解析为RuntimeBeanReference
 		if (value instanceof RuntimeBeanReference) {
 			RuntimeBeanReference ref = (RuntimeBeanReference) value;
 			// 调用resolveReference方法进行解析，返回解析到的bean对象
@@ -129,6 +133,7 @@ class BeanDefinitionValueResolver {
 			return resolveReference(argName, ref);
 		}
 		// 如果value是RuntimeBeanNameReference类型的
+		// <idref bean = "beanName"/>
 		else if (value instanceof RuntimeBeanNameReference) {
 			// 获取refName
 			String refName = ((RuntimeBeanNameReference) value).getBeanName();
@@ -149,7 +154,12 @@ class BeanDefinitionValueResolver {
 			// 解析内部bean，创建一个实际的bean对象返回
 			return resolveInnerBean(argName, bdHolder.getBeanName(), bdHolder.getBeanDefinition());
 		}
-		// 如果value是BeanDefinition类型的
+		// 如果value是BeanDefinition类型的，内部匿名bean
+		// <bean class = "foo.bar">
+		// 		<bean class = "foo.bar.xxx">
+		//			<property>...</property>
+		// 		</bean>
+		// </bean>
 		else if (value instanceof BeanDefinition) {
 			// Resolve plain BeanDefinition, without contained name: use dummy name.
 			BeanDefinition bd = (BeanDefinition) value;
@@ -173,6 +183,14 @@ class BeanDefinitionValueResolver {
 			}
 			return result;
 		}
+		/*
+		<property name = "...">
+			<array>
+				<value>...</value>
+				<value>...</value>
+			</array>
+		</property>
+		*/
 		else if (value instanceof ManagedArray) {
 			// May need to resolve contained runtime references.
 			// 也许需要去解析其包含的runtime引用
@@ -203,18 +221,51 @@ class BeanDefinitionValueResolver {
 			// 调用resolveManagedArray进行解析
 			return resolveManagedArray(argName, (List<?>) value, elementType);
 		}
+		/*
+		<property name = "...">
+			<list>
+				<value>...</value>
+				<value>...</value>
+			</list>
+		</property>
+		*/
 		else if (value instanceof ManagedList) {
 			// May need to resolve contained runtime references.
 			return resolveManagedList(argName, (List<?>) value);
 		}
+		/*
+		<property name = "...">
+			<set>
+				<ref bean = "otherBean"/>
+				<ref bean = "otherBean1/>
+				<bean class = "..."/>
+			</set>
+		</property>
+		*/
 		else if (value instanceof ManagedSet) {
 			// May need to resolve contained runtime references.
 			return resolveManagedSet(argName, (Set<?>) value);
 		}
+		/*
+		<property name = "...">
+			<map>
+				<entry key = "..." value-ref = "otherBean"/>
+				<entry key = "..." value-ref = "otherBean1/>
+			</map>
+		</property>
+		*/
 		else if (value instanceof ManagedMap) {
 			// May need to resolve contained runtime references.
 			return resolveManagedMap(argName, (Map<?, ?>) value);
 		}
+		/*
+		<property name = "...">
+			<props>
+				<prop key = "...">...</prop>
+				<prop key = "...">...</prop>
+			</props>
+		</property>
+		*/
 		else if (value instanceof ManagedProperties) {
 			// 如果value的类型是ManagedProperties的
 			Properties original = (Properties) value;

@@ -271,6 +271,10 @@ public class ConstructorArgumentValues {
 	 * Look for the next generic argument value that matches the given type,
 	 * ignoring argument values that have already been used in the current
 	 * resolution process.
+	 *
+	 * 查找下一个和给出的类型匹配的generic类型的参数值，
+	 * 忽略已经在当前解析过程中使用过的参数值
+	 *
 	 * @param requiredType the type to match (can be {@code null} to find
 	 * an arbitrary next generic argument value)
 	 * @param requiredName the name to match (can be {@code null} to not
@@ -283,21 +287,29 @@ public class ConstructorArgumentValues {
 	public ValueHolder getGenericArgumentValue(@Nullable Class<?> requiredType, @Nullable String requiredName,
 			@Nullable Set<ValueHolder> usedValueHolders) {
 
+
+		// 整个方法的验证逻辑为：
+		// 1.如果valueHolder的name不为null，会去校验传入的name是否符合
+		// 2.如果valueHolder的type不为null，会去校验传入的type是否符合
+		// 3.如果valueHolder的name、type都为null，但是传入的type不为null，会去校验valueHolder持有的value和传入的type是否匹配
+		// 4.上述条件任一未满足，都会跳过筛选
 		for (ValueHolder valueHolder : this.genericArgumentValues) {
 			// 如果usedValueHolders中已经包含了，跳过
 			if (usedValueHolders != null && usedValueHolders.contains(valueHolder)) {
 				continue;
 			}
-			// 如果name不匹配，跳过
+			// 如果generic中的valueHolder的name不为null 并且 valueHolder的name和传入的要求的name不相等，跳过
 			if (valueHolder.getName() != null && (requiredName == null ||
 					(!requiredName.isEmpty() && !requiredName.equals(valueHolder.getName())))) {
 				continue;
 			}
-			// 如果类型不匹配，跳过
+			// 如果generic的valueHolder的type不为null 并且 valueHolder的type和传入的要求的type不相等，跳过
 			if (valueHolder.getType() != null && (requiredType == null ||
 					!ClassUtils.matchesTypeName(requiredType, valueHolder.getType()))) {
 				continue;
 			}
+			// 如果传入的要求的type不为null 并且 valueHolder的type和name都为null 那么会去校验valueHolder持有的value的实际类型和requireType是否匹配，
+			// 如果不匹配，跳过
 			if (requiredType != null && valueHolder.getType() == null && valueHolder.getName() == null &&
 					!ClassUtils.isAssignableValue(requiredType, valueHolder.getValue())) {
 				continue;

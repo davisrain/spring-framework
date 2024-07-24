@@ -935,6 +935,9 @@ class ConstructorResolver {
 	/**
 	 * Create an array of arguments to invoke a constructor or factory method,
 	 * given the resolved constructor argument values.
+	 *
+	 * 创建一个参数数组去调用构造器 或者 factory method，
+	 * 给出解析后的constructor argument values
 	 */
 	private ArgumentsHolder createArgumentArray(
 			String beanName, RootBeanDefinition mbd, @Nullable ConstructorArgumentValues resolvedValues,
@@ -969,7 +972,8 @@ class ConstructorResolver {
 				// If we couldn't find a direct match and are not supposed to autowire,
 				// let's try the next generic, untyped argument value as fallback:
 				// it could match after type conversion (for example, String -> int).
-				// 如果没有找到并且是不建议自动注入的，尝试下一个generic的，无类型的参数值作为回调
+				// 如果根据index name type没有找到对应的valueHolder, 并且不会去自动注入 或者 构造器需要的参数数量等于解析后的参数的总数
+				// 尝试不限制name type 去genericArgumentValues里面查找
 				if (valueHolder == null && (!autowiring || paramTypes.length == resolvedValues.getArgumentCount())) {
 					valueHolder = resolvedValues.getGenericArgumentValue(null, null, usedValueHolders);
 				}
@@ -1196,6 +1200,7 @@ class ConstructorResolver {
 
 	/**
 	 * Private inner class for holding argument combinations.
+	 * 私有的内部类，用于持有参数的合集
 	 */
 	private static class ArgumentsHolder {
 
