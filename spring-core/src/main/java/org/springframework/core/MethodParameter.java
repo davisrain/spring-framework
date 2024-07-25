@@ -670,6 +670,7 @@ public class MethodParameter {
 	 * Return the annotations associated with the target method/constructor itself.
 	 */
 	public Annotation[] getMethodAnnotations() {
+		// 返回方法或者构造器上标注的注解数组
 		return adaptAnnotationArray(getAnnotatedElement().getAnnotations());
 	}
 
