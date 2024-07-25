@@ -290,6 +290,10 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * algorithm for this dependency, to a bean instance from the given factory.
 	 * <p>The default implementation calls {@link BeanFactory#getBean(String)}.
 	 * Subclasses may provide additional arguments or other customizations.
+	 *
+	 * 解析指定的beanName，作为这个以来匹配算法的候选结果，映射为给出的bean factory里面的一个bean实例
+	 * 默认的实现调用BeanFactory的getBean(String)方法，子类可能会提供附加的参数 或者 其他定制化逻辑
+	 *
 	 * @param beanName the bean name, as a candidate result for this dependency
 	 * @param requiredType the expected type of the bean (as an assertion)
 	 * @param beanFactory the associated factory

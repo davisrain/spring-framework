@@ -43,6 +43,9 @@ import org.springframework.util.Assert;
  * interface, providing support for qualifier annotations as well as for lazy resolution
  * driven by the {@link Lazy} annotation in the {@code context.annotation} package.
  *
+ * AutowireCandidateResolver这个策略接口的完整实现，
+ * 提供了对qualifier注解的支持 以及 对context.annotation包下的@Lazy注解的懒加载的支持
+ *
  * @author Juergen Hoeller
  * @since 4.0
  */
@@ -56,6 +59,7 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 	}
 
 	protected boolean isLazy(DependencyDescriptor descriptor) {
+		// 1.第一步是判断字段 或者 方法的参数上有没有标注@Lazy注解，且注解value为true
 		// 获取依赖描述上标注的所有注解并遍历
 		for (Annotation ann : descriptor.getAnnotations()) {
 			// 根据对应的注解获取@Lazy注解
@@ -65,6 +69,7 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 				return true;
 			}
 		}
+		// 2.第二步是判断DependencyDescriptor是否是方法参数，且方法是构造方法，并且构造方法上标注了@Lazy注解，并且value为true
 		// 如果上述没有判断出来，尝试获取依赖描述的方法参数
 		MethodParameter methodParam = descriptor.getMethodParameter();
 		if (methodParam != null) {
@@ -100,10 +105,13 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 				return false;
 			}
 			@Override
+			// 在getTarget逻辑里面才去真正的解析对应的依赖项
 			public Object getTarget() {
 				Set<String> autowiredBeanNames = (beanName != null ? new LinkedHashSet<>(1) : null);
 				Object target = dlbf.doResolveDependency(descriptor, beanName, autowiredBeanNames, null);
+				// 如果没有找到对应的bean
 				if (target == null) {
+					// 判断依赖项的类型，如果是集合类型的，创建空集合返回
 					Class<?> type = getTargetClass();
 					if (Map.class == type) {
 						return Collections.emptyMap();
@@ -114,9 +122,11 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 					else if (Set.class == type || Collection.class == type) {
 						return Collections.emptySet();
 					}
+					// 否则，抛出异常
 					throw new NoSuchBeanDefinitionException(descriptor.getResolvableType(),
 							"Optional dependency not present for lazy injection point");
 				}
+				// 并且将依赖关系注入到DefaultSingletonBeanRegistry中，表示autowiredBeanName被beanName所依赖，以及beanName依赖了autowiredBeanName
 				if (autowiredBeanNames != null) {
 					for (String autowiredBeanName : autowiredBeanNames) {
 						if (dlbf.containsBean(autowiredBeanName)) {
@@ -131,6 +141,7 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 			}
 		};
 
+		// 创建一个代理类并返回
 		ProxyFactory pf = new ProxyFactory();
 		pf.setTargetSource(ts);
 		Class<?> dependencyType = descriptor.getDependencyType();

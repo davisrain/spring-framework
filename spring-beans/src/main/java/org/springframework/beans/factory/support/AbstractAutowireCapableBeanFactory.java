@@ -1091,7 +1091,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// If we're allowed, we can create the factory bean and call getObjectType() early
 		// 4.如果是允许init的，那么创建factoryBean并且调用它的getObjectType方法，
-		// 因为上述的步骤都没有返回，所以说明了当前这个FactoryBean不是由 实例方法的factoryMethod创建的，因此创建这个FactoryBean不需要额外创建出其他bean
+		// 因为上述的步骤都没有返回，所以说明了
+		// 4.1 这个FactoryBean不是由其他bean的factoryMethod创建的
+		// 4.2 或者 当前这个FactoryBean是由 其他bean的静态factoryMethod创建的
+		// 4.3 或者 持有创建它的实例方法factoryMethod的bean已经创建好了
+		// 那么对FactoryBean进行创建的时候，就不会额外创建其他bean
 
 		if (allowInit) {
 			// 根据mbd是否是singleton的，选择不同的方法创建FactoryBean
@@ -1114,14 +1118,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 		}
 
-		// 如果factoryBeanName为null 并且 mbd存在beanClass 并且 factoryMethodName不为null，说明是静态方法返回了FactoryBean
+		// 5.如果factoryBeanName为null 并且 mbd存在beanClass 并且 factoryMethodName不为null，说明是静态方法返回了FactoryBean
 		if (factoryBeanName == null && mbd.hasBeanClass() && factoryMethodName != null) {
 			// No early bean instantiation possible: determine FactoryBean's type from
 			// static factory method signature or from class inheritance hierarchy...
 			// 同样调用getTypeForFactoryBeanFromMethod去查找对应方法的返回类型
 			return getTypeForFactoryBeanFromMethod(mbd.getBeanClass(), factoryMethodName);
 		}
-		// 如果mbd不是通过factoryMethod的方式来生成bean的，那么直接根据beanType的泛型来获取对应的result
+		// 6.如果mbd不是通过factoryMethod的方式来生成bean的，那么直接根据beanType的泛型来获取对应的result
 		result = getFactoryBeanGeneric(beanType);
 		// 如果result的resolved字段不为null，返回result
 		if (result.resolve() != null) {

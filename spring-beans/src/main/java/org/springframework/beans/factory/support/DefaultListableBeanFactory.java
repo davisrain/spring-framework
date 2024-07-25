@@ -314,6 +314,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 	/**
 	 * Return the autowire candidate resolver for this BeanFactory (never {@code null}).
+	 * 返回当前beanFactory的自动注入的候选解析器
 	 */
 	public AutowireCandidateResolver getAutowireCandidateResolver() {
 		return this.autowireCandidateResolver;
@@ -1295,7 +1296,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			// 调用createOptionalDependency方法，将结果返回
 			return createOptionalDependency(descriptor, requestingBeanName);
 		}
-		// 如果依赖的类型是ObjectFactory.class或者是ObjectProvider.class，创建一个DependencyObjectProvider返回，是一种懒加载的模式
+		// 如果依赖的类型是ObjectFactory.class或者是ObjectProvider.class，创建一个DependencyObjectProvider返回，是一种懒加载的模式。
+		// 这里也不会将autowiredBeanNames传入，因为由ObjectFactory或ObjectProvider包装的参数，不需要注册和requestingBeanName的依赖关系到beanFactory中，
+		// 同时也不会将typeConverter传入，不进行类型的转换
 		else if (ObjectFactory.class == descriptor.getDependencyType() ||
 				ObjectProvider.class == descriptor.getDependencyType()) {
 			return new DependencyObjectProvider(descriptor, requestingBeanName);
@@ -1310,9 +1313,12 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		// 如果依赖类型是其他类型的情况
 		else {
 			// 尝试使用autowireCandidateResolver来获取懒加载的代理
+			// 即 字段 或者 方法参数 或者 方法参数是构造方法且构造方法上面标注了@Lazy注解的 注入点
+			// 都会生成一个aop代理类，在真正的方法调用的时候才会调用对应TargetSource的getTarget方法，这个方法里面才会真正的去做doResolveDependency的解析，
+			// 获取到实际的bean，然后调用bean中对应的方法，实现延迟加载的效果
 			Object result = getAutowireCandidateResolver().getLazyResolutionProxyIfNecessary(
 					descriptor, requestingBeanName);
-			// 如果获取失败了，那么调用doResolveDependency方法来执行具体的解析逻辑
+			// 如果注入点没有标注@Lazy注解，那么调用doResolveDependency方法来执行具体的解析逻辑
 			if (result == null) {
 				result = doResolveDependency(descriptor, requestingBeanName, autowiredBeanNames, typeConverter);
 			}
@@ -2034,7 +2040,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 						super.resolveCandidate(beanName, requiredType, beanFactory));
 			}
 		};
-		// 调用doResolveDependency执行具体的解析逻辑
+		// 调用doResolveDependency执行具体的解析逻辑，
+		// 这里autowiredBeanNames传入null，因为用optional包装的就不进行依赖关系的注册了，
+		// 并且typeConverter也传入null，不进行类型转换
 		Object result = doResolveDependency(descriptorToUse, beanName, null, null);
 		// 如果解析出来的结果就是Optional类型的，那么直接返回，否则，使用Optional包装起来返回
 		return (result instanceof Optional ? (Optional<?>) result : Optional.ofNullable(result));
@@ -2154,6 +2162,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 	/**
 	 * Serializable ObjectFactory/ObjectProvider for lazy resolution of a dependency.
+	 *
+	 * 懒加载的模式，真实的解析会放在第一次调用getObject相关方法的时候
 	 */
 	private class DependencyObjectProvider implements BeanObjectProvider<Object> {
 
@@ -2167,7 +2177,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		public DependencyObjectProvider(DependencyDescriptor descriptor, @Nullable String beanName) {
 			// 将descriptor也转换成NestedDependencyDescriptor，将嵌套层级+1
 			this.descriptor = new NestedDependencyDescriptor(descriptor);
-			// 根据descriptor的依赖类型判断是否是Optional.class类型的
+			// 再次判断增加了嵌套层级的DependencyDescriptor 是否是Optional.class类型的
+			// 如果是的话，说明注入点的类型声明是这样的：
+			// ObjectProvider<Optional<?>> 或者 ObjectFactory<Optional<?>>
 			this.optional = (this.descriptor.getDependencyType() == Optional.class);
 			// 设置要将该依赖注入的bean的beanName
 			this.beanName = beanName;
@@ -2175,9 +2187,11 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 		@Override
 		public Object getObject() throws BeansException {
+			// 如果optional是true，那么需要再进行一次嵌套层级的增加，然后进行实际的解析逻辑，将解析结果用Optional包装返回
 			if (this.optional) {
 				return createOptionalDependency(this.descriptor, this.beanName);
 			}
+			// 否则，直接进行解析，返回结果
 			else {
 				Object result = doResolveDependency(this.descriptor, this.beanName, null, null);
 				if (result == null) {
