@@ -184,7 +184,8 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	// 当前beanDefinition是否是主要的，如果是的话，根据类型获取bean的时候，如果存在多个相同类型的bean，会优先返回这个bean
 	private boolean primary = false;
 
-	// 当前beanDefinition所包含的自动注入候选类的限定符，即自动注入的时候可以添加限定符来缩小查找范围，如果自动注入的限定符的话，就不会被选中
+	// 当前beanDefinition所包含的自动注入候选类的限定符，即自动注入的时候可以添加限定符来缩小查找范围，如果不满足自动注入的限定符的话，就不会被选中
+	// key一般为qualifier相关注解的全限定名，或者类的简单名称
 	private final Map<String, AutowireCandidateQualifier> qualifiers = new LinkedHashMap<>();
 
 	@Nullable

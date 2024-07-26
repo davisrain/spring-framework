@@ -48,6 +48,8 @@ import org.springframework.util.StringUtils;
  * {@link #getGeneric(int...) generic parameters} along with the ability to ultimately
  * {@link #resolve() resolve} to a {@link java.lang.Class}.
  *
+ * 封装一个Java的Type对象，提供getSuperType getInterfaces getGeneric 以及最终resolve to一个class对象
+ *
  * <p>{@code ResolvableTypes} may be obtained from {@link #forField(Field) fields},
  * {@link #forMethodParameter(Method, int) method parameters},
  * {@link #forMethodReturnType(Method) method returns} or
@@ -55,6 +57,9 @@ import org.springframework.util.StringUtils;
  * {@link ResolvableType ResolvableTypes}, allowing easy navigation. For example:
  * <pre class="code">
  * private HashMap&lt;Integer, List&lt;String&gt;&gt; myMap;
+ *
+ * ResolvableType可能会从forField forMethodParameter forMethodReturnType forClass来获取。
+ * 该类的大多数方法都返回ResolvableType
  *
  * public void example() {
  *     ResolvableType t = ResolvableType.forField(getClass().getDeclaredField("myMap"));
@@ -1533,6 +1538,8 @@ public class ResolvableType implements Serializable {
 
 		// For simple Class references, build the wrapper right away -
 		// no expensive resolution necessary, so not worth caching...
+		// 对于简单的class引用，立刻构建一个包装类型返回。
+		// 由于没有昂贵的解析操作，因此不值得进行缓存
 		if (type instanceof Class) {
 			return new ResolvableType(type, typeProvider, variableResolver, (ResolvableType) null);
 		}

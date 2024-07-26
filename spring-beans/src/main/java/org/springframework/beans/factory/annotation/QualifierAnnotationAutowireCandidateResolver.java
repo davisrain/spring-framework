@@ -140,6 +140,12 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 * the same qualifier or match by meta attributes. A "value" attribute will
 	 * fallback to match against the bean name or an alias if a qualifier or
 	 * attribute does not match.
+	 *
+	 * 判断提供的bean definition是否是一个 自动注入的候选。
+	 * 1、首先autowiredCandidate属性不能为false
+	 * 2、其次，如果要注入的字段或者参数上存在一个被bean factory识别为 qualifier的注解，那么这个bean必须匹配这个注解，
+	 * 也必须匹配这个注解包含的属性。这个bean definition必须包含同样的qualifier 或者 被元属性匹配。
+	 * 3、qualifier注解的value属性的值被作为一个兜底去匹配beanName或者别名，如果没有匹配上bean definition里面的qualifier或属性的话。
 	 * @see Qualifier
 	 */
 	@Override
@@ -158,9 +164,9 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 				if (methodParam != null) {
 					// 获取对应的方法，如果方法参数中的executable是构造器类型的话，这里会返回null
 					Method method = methodParam.getMethod();
-					// 如果方法不存在 或者 返回返回值是void
+					// 如果方法不存在 或者 返回返回值是void，那么说明该注入点是构造器的方法参数，
 					if (method == null || void.class == method.getReturnType()) {
-						// 那么检查方法上标注的注解中的@Qualifier注解
+						// 那么检查构造器上标注的注解中的@Qualifier注解
 						match = checkQualifiers(bdHolder, methodParam.getMethodAnnotations());
 					}
 				}

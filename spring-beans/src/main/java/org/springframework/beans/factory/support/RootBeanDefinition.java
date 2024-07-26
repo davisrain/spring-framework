@@ -67,6 +67,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	private BeanDefinitionHolder decoratedDefinition;
 
 	@Nullable
+	// 标注qualifier相关注解的元素，比如bean对应的类 或者 创建bean的factoryMethod
 	private AnnotatedElement qualifiedElement;
 
 	/** Determines if the definition needs to be re-merged. */
