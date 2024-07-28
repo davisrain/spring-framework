@@ -1230,6 +1230,10 @@ class ConstructorResolver {
 			// Try type difference weight on both the converted arguments and
 			// the raw arguments. If the raw weight is better, use it.
 			// Decrease raw weight by 1024 to prefer it over equal converted weight.
+			// 如果找到了合法的参数，确定typeDifferenceWeight
+			// 尝试同时找出convertedArguments和rawArguments的typeDiffWeight
+			// 然后使用更好的那个。
+			// 对计算出的rawTypeDiffWeight减去1024，使得其由于相等的转换后的typeDiffWeight
 			int typeDiffWeight = MethodInvoker.getTypeDifferenceWeight(paramTypes, this.arguments);
 			int rawTypeDiffWeight = MethodInvoker.getTypeDifferenceWeight(paramTypes, this.rawArguments) - 1024;
 			return Math.min(rawTypeDiffWeight, typeDiffWeight);

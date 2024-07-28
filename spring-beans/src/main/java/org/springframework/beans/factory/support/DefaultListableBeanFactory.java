@@ -1381,6 +1381,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 
 			// 解析容器类或数组类的bean
+			// 注意：当注入点是Collection类型的时候，注入点的声明类型必须是接口，如果是ArrayList这种类型的话，是没办法识别为批量注入的
 			Object multipleBeans = resolveMultipleBeans(descriptor, beanName, autowiredBeanNames, typeConverter);
 			// 如果解析出的结果不为null，直接返回
 			if (multipleBeans != null) {
@@ -1606,8 +1607,11 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 	@Nullable
 	private Comparator<Object> adaptDependencyComparator(Map<String, ?> matchingBeans) {
+		// 获取beanFactory持有的dependency的comparator
 		Comparator<Object> comparator = getDependencyComparator();
+		// 如果comparator是OrderComparator
 		if (comparator instanceof OrderComparator) {
+			// 创建一个OrderSourceProvider存入comparator中
 			return ((OrderComparator) comparator).withSourceProvider(
 					createFactoryAwareOrderSourceProvider(matchingBeans));
 		}
@@ -1624,8 +1628,10 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	}
 
 	private OrderComparator.OrderSourceProvider createFactoryAwareOrderSourceProvider(Map<String, ?> beans) {
+		// 将beanName到bean的映射map 反转为 bean到beanName的映射map
 		IdentityHashMap<Object, String> instancesToBeanNames = new IdentityHashMap<>();
 		beans.forEach((beanName, instance) -> instancesToBeanNames.put(instance, beanName));
+		// 根据bean到beanName的映射map创建一个FactoryAwareOrderSourceProvider
 		return new FactoryAwareOrderSourceProvider(instancesToBeanNames);
 	}
 
@@ -1968,6 +1974,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 * Determine whether the given beanName/candidateName pair indicates a self reference,
 	 * i.e. whether the candidate points back to the original bean or to a factory method
 	 * on the original bean.
+	 *
+	 * 判断给出的beanName和candidateName是否指向了一个自我引用。
+	 * 比如，是否这个candidate指回了original bean 或者 指回了一个original bean中的factory method
 	 */
 	private boolean isSelfReference(@Nullable String beanName, @Nullable String candidateName) {
 		return (beanName != null && candidateName != null &&
@@ -2334,20 +2343,27 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		@Override
 		@Nullable
 		public Object getOrderSource(Object obj) {
+			// 根据bean获取到beanName
 			String beanName = this.instancesToBeanNames.get(obj);
+			// 如果beanName为null或者 beanFactory中不包含对应的beanName，直接返回null
 			if (beanName == null || !containsBeanDefinition(beanName)) {
 				return null;
 			}
+			// 获取beanName对应的mergedBeanDefinition
 			RootBeanDefinition beanDefinition = getMergedLocalBeanDefinition(beanName);
+			// 创建一个sources的集合
 			List<Object> sources = new ArrayList<>(2);
+			// mbd如果存在factoryMethod，存入集合
 			Method factoryMethod = beanDefinition.getResolvedFactoryMethod();
 			if (factoryMethod != null) {
 				sources.add(factoryMethod);
 			}
+			// 如果存在targetType，存入集合
 			Class<?> targetType = beanDefinition.getTargetType();
 			if (targetType != null && targetType != obj.getClass()) {
 				sources.add(targetType);
 			}
+			// 将集合转换为数组返回，后续判断order就根据数组中提供的元素来判断
 			return sources.toArray();
 		}
 	}

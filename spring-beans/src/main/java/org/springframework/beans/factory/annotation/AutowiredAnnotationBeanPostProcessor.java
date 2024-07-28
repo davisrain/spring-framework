@@ -75,8 +75,13 @@ import org.springframework.util.StringUtils;
  * by default, Spring's {@link Autowired @Autowired} and {@link Value @Value}
  * annotations.
  *
+ * BeanPostProcessor的一个实现，用于自动注入被注解的字段，setter方法和任意的config members。
+ * 这些member被注入和被检测通过默认的@Autowired 和 @Value注解
+ *
  * <p>Also supports JSR-330's {@link javax.inject.Inject @Inject} annotation,
  * if available, as a direct alternative to Spring's own {@code @Autowired}.
+ *
+ * 同样支持JSR330里面的@Inject注解，如果是可以获得的，会作为一个@Autowired注解的一个直接的替换
  *
  * <h3>Autowired Constructors</h3>
  * <p>Only one constructor of any given bean class may declare this annotation with
@@ -91,15 +96,27 @@ import org.springframework.util.StringUtils;
  * declares a single constructor to begin with, it will always be used, even if not
  * annotated. An annotated constructor does not have to be public.
  *
+ *  对于用于自动注入的构造器来说
+ *  任意一个给出的beanClass里面只能有一个required属性为true的标注了autowire相关注解的构造器。
+ *  此外，如果required属性被设置为了true，那么只能有一个构造器能够被autowire相关注解标注。
+ *  如果多个非required的构造器上声明了autowire相关注解，那么都会被选为自动注入的候选者。
+ *  那么拥有最好数量依赖的构造器会被选择用作实例化bean，如果没有候选构造器满足，那么会使用默认的构造器。
+ *  如果一个类只声明了一个单独的构造器，那么它总会被使用，就算它没有被注解标注。一个被注解标注的构造器不用被声明为public
+ *
  * <h3>Autowired Fields</h3>
  * <p>Fields are injected right after construction of a bean, before any
  * config methods are invoked. Such a config field does not have to be public.
+ *
+ * 字段会在bean构建后被注入，先于任何配置的方法被调用之前，这些配置字段不需要被声明为public
  *
  * <h3>Autowired Methods</h3>
  * <p>Config methods may have an arbitrary name and any number of arguments; each of
  * those arguments will be autowired with a matching bean in the Spring container.
  * Bean property setter methods are effectively just a special case of such a
  * general config method. Config methods do not have to be public.
+ *
+ * 配置方法可能有任意的名字和任意数量的参数，每一个参数都会被spring容器中的一个匹配的bean自动注入。
+ * bean的属性setter方法实际上是这种通用配置方法的一种特殊情况。配置方法不需要被声明为public
  *
  * <h3>Annotation Config vs. XML Config</h3>
  * <p>A default {@code AutowiredAnnotationBeanPostProcessor} will be registered
@@ -117,6 +134,8 @@ import org.springframework.util.StringUtils;
  * methods to be replaced by the container at runtime. This is essentially a type-safe
  * version of {@code getBean(Class, args)} and {@code getBean(String, args)}.
  * See {@link Lookup @Lookup's javadoc} for details.
+ * 除了上面讨论的常规的注入点，这个postProcessor也能处理@Lookup注解，该注解指明了一个lookup方法需要在运行时被容器替换。
+ * 这个本质上是getBean方法的一个安全版本。
  *
  * @author Juergen Hoeller
  * @author Mark Fisher
@@ -184,6 +203,9 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	 * <p>This setter property exists so that developers can provide their own
 	 * (non-Spring-specific) annotation type to indicate that a member is supposed
 	 * to be autowired.
+	 *
+	 * 这个方法支持设置自定义的autowired相关注解，默认的autowired相关注解是@Autowired @Value @Inject
+	 * 但如果调用这个方法，会将当前默认的autowired相关注解清空，所以如果是想添加自定义的注解的话，记得将默认的也添加进来
 	 */
 	public void setAutowiredAnnotationType(Class<? extends Annotation> autowiredAnnotationType) {
 		Assert.notNull(autowiredAnnotationType, "'autowiredAnnotationType' must not be null");

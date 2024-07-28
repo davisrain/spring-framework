@@ -76,7 +76,7 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	// 该注入点是否是必须的
 	private final boolean required;
 
-	// TODO 含义
+	// 表示该注入点对应的bean是否允许在根据类型获取获选注入bean的时候就初始化
 	private final boolean eager;
 
 	// 注入点的嵌套层级

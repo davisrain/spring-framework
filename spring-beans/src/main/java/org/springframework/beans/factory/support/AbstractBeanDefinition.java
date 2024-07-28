@@ -196,6 +196,8 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	private boolean nonPublicAccessAllowed = true;
 
 	// 表示是否宽松的构造器解析，默认是true
+	// 这个参数会影响构造器注入的时候对构造函数的选择，通过计算构造器参数的typeDiffWeight的时候采取不同的计算方式
+	// 并且当这个参数为false时，如果构造器注入的时候选择出了多个构造函数，那么会报错
 	private boolean lenientConstructorResolution = true;
 
 	@Nullable

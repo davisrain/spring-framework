@@ -24,12 +24,20 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
  * to post-process the merged bean definition (a processed copy of the original bean
  * definition) that the Spring {@code BeanFactory} uses to create a bean instance.
  *
+ * 后置处理器回调接口，针对运行时的merged bean definition
+ * BeanPostProcessor的实现类可能会实现这个子接口为了去对merged bean definition作后置处理
+ *
  * <p>The {@link #postProcessMergedBeanDefinition} method may for example introspect
  * the bean definition in order to prepare some cached metadata before post-processing
  * actual instances of a bean. It is also allowed to modify the bean definition but
  * <i>only</i> for definition properties which are actually intended for concurrent
  * modification. Essentially, this only applies to operations defined on the
  * {@link RootBeanDefinition} itself but not to the properties of its base classes.
+ *
+ * postProcessMergedBeanDefinition方法也许会内省这个bean definition为了去准备一些缓存的元数据在实际的bean实例后置处理之前。
+ * 它也允许去修改bean definition，但是仅仅只针对那些实际想要并发修改的definition的属性。
+ * 必要的是，这个只能应用于定义在RootBeanDefinition里面的操作，不能用于base class里面的属性。
+ * 比如解析@Autowired 和 @Resource注解标注的注入点到merged bean definition的externallyManagedConfigMembers集合里面
  *
  * @author Juergen Hoeller
  * @since 2.5

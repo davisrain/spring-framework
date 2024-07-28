@@ -25,16 +25,29 @@ import java.beans.PropertyDescriptor;
  * {@link org.springframework.beans.factory.BeanFactory} or a
  * {@link org.springframework.validation.DataBinder}.
  *
+ * spring低级别的javaBean基建的核心接口
+ *
  * <p>Provides operations to analyze and manipulate standard JavaBeans:
  * the ability to get and set property values (individually or in bulk),
  * get property descriptors, and query the readability/writability of properties.
  *
+ * 提供操作去分析和操作基础的javaBean：
+ * 提供了get和set属性值的能力，单独和批量都可以
+ * 提供了获取propertyDescriptor的能力
+ * 以及查询property的可读可写的能力
+ *
  * <p>This interface supports <b>nested properties</b> enabling the setting
  * of properties on subproperties to an unlimited depth.
+ *
+ * 这个接口支持嵌套的properties，可以设置property的value通过一个不限制子properties深度的方式。
+ * 即可以通过 foo.bar.xx.yy = value 这种方式进行嵌套属性值的设置
  *
  * <p>A BeanWrapper's default for the "extractOldValueForEditor" setting
  * is "false", to avoid side effects caused by getter method invocations.
  * Turn this to "true" to expose present property values to custom editors.
+ *
+ * 一个beanWrapper的extractOldValueForEditor设置是false，去避免调用getter方法时的副作用。
+ * 将这个值转变为true的话，就会将存在的属性值暴露给自定义的editor
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
@@ -76,6 +89,8 @@ public interface BeanWrapper extends ConfigurablePropertyAccessor {
 	 * (as determined by standard JavaBeans introspection).
 	 * @return the PropertyDescriptors for the wrapped object
 	 */
+	// 获取被包装的对象的propertyDescriptor数组
+	// 通过基础的JavaBean的内省方式获取到的
 	PropertyDescriptor[] getPropertyDescriptors();
 
 	/**
