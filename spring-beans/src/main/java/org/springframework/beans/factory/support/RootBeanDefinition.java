@@ -130,6 +130,7 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	Object[] preparedConstructorArguments;
 
 	/** Common lock for the two post-processing fields below. */
+	// 在mergedBeanDefinition的postProcess过程中进行同步操作的锁，主要是保证对externallyManaged相关字段修改的线程安全
 	final Object postProcessingLock = new Object();
 
 	/** Package-visible field that indicates MergedBeanDefinitionPostProcessor having been applied. */
@@ -148,10 +149,12 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 
 	@Nullable
 	// 表示的是那些外部管理的初始化方法，比如@PostConstruct注解标注的那些初始化方法，主要在CommonAnnotationBeanPostProcessor这个类里面进行解析填充
+	// 如果是私有方法，存储的是类的全限定名+方法名；否则存储的是方法的简单名称
 	private Set<String> externallyManagedInitMethods;
 
 	@Nullable
 	// 表示的是那些外部管理的destroy方法，比如@PreDestroy注解标注的那些destroy方法，主要在CommonAnnotationBeanPostProcessor这个类里面进行解析填充
+	// 如果是私有方法，存储的是类的全限定名+方法名；否则存储的是方法的简单名称
 	private Set<String> externallyManagedDestroyMethods;
 
 

@@ -305,8 +305,10 @@ public class InitDestroyAnnotationBeanPostProcessor
 
 		private final Class<?> targetClass;
 
+		// init方法集合
 		private final Collection<LifecycleElement> initMethods;
 
+		// destroy方法集合
 		private final Collection<LifecycleElement> destroyMethods;
 
 		@Nullable

@@ -80,11 +80,15 @@ import org.springframework.util.StringValueResolver;
  * annotations in the {@code javax.annotation} package. These common Java
  * annotations are supported in many Java EE 5 technologies (e.g. JSF 1.2),
  * as well as in Java 6's JAX-WS.
+ * BeanPostProcessor的实现支持common java注解，特别是jsr250里面的注解，在javax.annotation包下面。
+ * 这些common java注解在很多java5的技术里面都支持，同样在java6里面也是
  *
  * <p>This post-processor includes support for the {@link javax.annotation.PostConstruct}
  * and {@link javax.annotation.PreDestroy} annotations - as init annotation
  * and destroy annotation, respectively - through inheriting from
  * {@link InitDestroyAnnotationBeanPostProcessor} with pre-configured annotation types.
+ * 这个post-processor包含对@PostConstruct和@PreDestroy注解的支持，作为初始化注解和销毁注解，
+ * 通过继承InitDestroyAnnotationBeanPostProcessor来实现的
  *
  * <p>The central element is the {@link javax.annotation.Resource} annotation
  * for annotation-driven injection of named beans, by default from the containing
@@ -518,7 +522,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 		// 因此需要一个签名相同的方法来实现动态分派，该方法的内容就是将参数转型，然后调用setT(Integer t)方法。
 		// 而这一对桥接方法在解析@Resource注解时就不会通过检验，直接会跳过。
 //		public void setT(Object t) {
-//			String temp = (String) t;
+//			String temp = (Integer) t;
 //			setT(temp);
 //		}
 
@@ -681,13 +685,17 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 	 */
 	protected abstract static class LookupElement extends InjectionMetadata.InjectedElement {
 
+		// 如果@Resource注解的name属性有值，赋值给LookupElement的name，否则根据field或者method的名称进行解析，获取到name的值
 		protected String name = "";
 
+		// 根据@Resource注解的name属性是否有值，来设置不同的变量，如果指定了name属性，那么isDefaultName为false，否则为true
 		protected boolean isDefaultName = false;
 
+		// 如果@Resource注解的type属性不为Object.class，那么赋值给该字段，否则根据field的类型 或者 method的第一个参数类型进行解析，得到对应的lookupType
 		protected Class<?> lookupType = Object.class;
 
 		@Nullable
+		// 根据@Resource注解的lookupValue属性 和 mappedName属性来赋值
 		protected String mappedName;
 
 		public LookupElement(Member member, @Nullable PropertyDescriptor pd) {
