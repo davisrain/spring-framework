@@ -74,6 +74,8 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	// 决定这个definition是否需要被重新合并
 	volatile boolean stale;
 
+	// 是否允许对bean进行一些缓存操作。
+	// 比如缓存bean对应的过滤后的propertyDescriptor
 	boolean allowCaching = true;
 
 	// 表示factoryMethod是否是唯一的

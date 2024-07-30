@@ -174,6 +174,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 
 	private final Set<String> ignoredResourceTypes = new HashSet<>(1);
 
+	// 如果按name解析失败了，是否用将按类型去解析作为兜底
 	private boolean fallbackToDefaultTypeMatch = true;
 
 	private boolean alwaysUseJndiLookup = false;
@@ -364,7 +365,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 					if (metadata != null) {
 						metadata.clear(pvs);
 					}
-					// 调用buildResourceMetadata根据clazz构造InjectionMetdata
+					// 调用buildResourceMetadata根据clazz构造InjectionMetadata
 					metadata = buildResourceMetadata(clazz);
 					// 将新构建的metadata放入缓存
 					this.injectionMetadataCache.put(cacheKey, metadata);
@@ -561,6 +562,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 			}
 			@Override
 			public Object getTarget() {
+				// 使用getResource方法，获取到实际应该执行方法的bean
 				return getResource(element, requestingBeanName);
 			}
 			@Override
@@ -568,6 +570,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 			}
 		};
 
+		// 创建一个动态代理类，当真正执行方法的时候才通过getTarget去获取实际的bean进行执行，以实现懒加载的效果
 		ProxyFactory pf = new ProxyFactory();
 		pf.setTargetSource(ts);
 		if (element.lookupType.isInterface()) {
@@ -957,6 +960,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 
 		@Override
 		public Class<?> getDependencyType() {
+			// 重写dependencyDescriptor的dependencyType方法，直接返回lookupType
 			return this.lookupType;
 		}
 	}

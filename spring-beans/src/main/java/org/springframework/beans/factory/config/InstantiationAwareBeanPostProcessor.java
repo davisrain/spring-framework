@@ -101,6 +101,12 @@ public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
 	 * {@link #postProcessPropertyValues} implementation, and {@code pvs} otherwise.
 	 * In a future version of this interface (with {@link #postProcessPropertyValues} removed),
 	 * the default implementation will return the given {@code pvs} as-is directly.
+	 *
+	 * 在factory将给出的property values应用到给出的bean之前，先对他们进行post process，不需要任何property descriptor。
+	 * 如果这个postProcessor提供了一个自定义的postProcessPropertyValues方法的实现，那么该方法的实现就应该返回null，
+	 * 如果没有，那么该方法应该返回一个PropertyValues对象。
+	 * 在未来的版本，postProcessPropertyValues方法会被删除掉，默认的该方法的实现直接将参数里面的pvs返回
+	 *
 	 * @param pvs the property values that the factory is about to apply (never {@code null})
 	 * @param bean the bean instance created, but whose properties have not yet been set
 	 * @param beanName the name of the bean

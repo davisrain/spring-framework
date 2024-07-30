@@ -478,12 +478,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 	@Override
 	public Object resolveBeanByName(String name, DependencyDescriptor descriptor) {
+		// 将descriptor设置到当前的注入点ThreadLocal中，并且获取到之前正在注入的注入点，可能为null
 		InjectionPoint previousInjectionPoint = ConstructorResolver.setCurrentInjectionPoint(descriptor);
 		try {
 			// 直接调用getBean方法，其中type使用descriptor的dependencyType
 			return getBean(name, descriptor.getDependencyType());
 		}
 		finally {
+			// 将之前正在注入的注入点重新设置进ThreadLocal中
 			ConstructorResolver.setCurrentInjectionPoint(previousInjectionPoint);
 		}
 	}
@@ -1815,12 +1817,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					PropertyValues pvsToUse = ibp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);
 					// 如果返回的要使用的PropertyValues为null的话
 					if (pvsToUse == null) {
-						// 并且filterPds为null的话
+						// 如果filterPds为null，获取到bean对应的过滤后的propertyDescriptor数组
 						if (filteredPds == null) {
-							// 为了依赖检查过滤PropertyDescriptor
 							filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);
 						}
-						// 调用bp的processPropertyValues方法，该方法已经被标记为过时方法
+						// 调用bp的processPropertyValues方法作为兜底，该方法已经被标记为过时方法
 						pvsToUse = ibp.postProcessPropertyValues(pvs, filteredPds, bw.getWrappedInstance(), beanName);
 						// 如果要使用的PropertyValues仍为null，直接返回
 						if (pvsToUse == null) {
@@ -1855,6 +1856,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * other beans in this factory if autowire is set to "byName".
 	 * @param beanName the name of the bean we're wiring up.
 	 * Useful for debugging messages; not used functionally.
+	 *
+	 * 如果autowire模式是被设置为byName的，那么填充任一遗漏的属性值，用bean factory中对应的其他bean对象。
+	 *
 	 * @param mbd bean definition to update through autowiring
 	 * @param bw the BeanWrapper from which we can obtain information about the bean
 	 * @param pvs the PropertyValues to register wired objects with
@@ -1863,8 +1867,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			String beanName, AbstractBeanDefinition mbd, BeanWrapper bw, MutablePropertyValues pvs) {
 
 		// 查找到mbd的propertyValues中不包含的 且 不是简单类型 且没有被排除依赖检查的属性名称
+		// 1、如果mbd的propertyValues中已经包含了，剔除
+		// 2、如果是简单类型，剔除
+		// 3、如果没有writeMethod，剔除
+		// 4、如果字段类型是ignoreDependencyTypes中包含的类型，剔除
+		// 5、如果writeMethod的声明类实现了ignoreDependencyInterfaces中的接口，
+		// 并且writeMethod是ignoreDependencyInterfaces中的重写方法，剔除
 		String[] propertyNames = unsatisfiedNonSimpleProperties(mbd, bw);
-		// 遍历这些属性名称
+		// 遍历这些属性名称，根据属性名称去bean factory中找到对应的bean来注入
 		for (String propertyName : propertyNames) {
 			// 如果容器中是否包含这些属性名称对应的bean
 			if (containsBean(propertyName)) {
@@ -2518,10 +2528,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	private static class AutowireByTypeDependencyDescriptor extends DependencyDescriptor {
 
 		public AutowireByTypeDependencyDescriptor(MethodParameter methodParameter, boolean eager) {
+			// required设置为false。表示该依赖不是必须的，如果找不到的话，返回null，不会报错
 			super(methodParameter, false, eager);
 		}
 
 		@Override
+		// 将dependencyName的返回设置为null，这样在determineAutowireCandidate的时候就不能按dependencyName去匹配，
+		// 只能通过primary属性、priority接口、是否存在于resolvableDependencies中来筛选
 		public String getDependencyName() {
 			return null;
 		}
