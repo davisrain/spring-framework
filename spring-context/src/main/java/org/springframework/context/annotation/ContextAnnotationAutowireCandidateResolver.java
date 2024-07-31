@@ -143,6 +143,8 @@ public class ContextAnnotationAutowireCandidateResolver extends QualifierAnnotat
 
 		// 创建一个代理类并返回
 		ProxyFactory pf = new ProxyFactory();
+		// 自主修改源代码，设置暴露代理对象，方便测试
+		pf.setExposeProxy(true);
 		pf.setTargetSource(ts);
 		Class<?> dependencyType = descriptor.getDependencyType();
 		if (dependencyType.isInterface()) {
