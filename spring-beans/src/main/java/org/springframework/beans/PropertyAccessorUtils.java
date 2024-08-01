@@ -45,9 +45,11 @@ public abstract class PropertyAccessorUtils {
 	 * @return whether the path indicates an indexed or nested property
 	 */
 	public static boolean isNestedOrIndexedProperty(@Nullable String propertyPath) {
+		// 如果 属性路径 为null，直接返回false
 		if (propertyPath == null) {
 			return false;
 		}
+		// 依次遍历 属性路径 判断是否存在. 或 [ 字符，如果存在，返回true，否则返回false
 		for (int i = 0; i < propertyPath.length(); i++) {
 			char ch = propertyPath.charAt(i);
 			if (ch == PropertyAccessor.NESTED_PROPERTY_SEPARATOR_CHAR ||
@@ -81,6 +83,10 @@ public abstract class PropertyAccessorUtils {
 	/**
 	 * Determine the first (or last) nested property separator in the
 	 * given property path, ignoring dots in keys (like "map[my.key]").
+	 *
+	 * 找出第一个或者最后一个嵌套属性的分隔符，从给出的属性路径中。
+	 * 忽略掉被包含在[]里面的分隔符
+	 *
 	 * @param propertyPath the property path to check
 	 * @param last whether to return the last separator rather than the first
 	 * @return the index of the nested property separator, or -1 if none

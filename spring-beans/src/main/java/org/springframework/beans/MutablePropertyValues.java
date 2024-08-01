@@ -314,6 +314,14 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 
 	@Override
 	public boolean contains(String propertyName) {
+		// 如果propertyValueList里面存在对应propertyName的propertyValue，返回true
+		// 或者 存在于processedProperties中，也表示存在，返回true
+
+		// 会更新processedProperties的地方是CommonAnnotationBeanPostProcessor 和 AutowiredAnnotationBeanPostProcessor解析由method方法形成的InjectedElement的时候
+		// 根据InjectedElement的propertyDescriptor判断该element是否应该跳过的时候，如果不应该跳过，说明PropertyValues里面没有对应的属性值，那么就会将对应的propertyName维护到
+		// PropertyValues的processedProperties里面，说明该属性值已经在其他地方处理过了。
+
+		// 但是通过field进行注入的InjectedElement，不会将propertyName维护到processedProperties里面
 		return (getPropertyValue(propertyName) != null ||
 				(this.processedProperties != null && this.processedProperties.contains(propertyName)));
 	}

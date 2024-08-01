@@ -1775,7 +1775,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		PropertyValues pvs = (mbd.hasPropertyValues() ? mbd.getPropertyValues() : null);
 		// 获取mbd的解析后的autowireMode
 		int resolvedAutowireMode = mbd.getResolvedAutowireMode();
-		// 如果是byName或者byType的
+		// 如果是byName或者byType的，根据bean所对应的propertyDescriptor，将propertyValues还没有包含的属性通过name或者type的方式解析后注入。
+		// 只能注入非simple类型的且有write方法的属性
 		if (resolvedAutowireMode == AUTOWIRE_BY_NAME || resolvedAutowireMode == AUTOWIRE_BY_TYPE) {
 			// 将pvs转换为新的MutablePropertyValues
 			MutablePropertyValues newPvs = new MutablePropertyValues(pvs);
@@ -1798,7 +1799,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// 查看beanFactory是否持有InstantiationAwareBeanPostProcessor类型的bp
 		boolean hasInstAwareBpps = hasInstantiationAwareBeanPostProcessors();
-		// 查看mbd是否需要做依赖检查
+		// 根据mbd的dependencyCheck属性判断 是否需要做依赖检查
+		// 默认的情况下dependencyCheck属性是 DEPENDENCY_CHECK_NONE的，即不做任何依赖的检查
 		boolean needsDepCheck = (mbd.getDependencyCheck() != AbstractBeanDefinition.DEPENDENCY_CHECK_NONE);
 
 		PropertyDescriptor[] filteredPds = null;
@@ -1817,11 +1819,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					PropertyValues pvsToUse = ibp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);
 					// 如果返回的要使用的PropertyValues为null的话
 					if (pvsToUse == null) {
-						// 如果filterPds为null，获取到bean对应的过滤后的propertyDescriptor数组
+						// 如果filterPds为null，获取到bean对应的过滤后的propertyDescriptor数组。
+						// 过滤的逻辑就是根据ignoreDependencyTypes集合和ignoreDependencyInterfaces集合进行过滤
 						if (filteredPds == null) {
 							filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);
 						}
-						// 调用bp的processPropertyValues方法作为兜底，该方法已经被标记为过时方法
+						// 调用bp的processPropertyValues方法作为兜底，该方法已经被标记为过时方法。
+						// 处理的逻辑基本都被转移到postProcessProperties方法里面了
 						pvsToUse = ibp.postProcessPropertyValues(pvs, filteredPds, bw.getWrappedInstance(), beanName);
 						// 如果要使用的PropertyValues仍为null，直接返回
 						if (pvsToUse == null) {
@@ -2104,6 +2108,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * Apply the given property values, resolving any runtime references
 	 * to other beans in this bean factory. Must use deep copy, so we
 	 * don't permanently modify this property.
+	 *
+	 * 应用这个给出的property values，解析任一运行时的引用为这个bean factory中的其他bean。
+	 * 在解析property value的时候，使用深拷贝，这样我们不会永久的修改这个属性
+	 *
 	 * @param beanName the bean name passed for better exception information
 	 * @param mbd the merged bean definition
 	 * @param bw the BeanWrapper wrapping the target object
@@ -2167,13 +2175,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			if (pv.isConverted()) {
 				deepCopy.add(pv);
 			}
-			// 否则，进行类型转换
+			// 否则，进行解析加类型转换
 			else {
 				// 获取属性名字
 				String propertyName = pv.getName();
 				// 获取属性的原始值
 				Object originalValue = pv.getValue();
-				// 如果属性的原始值等于AutowiredPropertyMarker的常量，那么表示该属性需要进行依赖解析，从容器中去对应的bean作为值
+				// 如果属性的原始值等于AutowiredPropertyMarker的常量，那么表示该属性需要进行依赖解析，从容器中取对应的bean作为值
 				if (originalValue == AutowiredPropertyMarker.INSTANCE) {
 					// 获取bw对应属性的PropertyDescriptor，然后获取到写方法
 					Method writeMethod = bw.getPropertyDescriptor(propertyName).getWriteMethod();

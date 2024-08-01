@@ -663,12 +663,15 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	@Override
 	public boolean isWritableProperty(String propertyName) {
 		try {
+			// 根据propertyName获取对应的PropertyHandler
 			PropertyHandler ph = getPropertyHandler(propertyName);
+			// 如果存在PropertyHandler，调用它的isWritable方法，将结果返回
 			if (ph != null) {
 				return ph.isWritable();
 			}
 			else {
 				// Maybe an indexed/mapped property...
+				// 可能是indexed 或者 mapped类型的属性，尝试获取属性值，如果不会报错的话，说明是可写的，返回true
 				getPropertyValue(propertyName);
 				return true;
 			}
@@ -852,6 +855,9 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	/**
 	 * Return the {@link PropertyHandler} for the specified {@code propertyName}, navigating
 	 * if necessary. Return {@code null} if not found rather than throwing an exception.
+	 *
+	 * 为指定的propertyName返回一个PropertyHandler，如果没有找到对应的属性，返回null而不是抛出异常
+	 *
 	 * @param propertyName the property to obtain the descriptor for
 	 * @return the property descriptor for the specified property,
 	 * or {@code null} if not found
@@ -860,6 +866,7 @@ public abstract class AbstractNestablePropertyAccessor extends AbstractPropertyA
 	@Nullable
 	protected PropertyHandler getPropertyHandler(String propertyName) throws BeansException {
 		Assert.notNull(propertyName, "Property name must not be null");
+		// 如果propertyName包含. 说明是嵌套的属性，获取到最里层的propertyAccessor
 		AbstractNestablePropertyAccessor nestedPa = getPropertyAccessorForPropertyPath(propertyName);
 		return nestedPa.getLocalPropertyHandler(getFinalPath(nestedPa, propertyName));
 	}
