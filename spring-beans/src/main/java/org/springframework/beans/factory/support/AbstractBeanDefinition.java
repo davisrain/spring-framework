@@ -230,8 +230,10 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	// bean的摧毁房啊
 	private String destroyMethodName;
 
+	// true表示根据initMethodName必须能在bean对应的类型中找到对应的init方法，否则报错
 	private boolean enforceInitMethod = true;
 
+	// true表示根据destroyMethodName必须能在bean对应的类型中找到对应的destroy方法，否则报错
 	private boolean enforceDestroyMethod = true;
 
 	// 表示这个beanDefinition是否是合成的，即不是用户代码创建的
