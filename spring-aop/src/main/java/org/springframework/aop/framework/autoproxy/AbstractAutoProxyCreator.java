@@ -56,6 +56,8 @@ import org.springframework.util.StringUtils;
  * that wraps each eligible bean with an AOP proxy, delegating to specified interceptors
  * before invoking the bean itself.
  *
+ * BeanPostProcessor的一个实现，用于包装每个符合条件的bean为一个aop代理对象，在调用到bean自身的方法之前委托到指定的拦截器
+ *
  * <p>This class distinguishes between "common" interceptors: shared for all proxies it
  * creates, and "specific" interceptors: unique per bean instance. There need not be any
  * common interceptors. If there are, they are set using the interceptorNames property.
@@ -64,15 +66,25 @@ import org.springframework.util.StringUtils;
  * of prototype advisors and interceptors: for example, to support stateful mixins.
  * Any advice type is supported for {@link #setInterceptorNames "interceptorNames"} entries.
  *
+ * 这个类区分了公共的拦截器和指定的拦截器，公共的拦截器共享给这个类创建的所有代理对象，而指定的拦截对于每个bean实例来说是唯一的。
+ * 这里不需要任何公共的拦截器，如果需要的话，他们会被设置使用interceptorNames属性。
+ *
+ *
  * <p>Such auto-proxying is particularly useful if there's a large number of beans that
  * need to be wrapped with similar proxies, i.e. delegating to the same interceptors.
  * Instead of x repetitive proxy definitions for x target beans, you can register
  * one single such post processor with the bean factory to achieve the same effect.
+ * 这样一个自动代理是特别有用的，当有大量的bean需要进行相似的代理包装。比如，委托给同样的拦截器。
+ * 而不是为x个bean定义x个重复的代理定义，你能够注册一个单独的postProcessor去达到同样的效果
  *
  * <p>Subclasses can apply any strategy to decide if a bean is to be proxied, e.g. by type,
  * by name, by definition details, etc. They can also return additional interceptors that
  * should just be applied to the specific bean instance. A simple concrete implementation is
  * {@link BeanNameAutoProxyCreator}, identifying the beans to be proxied via given names.
+ * 子类可以应用任何的策略去决定一个bean是否应该被代理。
+ * 比如，根据类型、根据名称、根据定义的细节等等。
+ * 他们也能够返回附加的需要被应用到指定的bean实例上的拦截器。
+ * 一个简单的具体的实现就是BeanNameAutoProxyCreator，指定了bean应该通过给出的name进行代理。
  *
  * <p>Any number of {@link TargetSourceCreator} implementations can be used to create
  * a custom target source: for example, to pool prototype objects. Auto-proxying will
@@ -80,6 +92,10 @@ import org.springframework.util.StringUtils;
  * {@link org.springframework.aop.TargetSource}. If there are no TargetSourceCreators set,
  * or if none matches, a {@link org.springframework.aop.target.SingletonTargetSource}
  * will be used by default to wrap the target bean instance.
+ *
+ * 任意数量的TargetSourceCreator的实现能够被用来去创建一个自定义的target source。比如，去持有一个原型对象。
+ * 自动代理会发生即使这里没有任何增强，只要TargetSourceCreator指定了一个自定义的TargetSource。
+ * 如果这里没有TargetSourceCreator被设置 或者 没有匹配的，那么一个SingletonTargetSource将会被默认使用去包装target bean实例
  *
  * @author Juergen Hoeller
  * @author Rod Johnson

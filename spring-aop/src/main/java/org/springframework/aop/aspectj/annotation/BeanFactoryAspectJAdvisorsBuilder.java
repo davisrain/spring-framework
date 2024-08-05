@@ -34,6 +34,8 @@ import org.springframework.util.Assert;
  * Helper for retrieving @AspectJ beans from a BeanFactory and building
  * Spring Advisors based on them, for use with auto-proxying.
  *
+ * 从bean factory中查找@AspectJ注解标注的bean 并且 基于它们构建Spring Advisors，用于自动代理
+ *
  * @author Juergen Hoeller
  * @since 2.0.2
  * @see AnnotationAwareAspectJAutoProxyCreator
@@ -47,8 +49,11 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 	@Nullable
 	private volatile List<String> aspectBeanNames;
 
+	// 对于是singleton的aspect，perClause是singleton的，并且beanFactory的scope也是属于singleton的，
+	// 那么会缓存创建出的Advisor集合
 	private final Map<String, List<Advisor>> advisorsCache = new ConcurrentHashMap<>();
 
+	// 对于不是singleton的aspect，将AspectInstanceFactory缓存起来，每次都通过AspectJAdvisorFactory和AspectInstanceFactory去创建出对应的advisor
 	private final Map<String, MetadataAwareAspectInstanceFactory> aspectFactoryCache = new ConcurrentHashMap<>();
 
 
@@ -77,6 +82,11 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 	 * Look for AspectJ-annotated aspect beans in the current bean factory,
 	 * and return to a list of Spring AOP Advisors representing them.
 	 * <p>Creates a Spring Advisor for each AspectJ advice method.
+	 *
+	 * 查找被AspectJ的注解标注的那些bean，在当前的bean factory中，
+	 * 并且返沪一个Spring的Aop advisor来表示它们。
+	 * 为每一个AspectJ的advice方法都创建一个Spring的Advisor
+	 *
 	 * @return the list of {@link org.springframework.aop.Advisor} beans
 	 * @see #isEligibleBean
 	 */

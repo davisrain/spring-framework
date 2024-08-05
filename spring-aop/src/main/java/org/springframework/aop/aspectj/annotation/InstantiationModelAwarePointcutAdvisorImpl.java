@@ -84,14 +84,23 @@ final class InstantiationModelAwarePointcutAdvisorImpl
 			Method aspectJAdviceMethod, AspectJAdvisorFactory aspectJAdvisorFactory,
 			MetadataAwareAspectInstanceFactory aspectInstanceFactory, int declarationOrder, String aspectName) {
 
+		// 设置被声明的pointcut
 		this.declaredPointcut = declaredPointcut;
+		// 设置advice方法的声明类
 		this.declaringClass = aspectJAdviceMethod.getDeclaringClass();
+		// 设置方法的名称
 		this.methodName = aspectJAdviceMethod.getName();
+		// 设置方法的参数类型
 		this.parameterTypes = aspectJAdviceMethod.getParameterTypes();
+		// 设置aspectJ的advice方法
 		this.aspectJAdviceMethod = aspectJAdviceMethod;
+		// 设置aspectJ解析advisor的factory
 		this.aspectJAdvisorFactory = aspectJAdvisorFactory;
+		// 设置可以获取aspectInstance的aspectInstanceFactory
 		this.aspectInstanceFactory = aspectInstanceFactory;
+		// 设置advice方法声明的顺序，默认情况下传的是0
 		this.declarationOrder = declarationOrder;
+		// 设置aspectName，即切面的名称，默认是aspect实例的beanName
 		this.aspectName = aspectName;
 
 		if (aspectInstanceFactory.getAspectMetadata().isLazilyInstantiated()) {

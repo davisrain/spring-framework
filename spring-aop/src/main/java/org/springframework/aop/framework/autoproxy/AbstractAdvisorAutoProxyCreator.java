@@ -31,10 +31,15 @@ import org.springframework.util.Assert;
  * Generic auto proxy creator that builds AOP proxies for specific beans
  * based on detected Advisors for each bean.
  *
+ * 通用的自动代理创建类，基于为每个bean探测到的advisor去构建指定bean的aop代理
+ *
  * <p>Subclasses may override the {@link #findCandidateAdvisors()} method to
  * return a custom list of Advisors applying to any object. Subclasses can
  * also override the inherited {@link #shouldSkip} method to exclude certain
  * objects from auto-proxying.
+ *
+ * 子类可能会重写findCandidateAdvisors方法去返回一个自定义的应用于任意对象的advisors集合。
+ * 子类同样能够去重写shouldSkip方法去排除不需要动态代理的类
  *
  * <p>Advisors or advices requiring ordering should be annotated with
  * {@link org.springframework.core.annotation.Order @Order} or implement the
@@ -43,6 +48,9 @@ import org.springframework.util.Assert;
  * not annotated with {@code @Order} or don't implement the {@code Ordered}
  * interface will be considered as unordered; they will appear at the end of the
  * advisor chain in an undefined order.
+ * advisors和advices要求排序的话，需要被@Order注解标注 或者 实现Ordered接口。
+ * 这个类使用AnnotationAwareOrderComparator对advisor进行排序。
+ * 那些没有被@Order注解标注或者没有实现Ordered接口的被认为是没有排序的，他们会出现在advisor链的末尾，以一个没有定义的顺序
  *
  * @author Rod Johnson
  * @author Juergen Hoeller

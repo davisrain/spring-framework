@@ -31,15 +31,24 @@ import org.springframework.util.Assert;
  * {@link AspectJAwareAdvisorAutoProxyCreator} subclass that processes all AspectJ
  * annotation aspects in the current application context, as well as Spring Advisors.
  *
+ * AspectJAwareAdvisorAutoProxyCreator的子类，能够处理当前applicationContext中所有的AspectJ注解的切面，并且也包含spring定义的advisor
+ *
  * <p>Any AspectJ annotated classes will automatically be recognized, and their
  * advice applied if Spring AOP's proxy-based model is capable of applying it.
  * This covers method execution joinpoints.
  *
+ * 任何被AspectJ注解标注的类将会被自动识别，并且他们的advice将会应用如果spring的aop的代理模式能够应用它。
+ * 这包含了方法执行的插入点
+ *
  * <p>If the &lt;aop:include&gt; element is used, only @AspectJ beans with names matched by
  * an include pattern will be considered as defining aspects to use for Spring auto-proxying.
  *
+ * 如果<aop:include/>元素被使用了，仅仅只有那些名称匹配include模式的被@AspectJ注解标注了的类会被作为定义的切面，用于spring的自动代理
+ *
  * <p>Processing of Spring Advisors follows the rules established in
  * {@link org.springframework.aop.framework.autoproxy.AbstractAdvisorAutoProxyCreator}.
+ *
+ * 处理Spring的advisor的逻辑遵循AbstractAdvisorAutoProxyCreator中建立的规则
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
@@ -122,6 +131,9 @@ public class AnnotationAwareAspectJAutoProxyCreator extends AspectJAwareAdvisorA
 	 * <p>If no &lt;aop:include&gt; elements were used then "includePatterns" will be
 	 * {@code null} and all beans are included. If "includePatterns" is non-null,
 	 * then one of the patterns must match.
+	 *
+	 * 根据<aop:include/>标签里面的includePatterns属性来判断给出的aspect bean是否是一个合格的切面，用于自动代理。
+	 * 如果includePatterns为null的话，那么所有bean都被包含进来；如果不是null的话，必须匹配对应的Pattern
 	 */
 	protected boolean isEligibleAspectBean(String beanName) {
 		// 如果includePatterns为null，直接返回true

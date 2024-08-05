@@ -23,6 +23,9 @@ import org.springframework.aop.PointcutAdvisor;
  * aspects that may have a lazy initialization strategy. For example,
  * a perThis instantiation model would mean lazy initialization of the advice.
  *
+ * 可以被包装了AspectJ切面的Spring AOP advisor实现的接口，实现类可以有一个懒初始化的策略。
+ * 比如，一个perThis的实例化模式代表着这个advice的懒初始化
+ *
  * @author Rod Johnson
  * @author Juergen Hoeller
  * @since 2.0

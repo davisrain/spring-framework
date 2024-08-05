@@ -171,11 +171,13 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 	 * @param paramTypes the parameter types for the pointcut
 	 */
 	public AspectJExpressionPointcut(Class<?> declarationScope, String[] paramNames, Class<?>[] paramTypes) {
+		// 设置pointcut声明的类
 		this.pointcutDeclarationScope = declarationScope;
 		if (paramNames.length != paramTypes.length) {
 			throw new IllegalStateException(
 					"Number of pointcut parameter names must match number of pointcut parameter types");
 		}
+		// 设置pointcut的参数名和参数类型
 		this.pointcutParameterNames = paramNames;
 		this.pointcutParameterTypes = paramTypes;
 	}

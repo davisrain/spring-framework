@@ -59,8 +59,10 @@ public abstract class AbstractExpressionPointcut implements ExpressionPointcut, 
 	}
 
 	public void setExpression(@Nullable String expression) {
+		// 设置pointcut的表达式的内容
 		this.expression = expression;
 		try {
+			// 解析表达式的模版方法
 			onSetExpression(expression);
 		}
 		catch (IllegalArgumentException ex) {

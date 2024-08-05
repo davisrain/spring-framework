@@ -49,6 +49,7 @@ public class LazySingletonAspectInstanceFactoryDecorator implements MetadataAwar
 
 	@Override
 	public Object getAspectInstance() {
+		// 通过持有的aspectInstanceFactory获取到对应的aspectInstance，然后将aspectInstance缓存起来
 		Object aspectInstance = this.materialized;
 		if (aspectInstance == null) {
 			Object mutex = this.maaif.getAspectCreationMutex();
