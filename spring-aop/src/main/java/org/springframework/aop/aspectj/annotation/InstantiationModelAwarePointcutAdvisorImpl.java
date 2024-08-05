@@ -103,16 +103,23 @@ final class InstantiationModelAwarePointcutAdvisorImpl
 		// 设置aspectName，即切面的名称，默认是aspect实例的beanName
 		this.aspectName = aspectName;
 
+		// 如果对应的aspect的perClause的kind是perThis 或者 perTarget 或者 perTypeWithin的，
+		// 那么是需要懒实例化的
 		if (aspectInstanceFactory.getAspectMetadata().isLazilyInstantiated()) {
 			// Static part of the pointcut is a lazy type.
+			// 将perClause上声明的pointcut和方法上声明的pointcut组合起来，
+			// 使得pointcut的ClassFilter和MethodMatcher形成或的逻辑关系，即满足其一就返回true
 			Pointcut preInstantiationPointcut = Pointcuts.union(
 					aspectInstanceFactory.getAspectMetadata().getPerClausePointcut(), this.declaredPointcut);
 
 			// Make it dynamic: must mutate from pre-instantiation to post-instantiation state.
 			// If it's not a dynamic pointcut, it may be optimized out
 			// by the Spring AOP infrastructure after the first evaluation.
+			// 是它变成动态的：当状态从实例化前变化为实例化后时必须进行变异。
+			// 如果这不是一个动态的pointcut，那么它可能被spring aop infrastructure在第一次evaluation之后优化掉
 			this.pointcut = new PerTargetInstantiationModelPointcut(
 					this.declaredPointcut, preInstantiationPointcut, aspectInstanceFactory);
+			// 将lazy标志设置为true
 			this.lazy = true;
 		}
 		// 如果是singleton的aspect
@@ -122,7 +129,7 @@ final class InstantiationModelAwarePointcutAdvisorImpl
 			this.pointcut = this.declaredPointcut;
 			// 将lazy设置为false
 			this.lazy = false;
-			// 根据pointcut实例化advice
+			// 根据pointcut实例化advice，由于lazy是false，因此立即对advice进行实例化
 			this.instantiatedAdvice = instantiateAdvice(this.declaredPointcut);
 		}
 	}
@@ -277,6 +284,9 @@ final class InstantiationModelAwarePointcutAdvisorImpl
 	 * Pointcut implementation that changes its behaviour when the advice is instantiated.
 	 * Note that this is a <i>dynamic</i> pointcut; otherwise it might be optimized out
 	 * if it does not at first match statically.
+	 *
+	 * pointcut的一个实现，当advice被实例化的时候改变自身pointcut的行为。
+	 * 注意这是一个dynamic pointcut，否则，如果它不首先静态匹配，那么它可能被优化掉
 	 */
 	private static final class PerTargetInstantiationModelPointcut extends DynamicMethodMatcherPointcut {
 

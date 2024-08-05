@@ -19,11 +19,14 @@ package org.aopalliance.intercept;
 /**
  * Intercepts calls on an interface on its way to the target. These
  * are nested "on top" of the target.
+ * 表示到目标对象的路上的拦截器，它们是被嵌套在目标对象的外层的
  *
  * <p>The user should implement the {@link #invoke(MethodInvocation)}
  * method to modify the original behavior. E.g. the following class
  * implements a tracing interceptor (traces all the calls on the
  * intercepted method(s)):
+ *
+ * 用户需要实现invoke方法去修改原始的行为。比如下面的类实现了一个tracing的拦截器
  *
  * <pre class=code>
  * class TracingInterceptor implements MethodInterceptor {
