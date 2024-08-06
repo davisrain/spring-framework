@@ -385,8 +385,17 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		if (Boolean.FALSE.equals(this.advisedBeans.get(cacheKey))) {
 			return bean;
 		}
-		// 如果bean的类对象是Advice PointCut Advisor AopInfrastructureBean这几种类型的 或者
-		// bean是应该跳过的(判断逻辑是 1.beanName属于AspectJPointcutAdvisor的aspectName 或者 2.beanName只以beanClass的全限定名 + .ORIGINAL命名的)
+		// isInfrastructureClass的逻辑是：
+		// 1.如果beanClass是Advice PointCut Advisor AopInfrastructureBean这几种类型的，说明是aop的基建类
+		// 2.如果类是被@Aspect注解标注的，且属性中没有ajc$开头的属性，说明是spring声明的切面类，也属于基建类
+
+		// shouldSkip的逻辑是：
+		// 1.先通过findCandidateAdvisors解析出ioc中所有的advisor类
+		// 2.然后遍历这些advisor，如果发现它们是AspectJPointcutAdvisor类型的，获取它们的aspectName和beanName进行比较，
+		// 如果相等，说明对应的bean是advisor类，需要跳过(这个条件基本不会触发，因为通过@Aspect注解声明的切面解析出来的advisor都是InstantiationModelAwarePointcutAdvisor类型的)
+		// 3.判断beanName是否是以beanClass的全限定名 + .ORIGINAL命名的，如果是，也需要跳过
+
+		// 只要满足上述两个方法其中一个，就不会被自动代理，将advisedBeans的缓存结果维护为false，直接返回bean
 		if (isInfrastructureClass(bean.getClass()) || shouldSkip(bean.getClass(), beanName)) {
 			// 将cacheKey存入advisedBeans中，并且value为false，表示不需要进行包装
 			this.advisedBeans.put(cacheKey, Boolean.FALSE);
@@ -395,7 +404,27 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		}
 
 		// Create proxy if we have advice.
-		// 根据beanName和beanClass查找到对应的advice和advisor
+		// getAdvicesAndAdvisorsForBean的逻辑是：
+		// 1.通过findCandidateAdvisors方法解析出所有候选的advisor类
+		// 	1.1 AbstractAdvisorAutoProxyCreator的实现是通过BeanFactoryAdvisorRetrievalHelper类去遍历beanFactory中所有Advisor类型的bean，并添加到集合中
+		// 	1.2 AnnotationAwareAspectJAutoProxyCreator的实现是通过BeanFactoryAspectJAdvisorsBuilder，根据beanFactory中被@Aspect注解标注的那些bean，
+		// 	以及bean中标注了AspectJ相关注解的方法，来生成对应的advisor对象，每个符合条件的方法都会生成一个advisor对象。
+		// 	具体的创建逻辑是在ReflectiveAspectJAdvisorFactory中实现的，会根据每个aspect类的工厂类AspectInstanceFactory去创建对应的advisor，
+		//  它实现了getAdvisors getAdvisor getAdvice等方法，并且aspectJAdvisorsBuilder中会缓存解析过的那些aspect的beanName，
+		//  并且会将每个aspect解析出来的advisors都缓存到advisorsCache中，当aspect是单例的情况；
+		//	如果aspect不是单例，会缓存aspectInstanceFactory到aspectFactoryCache中，然后每次再传入aspectJAdvisorFactory的getAdvisors方法进行解析
+
+		// 2.获取到所有候选的advisors之后，会调用findAdvisorsThatCanApply方法，选择出能够应用于对应beanClass的那些advisor，即合格的advisor。
+		// 	2.1 首先判断advisor是否是IntroductionAdvisor，如果是的话，获取它持有的ClassFilter对beanClass进行筛选
+		// 	2.2 然后再判断是否是PointcutAdvisor类型的，如果是，获取它的Pointcut的ClassFilter和MethodMatcher对beanClass和beanClass中的方法进行匹配
+		//  2.3 如果是其他类型的Advisor，直接返回true，表示是合格的advisor
+
+		// 3.然后对advisor集合进行扩展，主要是判断如果合格的advisor中存在AspectJ相关的advisor，那么添加一个advice是ExposeInvocationInterceptor的advisor到集合的最前面
+
+		// 4.然后对合格的advisor集合进行排序，主要是根据Ordered接口进行排序，
+		// 那些由@Aspect的bean解析出来的advisor的order值主要是通过bean上面标注的@Order注解或者实现的Ordered接口方法的返回值得到的
+
+		// 5.然后判断合格的advisor集合，如果为空，返回DO_NOT_PROXY，然后赋值给下面的specificInterceptors数组
 		Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean.getClass(), beanName, null);
 		// 如果查找到的advisors不为null的话
 		if (specificInterceptors != DO_NOT_PROXY) {

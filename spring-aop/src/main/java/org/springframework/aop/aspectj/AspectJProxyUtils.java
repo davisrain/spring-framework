@@ -38,6 +38,12 @@ public abstract class AspectJProxyUtils {
 	 * <p>This will expose the current Spring AOP invocation (necessary for some AspectJ pointcut
 	 * matching) and make available the current AspectJ JoinPoint. The call will have no effect
 	 * if there are no AspectJ advisors in the advisor chain.
+	 *
+	 * 向包含AspectJ advisor的代理链中添加特殊的advisor。
+	 * 具体来说，就是添加ExposeInvocationInterceptor到列表的开头。
+	 * 这将会暴露当前的spring aop 的invocation，对于一些AspectJ的pointcut匹配来说是必要的，
+	 * 并且能够获取到当前的AspectJ JoinPoint。这个调用不会起作用如果在advisor链里面不存在AspectJ的advisor的话
+	 *
 	 * @param advisors the advisors available
 	 * @return {@code true} if an {@link ExposeInvocationInterceptor} was added to the list,
 	 * otherwise {@code false}
