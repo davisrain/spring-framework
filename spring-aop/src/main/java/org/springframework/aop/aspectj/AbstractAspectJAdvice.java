@@ -53,6 +53,8 @@ import org.springframework.util.StringUtils;
  * Base class for AOP Alliance {@link org.aopalliance.aop.Advice} classes
  * wrapping an AspectJ aspect or an AspectJ-annotated advice method.
  *
+ * AOP Advice的基础类，包装了一个AspectJ的切面或者一个被AspectJ注解标注的advice方法
+ *
  * @author Rod Johnson
  * @author Adrian Colyer
  * @author Juergen Hoeller
@@ -126,42 +128,53 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	 * This will be non-null if the creator of this advice object knows the argument names
 	 * and sets them explicitly.
 	 */
+	// 如果advice的创建对象知道参数名称，并且显示地设置了，那么这个字段不会为null
 	@Nullable
 	private String[] argumentNames;
 
 	/** Non-null if after throwing advice binds the thrown value. */
+	// 如果afterThrowing advice绑定了抛出的变量，这个属性也不会null
 	@Nullable
 	private String throwingName;
 
 	/** Non-null if after returning advice binds the return value. */
+	// 如果afterReturning advice 绑定了返回值，这个属性也不为null
 	@Nullable
 	private String returningName;
 
+	// 发现的返回类型，当返回值匹配这个类型的时候，afterReturningAdvice才生效
 	private Class<?> discoveredReturningType = Object.class;
 
+	// 发现的异常抛出类型，当抛出的异常匹配这个类型的时候，afterThrowingAdvice才生效
 	private Class<?> discoveredThrowingType = Object.class;
 
 	/**
 	 * Index for thisJoinPoint argument (currently only
 	 * supported at index 0 if present at all).
 	 */
+	// JoinPoint参数的位置，只支持在index为0的位置
 	private int joinPointArgumentIndex = -1;
 
 	/**
 	 * Index for thisJoinPointStaticPart argument (currently only
 	 * supported at index 0 if present at all).
 	 */
+	// JoinPoint.StaticPart参数的位置，只支持在index为0的位置
 	private int joinPointStaticPartArgumentIndex = -1;
 
+	// 表示AspectJ注解里面的argNames属性所声明的参数名 到 adviceMethod上面的参数index的映射map
 	@Nullable
 	private Map<String, Integer> argumentBindings;
 
 	private boolean argumentsIntrospected = false;
 
+	// 发现的返回值的泛型类型
 	@Nullable
 	private Type discoveredReturningGenericType;
 	// Note: Unlike return type, no such generic information is needed for the throwing type,
 	// since Java doesn't allow exception types to be parameterized.
+
+	// 抛出异常不存在泛型类型是因为java不允许异常类型的泛型参数化
 
 
 	/**
@@ -174,11 +187,17 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 			Method aspectJAdviceMethod, AspectJExpressionPointcut pointcut, AspectInstanceFactory aspectInstanceFactory) {
 
 		Assert.notNull(aspectJAdviceMethod, "Advice method must not be null");
+		// advice方法的声明类
 		this.declaringClass = aspectJAdviceMethod.getDeclaringClass();
+		// advice方法名称
 		this.methodName = aspectJAdviceMethod.getName();
+		// advice方法参数类型
 		this.parameterTypes = aspectJAdviceMethod.getParameterTypes();
+		// advice方法
 		this.aspectJAdviceMethod = aspectJAdviceMethod;
+		// pointcut
 		this.pointcut = pointcut;
+		// aspectInstanceFactory
 		this.aspectInstanceFactory = aspectInstanceFactory;
 	}
 
@@ -312,12 +331,16 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	 */
 	protected void setReturningNameNoCheck(String name) {
 		// name could be a variable or a type...
+		// 判断传入的name是否是合法的变量名
 		if (isVariableName(name)) {
+			// 如果是，将其赋值给returningName
 			this.returningName = name;
 		}
+		// 如果不是合法的变量名，假定它是一个类型
 		else {
 			// assume a type
 			try {
+				// 尝试加载这个类对象，赋值给discoveredReturningType
 				this.discoveredReturningType = ClassUtils.forName(name, getAspectClassLoader());
 			}
 			catch (Throwable ex) {
@@ -347,12 +370,16 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	 */
 	protected void setThrowingNameNoCheck(String name) {
 		// name could be a variable or a type...
+		// 检查name是否是合法的变量
 		if (isVariableName(name)) {
+			// 如果是，赋值给throwingName
 			this.throwingName = name;
 		}
+		// 否则，假设它是一个类型，尝试加载它
 		else {
 			// assume a type
 			try {
+				// 将加载出的类赋值给discoveredThrowingType
 				this.discoveredThrowingType = ClassUtils.forName(name, getAspectClassLoader());
 			}
 			catch (Throwable ex) {
@@ -384,15 +411,29 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	/**
 	 * Do as much work as we can as part of the set-up so that argument binding
 	 * on subsequent advice invocations can be as fast as possible.
+	 *
+	 * 尽可能的多做工作作为setup的一部分以至于后续advice调用的时候参数绑定能够尽可能的快
+	 *
 	 * <p>If the first argument is of type JoinPoint or ProceedingJoinPoint then we
 	 * pass a JoinPoint in that position (ProceedingJoinPoint for around advice).
+	 *
+	 * 如果第一个参数是JoinPoint或者ProceedingJoinPoint，那么我们在那个位置放置一个JoinPoint
+	 *
 	 * <p>If the first argument is of type {@code JoinPoint.StaticPart}
 	 * then we pass a {@code JoinPoint.StaticPart} in that position.
+	 *
+	 * 如果第一个参数是JoinPoint.StaticPart，那么我们在那个位置放置一个JoinPoint.StaticPart
+	 *
 	 * <p>Remaining arguments have to be bound by pointcut evaluation at
 	 * a given join point. We will get back a map from argument name to
 	 * value. We need to calculate which advice parameter needs to be bound
 	 * to which argument name. There are multiple strategies for determining
 	 * this binding, which are arranged in a ChainOfResponsibility.
+	 *
+	 * 剩余的参数需要去在一个给出的join point去绑定通过pointcut的解析。
+	 * 我们将会返回一个map，是参数名到值的映射。
+	 * 我们需要去计算哪一个advice的参数需要去绑定到哪一个参数名。
+	 * 对于找出这个绑定关系有许多策略，其中一个是按ChainOfResponsibility来排序
 	 */
 	public final synchronized void calculateArgumentBindings() {
 		// The simple case... nothing to bind.
@@ -564,6 +605,9 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	 * All parameters from argumentIndexOffset onwards are candidates for
 	 * pointcut parameters - but returning and throwing vars are handled differently
 	 * and must be removed from the list if present.
+	 *
+	 * 从argumentIndexOffset开始向后的参数都是pointcut参数的候选。
+	 * 但是returning和throwing参数需要作不同的处理，要将它们从pointcut的参数中剔除
 	 */
 	private void configurePointcutParameters(String[] argumentNames, int argumentIndexOffset) {
 		// 将argumentIndexOffset作为要删除的参数个数，因为JointPoint相关的参数不会配置到pointcut中

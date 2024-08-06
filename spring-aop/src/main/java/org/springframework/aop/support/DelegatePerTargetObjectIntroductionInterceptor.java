@@ -36,9 +36,14 @@ import org.springframework.util.ReflectionUtils;
  * object will have its <i>own</i> delegate (whereas DelegatingIntroductionInterceptor
  * shares the same delegate, and hence the same state across all targets).
  *
+ * 这个类和DelegatingIntroductionInterceptor不同的点在于 一个实例可以被多个target object使用，并且每个
+ * target object都持有它们自己的delegate。DelegatingIntroductionInterceptor是共享同一个delegate
+ *
  * <p>The {@code suppressInterface} method can be used to suppress interfaces
  * implemented by the delegate class but which should not be introduced to the
  * owning AOP proxy.
+ *
+ * suppressInterface方法可以被用来去压制被delegate类实现的接口，使得该接口不被introduce给aop代理对象
  *
  * <p>An instance of this class is serializable if the delegates are.
  *

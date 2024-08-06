@@ -157,7 +157,8 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 		}
 
 		// If it's a per target aspect, emit the dummy instantiating aspect.
-		// 如果advisors集合不为空 并且 aspectClass的perClause不是SINGLETON的，创建一个SyntheticInstantiationAdvisor插入到advisors集合的第一个
+		// 如果advisors集合不为空 并且 aspectClass的perClause不是SINGLETON的，创建一个SyntheticInstantiationAdvisor插入到advisors集合的第一个。
+		// 里面维护了一个MethodBeforeAdvice，在方法调用之前调用aif的getAspectInstance方法将aspect实例化
 		if (!advisors.isEmpty() && lazySingletonAspectInstanceFactory.getAspectMetadata().isLazilyInstantiated()) {
 			Advisor instantiationAdvisor = new SyntheticInstantiationAdvisor(lazySingletonAspectInstanceFactory);
 			advisors.add(0, instantiationAdvisor);
