@@ -40,15 +40,25 @@ import org.springframework.lang.Nullable;
  * {@link #invokeJoinpoint()} method to change this behavior, so this is also
  * a useful base class for more specialized MethodInvocation implementations.
  *
+ * 使用反射调用target对象的方法，子类可以重写invokeJoinpoint方法来改变这个行为，因此它也是一个有用的基础类，
+ * 对于更加具体的MethodInvocation实现来说
+ *
  * <p>It is possible to clone an invocation, to invoke {@link #proceed()}
  * repeatedly (once per clone), using the {@link #invocableClone()} method.
  * It is also possible to attach custom attributes to the invocation,
  * using the {@link #setUserAttribute} / {@link #getUserAttribute} methods.
  *
+ * 克隆一个调用是可能的，去重复调用proceed的时候，使用invocableClone方法。
+ * 附加一些自定义的参数到调用上也是可能的，通过使用setUserAttribute 和 getUserAttribute方法
+ *
  * <p><b>NOTE:</b> This class is considered internal and should not be
  * directly accessed. The sole reason for it being public is compatibility
  * with existing framework integrations (e.g. Pitchfork). For any other
  * purposes, use the {@link ProxyMethodInvocation} interface instead.
+ *
+ * 这个类被考虑为内部的并且不应该被直接的访问。
+ * 公开它的唯一原因是考虑和现有框架的兼容性。
+ * 如果是为了其他目的，直接使用ProxyMethodInvocation接口
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
@@ -61,15 +71,20 @@ import org.springframework.lang.Nullable;
  */
 public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Cloneable {
 
+	// 代理对象
 	protected final Object proxy;
 
+	// 被代理对象
 	@Nullable
 	protected final Object target;
 
+	// 调用的方法
 	protected final Method method;
 
+	// 方法参数
 	protected Object[] arguments;
 
+	// 被代理的类
 	@Nullable
 	private final Class<?> targetClass;
 
@@ -83,12 +98,14 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 	 * List of MethodInterceptor and InterceptorAndDynamicMethodMatcher
 	 * that need dynamic checks.
 	 */
+	// MethodInterceptor 和 需要动态检查的 InterceptorAndDynamicMethodMatcher集合
 	protected final List<?> interceptorsAndDynamicMethodMatchers;
 
 	/**
 	 * Index from 0 of the current interceptor we're invoking.
 	 * -1 until we invoke: then the current interceptor.
 	 */
+	// 当前执行到的interceptor的index，在调用之前是-1
 	private int currentInterceptorIndex = -1;
 
 
@@ -163,6 +180,8 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 		// 如果当前执行到的interceptorIndex已经是最后一个MethodInterceptor了
 		if (this.currentInterceptorIndex == this.interceptorsAndDynamicMethodMatchers.size() - 1) {
 			// 那么调用invokeJoinPoint方法并返回
+			// 该方法默认是使用反射调用被代理的target对象的方法，
+			// 但cglib的实现类会采用methodProxy通过FastClass去调用target的对应方法
 			return invokeJoinpoint();
 		}
 
@@ -222,6 +241,10 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 	 * <p>We want a shallow copy in this case: We want to use the same interceptor
 	 * chain and other object references, but we want an independent value for the
 	 * current interceptor index.
+	 *
+	 * 这个实现返回了一个invocation对象的浅克隆，包含了一个原始参数数组的独立的拷贝。
+	 * 我们想要去使用同样的interceptor链 以及 其他的对象引用，但是我们想要一个独立的当前interceptor的index，
+	 * 所以在这种情况下我们需要一个浅克隆
 	 * @see java.lang.Object#clone()
 	 */
 	@Override

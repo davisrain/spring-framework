@@ -40,6 +40,10 @@ public interface AdvisorAdapter {
 	 * Does this adapter understand this advice object? Is it valid to
 	 * invoke the {@code getInterceptors} method with an Advisor that
 	 * contains this advice as an argument?
+	 *
+	 * 表示这个adapter是否能够理解传入的advice对象。
+	 * 即用包含这种advice对象的advisor去调用getInterceptor方法是否是合法的
+	 *
 	 * @param advice an Advice such as a BeforeAdvice
 	 * @return whether this adapter understands the given advice object
 	 * @see #getInterceptor(org.springframework.aop.Advisor)
@@ -52,6 +56,10 @@ public interface AdvisorAdapter {
 	 * the given advice to an interception-based AOP framework.
 	 * <p>Don't worry about any Pointcut contained in the Advisor;
 	 * the AOP framework will take care of checking the pointcut.
+	 *
+	 * 返回一个Aop的MethodInterceptor，将给出advice的行为暴露给以拦截为基础的aop框架。
+	 * 不用担心advisor里面包含的pointcut，aop框架会小心的检查这些pointcut
+	 *
 	 * @param advisor the Advisor. The supportsAdvice() method must have
 	 * returned true on this object
 	 * @return an AOP Alliance interceptor for this Advisor. There's

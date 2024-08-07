@@ -664,9 +664,11 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 		calculateArgumentBindings();
 
 		// AMC start
+		// 根据adviceMethod声明的参数类型的长度创建一个数组
 		Object[] adviceInvocationArgs = new Object[this.parameterTypes.length];
 		int numBound = 0;
 
+		// 如果joinPoint或者joinPointStaticPart参数的index不为-1，将joinPoint或者staticPart放入到对应数组的对应index位置中
 		if (this.joinPointArgumentIndex != -1) {
 			adviceInvocationArgs[this.joinPointArgumentIndex] = jp;
 			numBound++;
@@ -676,8 +678,10 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 			numBound++;
 		}
 
+		// 如果参数绑定map不为空，根据argumentBindings里面的name到index的映射，对数组对应index的元素进行填充
 		if (!CollectionUtils.isEmpty(this.argumentBindings)) {
 			// binding from pointcut match
+			// 如果joinPointMatch不为null，获取其绑定的参数进行填充
 			if (jpMatch != null) {
 				PointcutParameter[] parameterBindings = jpMatch.getParameterBindings();
 				for (PointcutParameter parameter : parameterBindings) {
@@ -687,12 +691,14 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 					numBound++;
 				}
 			}
+			// 如果存在returningName，获取returningName对应的index，将返回值存入到对应的index
 			// binding from returning clause
 			if (this.returningName != null) {
 				Integer index = this.argumentBindings.get(this.returningName);
 				adviceInvocationArgs[index] = returnValue;
 				numBound++;
 			}
+			// 同理，将抛出的异常存入到对应的index
 			// binding from thrown exception
 			if (this.throwingName != null) {
 				Integer index = this.argumentBindings.get(this.throwingName);
@@ -701,12 +707,14 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 			}
 		}
 
+		// 最后判断绑定成功的参数个数 和 advice方法声明的参数个数是否相等
 		if (numBound != this.parameterTypes.length) {
 			throw new IllegalStateException("Required to bind " + this.parameterTypes.length +
 					" arguments, but only bound " + numBound + " (JoinPointMatch " +
 					(jpMatch == null ? "was NOT" : "WAS") + " bound in invocation)");
 		}
 
+		// 返回参数数组
 		return adviceInvocationArgs;
 	}
 
@@ -722,7 +730,9 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 	protected Object invokeAdviceMethod(
 			@Nullable JoinPointMatch jpMatch, @Nullable Object returnValue, @Nullable Throwable ex)
 			throws Throwable {
-
+		// 调用对应的advice方法
+		// 获取到当前MethodInvocation的attribute里面持有的joinpoint，如果不存在，创建一个存入到attribute里
+		// 以及JoinPointMatch 返回值 和 抛出的异常 一起 进行参数绑定
 		return invokeAdviceMethodWithGivenArgs(argBinding(getJoinPoint(), jpMatch, returnValue, ex));
 	}
 
@@ -739,6 +749,7 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 			actualArgs = null;
 		}
 		try {
+			// 反射调用aspect里面的advice方法
 			ReflectionUtils.makeAccessible(this.aspectJAdviceMethod);
 			// TODO AopUtils.invokeJoinpointUsingReflection
 			return this.aspectJAdviceMethod.invoke(this.aspectInstanceFactory.getAspectInstance(), actualArgs);

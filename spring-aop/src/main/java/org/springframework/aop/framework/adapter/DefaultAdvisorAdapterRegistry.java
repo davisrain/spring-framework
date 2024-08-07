@@ -47,6 +47,9 @@ public class DefaultAdvisorAdapterRegistry implements AdvisorAdapterRegistry, Se
 	 * Create a new DefaultAdvisorAdapterRegistry, registering well-known adapters.
 	 */
 	public DefaultAdvisorAdapterRegistry() {
+		// 默认注册MethodBeforeAdviceAdapter AfterReturningAdviceAdapter ThrowsAdviceAdapter
+		// 支持将对应的advice包装成advisor返回
+		// 并且也默认支持将MethodInterceptor也包装成advisor返回
 		registerAdvisorAdapter(new MethodBeforeAdviceAdapter());
 		registerAdvisorAdapter(new AfterReturningAdviceAdapter());
 		registerAdvisorAdapter(new ThrowsAdviceAdapter());
@@ -68,6 +71,9 @@ public class DefaultAdvisorAdapterRegistry implements AdvisorAdapterRegistry, Se
 		if (advice instanceof MethodInterceptor) {
 			// So well-known it doesn't even need an adapter.
 			// 将其包装成一个DefaultPointcutAdvisor返回
+			// 该对象的Pointcut默认是TruePointcut，
+			// 该pointcut持有的是TrueClassFilter和TrueMethodMatcher，
+			// matches方法默认都返回true
 			return new DefaultPointcutAdvisor(advice);
 		}
 		// 否则遍历adapters集合

@@ -47,6 +47,8 @@ import org.springframework.util.CollectionUtils;
  * These are not themselves AOP proxies, but subclasses of this class are
  * normally factories from which AOP proxy instances are obtained directly.
  *
+ * Aop代理配置管理器的基础类
+ *
  * <p>This class frees subclasses of the housekeeping of Advices
  * and Advisors, but doesn't actually implement proxy creation
  * methods, which are provided by subclasses.
@@ -72,12 +74,14 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 
 
 	/** Package-protected to allow direct access for efficiency. */
+	// 被代理对象的来源
 	TargetSource targetSource = EMPTY_TARGET_SOURCE;
 
 	/** Whether the Advisors are already filtered for the specific target class. */
 	private boolean preFiltered = false;
 
 	/** The AdvisorChainFactory to use. */
+	// 根据持有的advisors集合，构建出适用于对应targetClass和method的 MethodInterceptor链
 	AdvisorChainFactory advisorChainFactory = new DefaultAdvisorChainFactory();
 
 	/** Cache with Method as key and advisor chain List as value. */
@@ -86,18 +90,23 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	/**
 	 * Interfaces to be implemented by the proxy. Held in List to keep the order
 	 * of registration, to create JDK proxy with specified order of interfaces.
+	 * 代理对象需要去实现的接口集合。
+	 * 保持着接口注册时的顺序，去以特定的顺序去创建JDK动态代理
 	 */
 	private List<Class<?>> interfaces = new ArrayList<>();
 
 	/**
 	 * List of Advisors. If an Advice is added, it will be wrapped
 	 * in an Advisor before being added to this List.
+	 * advisors的集合。
+	 * 如果一个advice要被添加进来，它需要被包装成一个Advisor对象
 	 */
 	private List<Advisor> advisors = new ArrayList<>();
 
 	/**
 	 * Array updated on changes to the advisors list, which is easier
 	 * to manipulate internally.
+	 * 根据advisors的变动更新这个数组
 	 */
 	private Advisor[] advisorArray = new Advisor[0];
 
@@ -482,6 +491,9 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	/**
 	 * Determine a list of {@link org.aopalliance.intercept.MethodInterceptor} objects
 	 * for the given method, based on this configuration.
+	 *
+	 * 基于自身这个配置类，找出适用于给出的这个方法的 spring aop 的MethodInterceptor集合
+	 *
 	 * @param method the proxied method
 	 * @param targetClass the target class
 	 * @return a List of MethodInterceptors (may also include InterceptorAndDynamicMethodMatchers)

@@ -85,23 +85,28 @@ public class MethodInvocationProceedingJoinPoint implements ProceedingJoinPoint,
 
 	@Override
 	public Object proceed() throws Throwable {
+		// 实例仍然是调用methodInvocation的克隆对象的proceed方法
 		return this.methodInvocation.invocableClone().proceed();
 	}
 
 	@Override
 	public Object proceed(Object[] arguments) throws Throwable {
 		Assert.notNull(arguments, "Argument array passed to proceed cannot be null");
+		// 验证传入的参数个数 和 methodInvocation持有的参数个数是否相等
 		if (arguments.length != this.methodInvocation.getArguments().length) {
 			throw new IllegalArgumentException("Expecting " +
 					this.methodInvocation.getArguments().length + " arguments to proceed, " +
 					"but was passed " + arguments.length + " arguments");
 		}
+		// 如果相等，将新传入的参数设置进methodInvocation中，这一步相当于可以改变参数
 		this.methodInvocation.setArguments(arguments);
+		// 然后调用methodInvocation的克隆对象的proceed方法
 		return this.methodInvocation.invocableClone(arguments).proceed();
 	}
 
 	/**
 	 * Returns the Spring AOP proxy. Cannot be {@code null}.
+	 * 返回代理对象
 	 */
 	@Override
 	public Object getThis() {
@@ -110,6 +115,7 @@ public class MethodInvocationProceedingJoinPoint implements ProceedingJoinPoint,
 
 	/**
 	 * Returns the Spring AOP target. May be {@code null} if there is no target.
+	 * 返回被代理对象
 	 */
 	@Override
 	@Nullable
@@ -119,6 +125,7 @@ public class MethodInvocationProceedingJoinPoint implements ProceedingJoinPoint,
 
 	@Override
 	public Object[] getArgs() {
+		// 从methodInvocation中获取参数返回
 		if (this.args == null) {
 			this.args = this.methodInvocation.getArguments().clone();
 		}
@@ -127,6 +134,7 @@ public class MethodInvocationProceedingJoinPoint implements ProceedingJoinPoint,
 
 	@Override
 	public Signature getSignature() {
+		// 创建一个MethodSignatureImpl对象返回，里面也是根据methodInvocation持有的method返回指定的信息
 		if (this.signature == null) {
 			this.signature = new MethodSignatureImpl();
 		}

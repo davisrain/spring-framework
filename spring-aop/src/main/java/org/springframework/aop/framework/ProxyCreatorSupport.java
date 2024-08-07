@@ -34,6 +34,9 @@ public class ProxyCreatorSupport extends AdvisedSupport {
 
 	private AopProxyFactory aopProxyFactory;
 
+	// 用于监听advisedSupport类相关状态变化的监听器
+	// 会监听active状态的变化
+	// 以及会监听advisedSupport里持有的advisor相关的变化
 	private final List<AdvisedSupportListener> listeners = new LinkedList<>();
 
 	/** Set to true when the first AOP proxy has been created. */

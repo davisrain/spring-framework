@@ -135,11 +135,17 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 * Indicates whether or not the proxy should be frozen. Overridden from super
 	 * to prevent the configuration from becoming frozen too early.
 	 */
+	// 表示代理对象的advisor增强链是否已经被冻结，即不会改动。
+	// 这个属性重写了父类ProxyConfig里面的frozen属性，避免配置被过早的冻结，
+	// 在创建代理的时候，会将该字段赋值给新创建出的ProxyFactory对象
 	private boolean freezeProxy = false;
 
 	/** Default is no common interceptors. */
+	// 如果interceptorNames数组存在元素的话，在创建代理的时候会遍历并将interceptorName作为beanName去beanFactory中找到对应的bean。
+	// 然后通过advisorAdapterRegistry将bean适配为advisor，作为commonInterceptor来使用
 	private String[] interceptorNames = new String[0];
 
+	// 表示是否首先应用common的interceptor，默认为true，表示在生成advisor增强链的时候，commonInterceptor会添加到集合最前方
 	private boolean applyCommonInterceptorsFirst = true;
 
 	@Nullable
@@ -408,11 +414,14 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		// 1.通过findCandidateAdvisors方法解析出所有候选的advisor类
 		// 	1.1 AbstractAdvisorAutoProxyCreator的实现是通过BeanFactoryAdvisorRetrievalHelper类去遍历beanFactory中所有Advisor类型的bean，并添加到集合中
 		// 	1.2 AnnotationAwareAspectJAutoProxyCreator的实现是通过BeanFactoryAspectJAdvisorsBuilder，根据beanFactory中被@Aspect注解标注的那些bean，
-		// 	以及bean中标注了AspectJ相关注解的方法，来生成对应的advisor对象，每个符合条件的方法都会生成一个advisor对象。
+		// 	以及bean中标注了AspectJ相关注解的方法，来生成对应的advisor对象，每个符合条件的方法都会生成一个advisor对象；
+		//  并且aspect切面对象里面标注了@DeclareParents注解的字段会解析为一个IntroductionAdvisor，进行桥接模式的代理增强
+
 		// 	具体的创建逻辑是在ReflectiveAspectJAdvisorFactory中实现的，会根据每个aspect类的工厂类AspectInstanceFactory去创建对应的advisor，
 		//  它实现了getAdvisors getAdvisor getAdvice等方法，并且aspectJAdvisorsBuilder中会缓存解析过的那些aspect的beanName，
 		//  并且会将每个aspect解析出来的advisors都缓存到advisorsCache中，当aspect是单例的情况；
-		//	如果aspect不是单例，会缓存aspectInstanceFactory到aspectFactoryCache中，然后每次再传入aspectJAdvisorFactory的getAdvisors方法进行解析
+		//	如果aspect不是单例，会缓存aspectInstanceFactory到aspectFactoryCache中，然后每次再传入aspectJAdvisorFactory的getAdvisors方法进行解析。
+		//
 
 		// 2.获取到所有候选的advisors之后，会调用findAdvisorsThatCanApply方法，选择出能够应用于对应beanClass的那些advisor，即合格的advisor。
 		// 	2.1 首先判断advisor是否是IntroductionAdvisor，如果是的话，获取它持有的ClassFilter对beanClass进行筛选
@@ -540,6 +549,13 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		// 创建一个ProxyFactory
 		ProxyFactory proxyFactory = new ProxyFactory();
 		// 复制自身的ProxyConfig中的属性给新创建的proxyFactory，因为AbstractAutoProxyCreator继承了ProxyConfig
+		// TODO 主要的属性有：
+		// proxyTargetClass：该属性设置为true的话，表示针对targetClass进行代理，而不是针对接口
+		// exposeProxy：该属性设置为true的话，在执行代理增强链的时候，将代理对象存入AopContext的threadLocal中，
+		// 这样在调用到被代理对象target的方法里面的时候，也能够拿到proxy对象
+		// opaque：该属性设置为false的时候，代理类会继承advised接口，使得代理对象能够执行advised的相关方法，比如获取进行代理增强的那些advisor或advice集合
+		// frozen：该属性代表进行代理增强的advisor链是否不会再变动，即frozen住了，如果为true的话，说明advisor链里面的内容不会再改变了
+		// optimize
 		proxyFactory.copyFrom(this);
 
 		// 如果proxyFactory的proxyTargetClass属性为true
@@ -557,12 +573,17 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		// 如果proxyTargetClass属性为false
 		else {
 			// No proxyTargetClass flag enforced, let's apply our default checks...
-			// 检查是否需要代理targetClass，逻辑是beanName在beanFactory中对应的bd的preserveTargetClass属性为true
+			// 检查是否需要代理targetClass，逻辑是
+			// 根据beanName找到在beanFactory中的beanDefinition，然后查看beanDefinition里面的attribute属性是否为true
+			// attributeName为 AopUtils类的全限定 + .preserveTargetClass，
+			// 如果存在该属性且value为true的话，表示该bean需要通过targetClass的方法进行代理而不是接口
 			if (shouldProxyTargetClass(beanClass, beanName)) {
 				// 如果是的话，将proxyFactory的proxyTargetClass设置为true
 				proxyFactory.setProxyTargetClass(true);
 			}
-			// 如果不需要代理targetClass
+			// 如果不通过targetClass进行代理，那么就通过接口进行代理，所以需要获取到要代理的接口集合，
+			// 通过proxyFactory的addInterface方法添加到proxyFactory中。
+			// 但是如果解析出来没有合理的需要代理的接口，那么降级到通过targetClass的方式进行代理
 			else {
 				// 评估需要代理的接口
 				evaluateProxyInterfaces(beanClass, proxyFactory);
@@ -570,17 +591,20 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		}
 
 		// 调用buildAdvisors构建Advisor数组
-		// 具体逻辑就是如果自身持有的interceptorNames不为空的话，将其作为beanName查找到对应的bean，作为commonInterceptor。
-		// 然后将commonInterceptors和specificInterceptors整合起来，且都包装为Advisor类型返回
+		// 具体逻辑就是：
+		// 1.如果自身持有的interceptorNames不为空的话，将其作为beanName查找到对应的bean，作为commonInterceptors。
+		// 2.然后将commonInterceptors和specificInterceptors整合起来，都通过advisorAdapterRegistry包装为Advisor类型返回
 		Advisor[] advisors = buildAdvisors(beanName, specificInterceptors);
 		// 向proxyFactory中添加这些advisors
 		proxyFactory.addAdvisors(advisors);
 		// 向proxyFactory中添加targetSource
+
+		// targetSource是proxyFactory很重要的一个属性，是aop提供被代理的target对象的来源
 		proxyFactory.setTargetSource(targetSource);
 		// 然后自定义proxyFactory，是一个模板方法，留给子类去实现，默认为空
 		customizeProxyFactory(proxyFactory);
 
-		// 设置proxyFactory的freeze状态
+		// 设置proxyFactory的frozen状态
 		proxyFactory.setFrozen(this.freezeProxy);
 		// 如果advisorsPreFiltered为true的话，将proxyFactory中的preFiltered设置为true。
 		// 该参数的作用是在advisor链调用的时候跳过classFilter的类型检查，该参数默认为false，
@@ -668,7 +692,11 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		Advisor[] advisors = new Advisor[allInterceptors.size()];
 		// 遍历allInterceptors
 		for (int i = 0; i < allInterceptors.size(); i++) {
-			// 将Advice类型的interceptor包装成Advisor类型的返回
+			// 将所有的interceptor都包装成Advisor对象返回
+			// interceptor可能本身就是Advisor类型的，直接返回
+			// 是Advice类型的，或者Advice的子类Interceptor类型的，都会被包装成Advisor类型返回
+
+			// 持有的advisorAdapterRegistry默认是DefaultAdvisorAdapterRegistry，采用了单例模式
 			advisors[i] = this.advisorAdapterRegistry.wrap(allInterceptors.get(i));
 		}
 		return advisors;

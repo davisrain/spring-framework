@@ -96,8 +96,15 @@ public class ProxyProcessorSupport extends ProxyConfig implements Ordered, BeanC
 	/**
 	 * Check the interfaces on the given bean class and apply them to the {@link ProxyFactory},
 	 * if appropriate.
+	 *
+	 * 检查给出的bean class上面的接口 并且 将它们应用到ProxyFactory中
+	 *
 	 * <p>Calls {@link #isConfigurationCallbackInterface} and {@link #isInternalLanguageInterface}
 	 * to filter for reasonable proxy interfaces, falling back to a target-class proxy otherwise.
+	 *
+	 * 调用isConfigurationCallbackInterface 和 isInternalLanguageInterface来筛选是否存在合理的需要被代理的接口，如果过滤完之后没有接口了，
+	 * 那么用targetClass代理的方法来兜底
+	 *
 	 * @param beanClass the class of the bean
 	 * @param proxyFactory the ProxyFactory for the bean
 	 */

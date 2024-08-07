@@ -98,10 +98,13 @@ class CglibAopProxy implements AopProxy, Serializable {
 	protected static final Log logger = LogFactory.getLog(CglibAopProxy.class);
 
 	/** Keeps track of the Classes that we have validated for final methods. */
+	// 用于缓存对应的class是否进行过final方法的校验
 	private static final Map<Class<?>, Boolean> validatedClasses = new WeakHashMap<>();
 
 
 	/** The configuration used to configure this proxy. */
+	// 配置这个proxy对象的配置类，默认就是ProxyFactory对象，因为它继承了AdvisedSupport类。
+	// 里面持有了代理需要的interfaces 和 advisors 以及targetSource等关键信息
 	protected final AdvisedSupport advised;
 
 	@Nullable
@@ -129,7 +132,10 @@ class CglibAopProxy implements AopProxy, Serializable {
 		if (config.getAdvisors().length == 0 && config.getTargetSource() == AdvisedSupport.EMPTY_TARGET_SOURCE) {
 			throw new AopConfigException("No advisors and no TargetSource specified");
 		}
+		// 将advisedSupport对象赋值给自身属性
 		this.advised = config;
+		// 创建一个cglib的Dispatcher类型的Callback，
+		// 用于将代理对象的Advised接口的方法调用转发到advised对象去执行
 		this.advisedDispatcher = new AdvisedDispatcher(this.advised);
 	}
 
@@ -291,8 +297,9 @@ class CglibAopProxy implements AopProxy, Serializable {
 				int mod = method.getModifiers();
 				// 如果不是static 且 不是private的
 				if (!Modifier.isStatic(mod) && !Modifier.isPrivate(mod)) {
-					// 并且是final的，那么会打印日志提示final方法无法被cglib代理，调用它的时候不会路由到被代理对象上面取，而是可能产生一个空指针异常。
-					// 因为cglib是以继承的形式生成代理类，而final方法没办法进行重写，所以无法代理
+					// 并且是final的，那么会打印日志提示final方法无法被cglib代理，
+					// 调用它的时候不会路由到target对象上面去，那么就可能产生一个空指针异常，因为生成的代理对象是没有target对象里面持有的那些属性的。
+					// cglib是以继承的形式生成代理类，而final方法没办法进行重写，所以无法代理
 					if (Modifier.isFinal(mod)) {
 						if (logger.isInfoEnabled() && implementsInterface(method, ifcs)) {
 							logger.info("Unable to proxy interface-implementing method [" + method + "] because " +
@@ -453,6 +460,8 @@ class CglibAopProxy implements AopProxy, Serializable {
 	/**
 	 * Invoke the given method with a CGLIB MethodProxy if possible, falling back
 	 * to a plain reflection invocation in case of a fast-class generation failure.
+	 *
+	 * 通过cglib的MethodProxy调用给出的方法，如果fast class生成失败的话，使用反射调用来兜底
 	 */
 	@Nullable
 	private static Object invokeMethod(@Nullable Object target, Method method, Object[] args, MethodProxy methodProxy)
@@ -471,6 +480,10 @@ class CglibAopProxy implements AopProxy, Serializable {
 	/**
 	 * Process a return value. Wraps a return of {@code this} if necessary to be the
 	 * {@code proxy} and also verifies that {@code null} is not returned as a primitive.
+	 *
+	 * 处理返回值
+	 * 1、如果方法的返回值等于target对象的话，替换为proxy对象返回；
+	 * 2、如果方法返回值为null，但是方法的返回值类型是原始类型，且不是void的情况，报错
 	 */
 	@Nullable
 	private static Object processReturnType(
@@ -754,6 +767,8 @@ class CglibAopProxy implements AopProxy, Serializable {
 	/**
 	 * General purpose AOP callback. Used when the target is dynamic or when the
 	 * proxy is not frozen.
+	 *
+	 * 通用的aop callback，当target是dynamic或者proxy没有被frozen的时候使用
 	 */
 	private static class DynamicAdvisedInterceptor implements MethodInterceptor, Serializable {
 
@@ -785,7 +800,8 @@ class CglibAopProxy implements AopProxy, Serializable {
 				target = targetSource.getTarget();
 				// 获取targetClass
 				Class<?> targetClass = (target != null ? target.getClass() : null);
-				// 根据method和targetClass获取需要应用给该method的interceptorChain
+				// 根据method和targetClass从advisedSupport里持有的advisor集合中获取需要应用给该method的advisor，
+				// 再将这些advisor中的advice转换成MethodInterceptor或者DynamicInterceptor形成interceptorChain返回
 				List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
 				Object retVal;
 				// Check whether we only have one InvokerInterceptor: that is,
