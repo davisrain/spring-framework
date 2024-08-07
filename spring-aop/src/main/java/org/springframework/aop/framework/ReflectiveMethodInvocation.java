@@ -269,6 +269,8 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 	public MethodInvocation invocableClone(Object... arguments) {
 		// Force initialization of the user attributes Map,
 		// for having a shared Map reference in the clone.
+		// 强制初始化一个user attributes的map，
+		// 为了在clone里面持有一个共享的map引用
 		if (this.userAttributes == null) {
 			this.userAttributes = new HashMap<>();
 		}
