@@ -1,4 +1,4 @@
-package org.springframework.aop.aspectj;
+package com.dzy.test.aspectj;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -40,10 +40,10 @@ public class DeclareParentsAnnotationTests {
 	@Aspect
 	static class DeclareParentsAspect {
 
-		@DeclareParents(value = "org.springframework.aop.aspectj.DeclareParentsAnnotationTests.Dog", defaultImpl = China.class)
+		@DeclareParents(value = "com.dzy.test.aspectj.DeclareParentsAnnotationTests.Dog", defaultImpl = China.class)
 		private RegionInfo regionInfo;
 
-		@Pointcut("execution(* org.springframework.aop.aspectj.DeclareParentsAnnotationTests.Dog.*(..))")
+		@Pointcut("execution(* com.dzy.test.aspectj.DeclareParentsAnnotationTests.Dog.*(..))")
 		public void pointcut() {
 
 		}

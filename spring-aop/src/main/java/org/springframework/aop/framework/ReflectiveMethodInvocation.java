@@ -269,8 +269,15 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 	public MethodInvocation invocableClone(Object... arguments) {
 		// Force initialization of the user attributes Map,
 		// for having a shared Map reference in the clone.
-		// 强制初始化一个user attributes的map，
-		// 为了在clone里面持有一个共享的map引用
+		// 当原始的MethodInvocation持有的userAttributes没有初始化的时候，
+		// 强制初始化一个map，为了确保克隆的MethodInvocation和原始的持有一个同一个userAttributes的引用。
+
+		// 具体解决的场景就是在aspectJ存在参数绑定的时候，每次在AspectJExpressionPointcut进行dynamicMatches的时候，会将绑定的参数存放在
+		// ExposeInvocationInterceptor里的ThreadLocal变量里面的初始MethodInvocation的userAttributes中，如果克隆的对象没有和最初始的MethodInvocation使用
+		// 同一个userAttributes的话，就会导致在准备调用adviceMethod之前进行参数绑定的时候没办法获取到JoinPointMatch进行参数绑定。
+
+		// note：只有AspectJAroundAdvice会使用克隆的MethodInvocation，因为MethodInvocationProceedingJoinPoint的proceed方法默认会调用该invocableClone方法，
+		// 目的是为了方便对调用的方法参数进行修改，这样不会影响到初始的MethodInvocation里面的参数
 		if (this.userAttributes == null) {
 			this.userAttributes = new HashMap<>();
 		}
