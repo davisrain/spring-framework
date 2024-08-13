@@ -14,7 +14,13 @@ import org.springframework.aop.aspectj.annotation.SingletonMetadataAwareAspectIn
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.aop.interceptor.ExposeInvocationInterceptor;
 import org.springframework.aop.target.SingletonTargetSource;
+import org.springframework.cglib.core.Signature;
+import org.springframework.cglib.core.TypeUtils;
+import org.springframework.cglib.proxy.MethodProxy;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -22,7 +28,7 @@ public class AspectJAdviceMethodInterceptorTests {
 
 
 	@Test
-	public void testInvocableCloneForProceedingJoinPoint() {
+	public void testInvocableCloneForProceedingJoinPoint() throws Throwable {
 		MetadataAwareAspectInstanceFactory aif = new SingletonMetadataAwareAspectInstanceFactory(new AspectJTestAspect(), "testAspect");
 		List<Advisor> advisors = new ReflectiveAspectJAdvisorFactory().getAdvisors(aif);
 		advisors.add(0, ExposeInvocationInterceptor.ADVISOR);
@@ -39,6 +45,13 @@ public class AspectJAdviceMethodInterceptorTests {
 
 		FooInterface proxyFooInterface = (FooInterface) proxyFoo;
 		proxyFooInterface.bar();
+
+		// 获取对应的cglib代理出来的MethodProxy，通过CGLIB$findMethodProxy方法
+		MethodType methodType = MethodType.methodType(MethodProxy.class, new Class[]{Signature.class});
+		MethodHandle cglib$findMethodProxy = MethodHandles.lookup().findStatic(proxyFoo.getClass(), "CGLIB$findMethodProxy", methodType);
+		MethodProxy methodProxy = (MethodProxy) cglib$findMethodProxy.invoke(TypeUtils.parseSignature("java.math.BigDecimal add(java.math.BigDecimal, java.math.BigDecimal)"));
+		Object addResult = methodProxy.invokeSuper(proxyFoo, new Object[]{BigDecimal.valueOf(1), BigDecimal.valueOf(2)});
+		System.out.println(addResult);
 	}
 
 
@@ -101,6 +114,7 @@ public class AspectJAdviceMethodInterceptorTests {
 	static class Foo {
 
 		public BigDecimal add(BigDecimal num1, BigDecimal num2) throws RuntimeException {
+			System.out.println(this);
 			return num1.add(num2);
 		}
 	}
