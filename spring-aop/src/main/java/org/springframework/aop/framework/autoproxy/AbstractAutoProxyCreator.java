@@ -273,10 +273,14 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) {
 		Object cacheKey = getCacheKey(beanClass, beanName);
 
+		// 如果beanName为空 或者 targetSourcedBeans不包含beanName，执行if逻辑
 		if (!StringUtils.hasLength(beanName) || !this.targetSourcedBeans.contains(beanName)) {
+			// 如果advisedBeans里面包含cacheKey，说明该对象已经进行过advised的筛选，直接返回null
 			if (this.advisedBeans.containsKey(cacheKey)) {
 				return null;
 			}
+			// 进行是否需要被代理的逻辑判断
+			// 如果结果是不需要被代理，那么设置advisedBeans中cacheKey对应的value为false，然后返回null
 			if (isInfrastructureClass(beanClass) || shouldSkip(beanClass, beanName)) {
 				this.advisedBeans.put(cacheKey, Boolean.FALSE);
 				return null;
@@ -286,17 +290,29 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		// Create proxy here if we have a custom TargetSource.
 		// Suppresses unnecessary default instantiation of the target bean:
 		// The TargetSource will handle target instances in a custom fashion.
+		// 如果我们有一个自定义的TargetSource的话，那么在这里就创建代理
+		// 压制target bean的不必要的默认实例化：
+		// 这个targetSource可以以自定义的方式处理target实例
+
+		// 如果判断出来对应的bean是需要被代理的，那么根据beanName和beanClass获取到自定义的TargetSource。
 		TargetSource targetSource = getCustomTargetSource(beanClass, beanName);
+		// 如果获取到的自定义的TargetSource不为null
 		if (targetSource != null) {
+			//  且beanName不为空，将beanName添加到TargetSourcedBeans中，表示它被用于构建了自定义的TargetSource
 			if (StringUtils.hasLength(beanName)) {
 				this.targetSourcedBeans.add(beanName);
 			}
+			// 然后获取到能到应用给bean的advisor的集合，可能为空数组
 			Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(beanClass, beanName, targetSource);
+			// 创建代理对象
 			Object proxy = createProxy(beanClass, beanName, specificInterceptors, targetSource);
+			// 将代理对象类型缓存到proxyTypes中
 			this.proxyTypes.put(cacheKey, proxy.getClass());
+			// 返回代理对象
 			return proxy;
 		}
 
+		// 如果没有生成自定义的TargetSource，直接返回null，走正常的实例化流程
 		return null;
 	}
 
@@ -507,9 +523,12 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	@Nullable
 	protected TargetSource getCustomTargetSource(Class<?> beanClass, String beanName) {
 		// We can't create fancy target sources for directly registered singletons.
+		// 如果customTargetSourceCreators不为null 并且 beanName存在于beanFactory中
 		if (this.customTargetSourceCreators != null &&
 				this.beanFactory != null && this.beanFactory.containsBean(beanName)) {
+			// 遍历customTargetSourceCreators
 			for (TargetSourceCreator tsc : this.customTargetSourceCreators) {
+				// 尝试获取TargetSource，如果不为null，返回匹配的TargetSource
 				TargetSource ts = tsc.getTargetSource(beanClass, beanName);
 				if (ts != null) {
 					// Found a matching TargetSource.
@@ -522,6 +541,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 			}
 		}
 
+		// 如果没有找到自定义的TargetSource，返回null
 		// No custom TargetSource found.
 		return null;
 	}
