@@ -55,6 +55,9 @@ public class ResourceAndLazyAnnotationTests {
 			// 要获取这个bar的代理类，需要在创建的时候在ProxyConfig里面将exposeProxy参数设置为true，因此需要修改下resolveDependency方法创建lazy代理的源代码，
 			// 即ContextAnnotationAutowireCandidateResolver里面的buildLazyResolutionProxy方法里面的proxyFactory的exposeProxy属性。
 			Bar proxy = (Bar) AopContext.currentProxy();
+			// 这里打印出的使用是target对象的类名和内存地址，原因是由于没有advisor进行增强，toString方法会调用methodProxy.invoke(target, args)，
+			// 会通过invokevirtual调用到target对象的toString方法，因此打印出来的值都一样，因为target对象只有一个，即beanFactory中持有的单例
+			System.out.println(proxy);
 			System.out.println("this bar target's proxy object is " + proxy.getClass().getName() + "@" + Integer.toHexString(proxy.hashCode()));
 		}
 	}
