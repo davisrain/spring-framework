@@ -119,7 +119,9 @@ public class DefaultLifecycleProcessor implements LifecycleProcessor, BeanFactor
 
 	@Override
 	public void onRefresh() {
+		// 调用startBeans方法
 		startBeans(true);
+		// 将running状态设置为true
 		this.running = true;
 	}
 
@@ -140,20 +142,30 @@ public class DefaultLifecycleProcessor implements LifecycleProcessor, BeanFactor
 	private void startBeans(boolean autoStartupOnly) {
 		Map<String, Lifecycle> lifecycleBeans = getLifecycleBeans();
 		Map<Integer, LifecycleGroup> phases = new HashMap<>();
+		// 遍历获取到的Lifecycle对象
 		lifecycleBeans.forEach((beanName, bean) -> {
+			// 如果autoStartupOnly是false的话 或者 bean就是SmartLifecycle类型的，且isAutoStartup返回true，进行startup操作
 			if (!autoStartupOnly || (bean instanceof SmartLifecycle && ((SmartLifecycle) bean).isAutoStartup())) {
+				// 获取bean的phase，如果不是Smart类型的，返回0；是Smart类型的，调用其getPhase方法
 				int phase = getPhase(bean);
+				// 根据phase获取对应的LifecycleGroup
 				LifecycleGroup group = phases.get(phase);
 				if (group == null) {
+					// 如果不存在，创建一个LifecycleGroup放入map中
 					group = new LifecycleGroup(phase, this.timeoutPerShutdownPhase, lifecycleBeans, autoStartupOnly);
 					phases.put(phase, group);
 				}
+				// 向group添加beanName和对应的bean
 				group.add(beanName, bean);
 			}
 		});
+		// 如果phases这个map不为空
 		if (!phases.isEmpty()) {
+			// 遍历对应的phase
 			List<Integer> keys = new ArrayList<>(phases.keySet());
+			// 根据phase进行排序
 			Collections.sort(keys);
+			// 然后依次调用对应phase的LifecycleGroup的start方法
 			for (Integer key : keys) {
 				phases.get(key).start();
 			}
@@ -167,18 +179,23 @@ public class DefaultLifecycleProcessor implements LifecycleProcessor, BeanFactor
 	 * @param beanName the name of the bean to start
 	 */
 	private void doStart(Map<String, ? extends Lifecycle> lifecycleBeans, String beanName, boolean autoStartupOnly) {
+		// 将beanName对应的bean从lifecycleBeans中删除
 		Lifecycle bean = lifecycleBeans.remove(beanName);
 		if (bean != null && bean != this) {
+			// 获取bean依赖的所有其他bean的beanName数组
 			String[] dependenciesForBean = getBeanFactory().getDependenciesForBean(beanName);
+			// 首先调用依赖的bean的start逻辑
 			for (String dependency : dependenciesForBean) {
 				doStart(lifecycleBeans, dependency, autoStartupOnly);
 			}
+			// 如果bean不是running状态的 并且 (autoStartupOnly不为false 或者 bean不是SmartLifecycle 或者 startLifecycle是autoStartup的)
 			if (!bean.isRunning() &&
 					(!autoStartupOnly || !(bean instanceof SmartLifecycle) || ((SmartLifecycle) bean).isAutoStartup())) {
 				if (logger.isTraceEnabled()) {
 					logger.trace("Starting bean '" + beanName + "' of type [" + bean.getClass().getName() + "]");
 				}
 				try {
+					// 调用bean的start方法
 					bean.start();
 				}
 				catch (Throwable ex) {
@@ -278,16 +295,26 @@ public class DefaultLifecycleProcessor implements LifecycleProcessor, BeanFactor
 	protected Map<String, Lifecycle> getLifecycleBeans() {
 		ConfigurableListableBeanFactory beanFactory = getBeanFactory();
 		Map<String, Lifecycle> beans = new LinkedHashMap<>();
+		// 获取beanFactory中Lifecycle类型的beanName集合
 		String[] beanNames = beanFactory.getBeanNamesForType(Lifecycle.class, false, false);
+		// 遍历beanName集合
 		for (String beanName : beanNames) {
+			// 将beanName前面的&符号都去掉
 			String beanNameToRegister = BeanFactoryUtils.transformedBeanName(beanName);
+			// 判断beanName对应的bean是否是FactoryBean
 			boolean isFactoryBean = beanFactory.isFactoryBean(beanNameToRegister);
+			// 如果是FactoryBean，添加&符号在前面
 			String beanNameToCheck = (isFactoryBean ? BeanFactory.FACTORY_BEAN_PREFIX + beanName : beanName);
+			// 如果singletonObjects里面存在beanNameToRegister对应的bean 并且 (bean不是FactoryBean类型的 或者 beanNameToCheck对应的beanType实现了Lifecycle接口)
+			// 或者 beanNameToCheck对应的bean是实现了SmartLifecycle接口
 			if ((beanFactory.containsSingleton(beanNameToRegister) &&
 					(!isFactoryBean || matchesBeanType(Lifecycle.class, beanNameToCheck, beanFactory))) ||
 					matchesBeanType(SmartLifecycle.class, beanNameToCheck, beanFactory)) {
+				// 获取对应的bean
 				Object bean = beanFactory.getBean(beanNameToCheck);
+				// 如果bean不等于自身 并且 bean是属于Lifecycle的
 				if (bean != this && bean instanceof Lifecycle) {
+					// 存入到map中，以不带&符号的beanName为key
 					beans.put(beanNameToRegister, (Lifecycle) bean);
 				}
 			}
@@ -355,7 +382,9 @@ public class DefaultLifecycleProcessor implements LifecycleProcessor, BeanFactor
 			if (logger.isDebugEnabled()) {
 				logger.debug("Starting beans in phase " + this.phase);
 			}
+			// 对持有的LifecycleGroupMember按phase排序
 			Collections.sort(this.members);
+			// 遍历members，调用doStart方法执行具体的开始逻辑
 			for (LifecycleGroupMember member : this.members) {
 				doStart(this.lifecycleBeans, member.name, this.autoStartupOnly);
 			}

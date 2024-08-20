@@ -139,6 +139,9 @@ public abstract class AnnotationConfigUtils {
 
 	/**
 	 * Register all relevant annotation post processors in the given registry.
+	 *
+	 * 注册所有相关的注解后置处理器到给出的registry中
+	 *
 	 * @param registry the registry to operate on
 	 * @param source the configuration source element (already extracted)
 	 * that this registration was triggered from. May be {@code null}.
@@ -164,6 +167,7 @@ public abstract class AnnotationConfigUtils {
 		Set<BeanDefinitionHolder> beanDefs = new LinkedHashSet<>(8);
 
 		// 如果registry中不包含名为org.springframework.context.annotation.internalConfigurationAnnotationProcessor的BeanDefinition的话，添加进去
+		// ConfigurationClassPostProcessor   BeanDefinitionRegistryPostProcessor
 		if (!registry.containsBeanDefinition(CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(ConfigurationClassPostProcessor.class);
 			def.setSource(source);
@@ -172,6 +176,7 @@ public abstract class AnnotationConfigUtils {
 		}
 
 		// 如果registry中不包含名为org.springframework.context.annotation.internalAutowiredAnnotationProcessor的BeanDefinition的话，添加进去
+		// AutowiredAnnotationBeanPostProcessor BeanPostProcessor
 		if (!registry.containsBeanDefinition(AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(AutowiredAnnotationBeanPostProcessor.class);
 			def.setSource(source);
@@ -181,6 +186,7 @@ public abstract class AnnotationConfigUtils {
 		// Check for JSR-250 support, and if present add the CommonAnnotationBeanPostProcessor.
 		// 如果存在javax.annotation.Resource这个注解类的话(jsr-250) 并且
 		// 如果registry中不包含名为org.springframework.context.annotation.internalCommonAnnotationProcessor的BeanDefinition的话，添加进去
+		// CommonAnnotationBeanPostProcessor BeanPostProcessor
 		if (jsr250Present && !registry.containsBeanDefinition(COMMON_ANNOTATION_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(CommonAnnotationBeanPostProcessor.class);
 			def.setSource(source);
@@ -204,6 +210,7 @@ public abstract class AnnotationConfigUtils {
 		}
 
 		// 如果registry中不包含名为org.springframework.context.event.internalEventListenerProcessor的BeanDefinition的话，添加进去
+		// EventListenerMethodProcessor BeanFactoryPostProcessor
 		if (!registry.containsBeanDefinition(EVENT_LISTENER_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(EventListenerMethodProcessor.class);
 			def.setSource(source);
@@ -211,6 +218,7 @@ public abstract class AnnotationConfigUtils {
 		}
 
 		// 如果registry中不包含名为org.springframework.context.event.internalEventListenerFactory的BeanDefinition的话，添加进去
+		// DefaultEventListenerFactory 不是PostProcessor类型的，是用于创建ApplicationListener的一个工厂类
 		if (!registry.containsBeanDefinition(EVENT_LISTENER_FACTORY_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(DefaultEventListenerFactory.class);
 			def.setSource(source);

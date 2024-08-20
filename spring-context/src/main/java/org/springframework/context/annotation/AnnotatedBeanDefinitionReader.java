@@ -87,6 +87,14 @@ public class AnnotatedBeanDefinitionReader {
 		// 根据环境对象和BeanDefinitionRegistry生成一个ConditionEvaluator
 		this.conditionEvaluator = new ConditionEvaluator(registry, environment, null);
 		// 然后调用AnnotationConfigUtils的方法将AnnotationConfig相关的处理器注册进BeanDefinitionRegistry中
+		// 1.设置AnnotationAwareOrderComparator作为beanFactory的dependencyComparator
+		// 2.设置ContextAnnotationAutowireCandidateResolver作为beanFactory的autowireCandidateResolver
+		// 3.注册ConfigurationClassPostProcessor				BeanDefinitionRegistryPostProcessor
+		// 4.注册AutowiredAnnotationBeanPostProcessor		SmartInstantiationAwareBeanPostProcessorAdapter, MergedBeanDefinitionPostProcessor
+		// 5.注册CommonAnnotationBeanPostProcessor			MergedBeanDefinitionPostProcessor, InstantiationAwareBeanPostProcessor, DestructionAwareBeanPostProcessor
+		// 6.注册PersistentAnnotationBeanPostProcessor
+		// 6.todo 注册EventListenerMethodProcessor				BeanFactoryPostProcessor
+		// 7.注册DefaultEventListenerFactory					普通bean
 		AnnotationConfigUtils.registerAnnotationConfigProcessors(this.registry);
 	}
 

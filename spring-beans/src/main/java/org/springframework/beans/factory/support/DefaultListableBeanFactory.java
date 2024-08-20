@@ -1702,8 +1702,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			// 如果候选类没有标注@Qualifier注解，尝试遍历descriptor中标注的@Qualifier的属性名和期待的属性值，然后依次去AutowireCandidateQualifier中获取对应的实际属性值。
 			// 1.先尝试从AutowireCandidateQualifier获取对应的属性值
 			// 2.如果没找到，尝试直接从bd中获取对应的属性值，因为bd也实现了AttributeAccessor接口
-			// 3.如果实际属性值为空的话，并且属性名为value，将期待属性值同candidate的beanName和alias比较，如果相等，说明该属性满足条件；
-			// 4.如果实际属性值为空，且属性名不为value或者和beanName即alias不匹配，那么获取@Qualifier注解对应属性的默认值，将其和期待的属性值比较，如果不相等，返回false
+			// 3.如果实际属性值为空的话，并且属性名为value，将期待属性值同candidate的beanName和alias比较，如果相等，说明该属性满足条件，继续遍历下一个属性；
+			// 4.如果实际属性值为空，且存在AutowireCandidateQualifier且属性名不为value或者和beanName即alias不匹配，那么获取@Qualifier注解对应属性的默认值，将其和期待的属性值比较，如果不相等，返回false
 			// 5.如果存在实际的属性值，那么转换成和期待属性值一样的类型，进行比较，如果不相等，返回false
 			if (!isSelfReference(beanName, candidate) && isAutowireCandidate(candidate, descriptor)) {
 				// 向结果map中添加对应的bean
