@@ -289,6 +289,9 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 				// 生成beanName
 				String beanName = this.beanNameGenerator.generateBeanName(candidate, this.registry);
 				// 如果候选bd是AbstractBeanDefinition类型的，调用postProcess方法对其处理，将BeanDefinitionDefaults中的默认配置设置进bd中
+				// 1.将scanner持有的BeanDefinitionDefaults默认配置设置进bd中
+				// 2.如果scanner持有的autowireCandidatePatterns不为null，根据autowireCandidatePatterns对beanName进行匹配，
+				// 如果匹配成功，将bd的autowireCandidate属性设置为true；否则设置为false。如果为null的话，不做处理，bd的autowireCandidate默认为true
 				if (candidate instanceof AbstractBeanDefinition) {
 					postProcessBeanDefinition((AbstractBeanDefinition) candidate, beanName);
 				}
@@ -302,7 +305,10 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 				if (checkCandidate(beanName, candidate)) {
 					// 根据beanName和candidate创建一个BeanDefinitionHolder
 					BeanDefinitionHolder definitionHolder = new BeanDefinitionHolder(candidate, beanName);
-					//TODO 进行scope相关的代理
+					// TODO 进行scope相关的代理
+					// 作用就是如果解析出来的ScopeMetadata的scopedProxyMode不是NO，进行aop代理，创建出一个ScopedProxyFactoryBean的beanDefinition
+					// 来替换原始的bd，然后FactoryBean的getObject返回一个代理对象，将原始bean作为targetSource，并且实现了ScopedObject接口，
+					// 使得我们能够通过单例的代理对象操作scope范围的非单例的bean
 					definitionHolder =
 							AnnotationConfigUtils.applyScopedProxyMode(scopeMetadata, definitionHolder, this.registry);
 					// 将holder添加到集合中

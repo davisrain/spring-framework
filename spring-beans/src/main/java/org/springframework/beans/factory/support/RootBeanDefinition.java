@@ -64,6 +64,8 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 
 	@Nullable
 	// 被当前bean definition装饰的bean definition
+	// 如果当前bd是scope代理的，那么该字段保存的就是beanName为scopedTarget.前缀的被装饰的原始bdHolder
+	// @See AnnotationConfigUtils.applyScopedProxyMode
 	private BeanDefinitionHolder decoratedDefinition;
 
 	@Nullable

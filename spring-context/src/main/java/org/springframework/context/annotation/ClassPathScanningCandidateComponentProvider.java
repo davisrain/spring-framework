@@ -461,12 +461,15 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 					// 根据resource使用asm框架读取字节码创建一个metadataReader
 					MetadataReader metadataReader = getMetadataReaderFactory().getMetadataReader(resource);
 					// 根据metadataReader判断是否是候选成员
+					// 通过持有的excludeFilters 和 includeFilters进行判断
 					if (isCandidateComponent(metadataReader)) {
 						// 如果满足条件，根据metadataReader创建一个ScannedGenericBeanDefinition
 						ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);
 						// 并且设置bd的source为class文件资源resource
 						sbd.setSource(resource);
 						// 根据bd判断是否是候选成员
+						// 判断类(是否是最外层的类 或者 是静态内部类)
+						// 并且 (不是接口和抽象类 或者 是抽象类但是存在被@Lookup标注的方法)
 						if (isCandidateComponent(sbd)) {
 							if (debugEnabled) {
 								logger.debug("Identified candidate component class: " + resource);

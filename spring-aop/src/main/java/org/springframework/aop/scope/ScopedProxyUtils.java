@@ -70,6 +70,7 @@ public abstract class ScopedProxyUtils {
 		// 向代理bd中设置被装饰的bd，根据targetBeanName和targetBd创建一个bdHolder
 		proxyDefinition.setDecoratedDefinition(new BeanDefinitionHolder(targetDefinition, targetBeanName));
 		// 将targetBd设置为代理bd的来源bd
+		// 封装成一个BeanDefinitionResource保存进proxyBd的resource属性中
 		proxyDefinition.setOriginatingBeanDefinition(targetDefinition);
 		// 将代理bd的source和role都设置为targetBd的内容
 		proxyDefinition.setSource(definition.getSource());
@@ -79,17 +80,17 @@ public abstract class ScopedProxyUtils {
 		proxyDefinition.getPropertyValues().add("targetBeanName", targetBeanName);
 		// 如果proxyTargetClass标志为true的话，
 		if (proxyTargetClass) {
-			// 向targetBd中设置属性
+			// 向targetBd中设置属性PRESERVE_TARGET_CLASS_ATTRIBUTE为true，这样进行aop代理的时候就一定会选择proxyTargetClass的方式
 			targetDefinition.setAttribute(AutoProxyUtils.PRESERVE_TARGET_CLASS_ATTRIBUTE, Boolean.TRUE);
 			// ScopedProxyFactoryBean's "proxyTargetClass" default is TRUE, so we don't need to set it explicitly here.
 		}
-		// 否则向代理bd中添加数星星proxyTargetClass为false
+		// 否则向代理bd中添加属性PRESERVE_TARGET_CLASS_ATTRIBUTE为false
 		else {
 			proxyDefinition.getPropertyValues().add("proxyTargetClass", Boolean.FALSE);
 		}
 
 		// Copy autowire settings from original bean definition.
-		// 将被代理的bd的autowire相关的属性复制到代理bd中
+		// 将被代理的bd的autowire相关的属性复制到代理bd中，包括autowireCandidate isPrimary autowireCandidateQualifier的map
 		proxyDefinition.setAutowireCandidate(targetDefinition.isAutowireCandidate());
 		proxyDefinition.setPrimary(targetDefinition.isPrimary());
 		if (targetDefinition instanceof AbstractBeanDefinition) {
@@ -97,7 +98,9 @@ public abstract class ScopedProxyUtils {
 		}
 
 		// The target bean should be ignored in favor of the scoped proxy.
+		// 然后将targetDefinition的autowireCandidate设置为false，这样在依赖注入的时候就不会找到这个bean
 		targetDefinition.setAutowireCandidate(false);
+		// 并且将primary设置为false，这样在determineAutowireCandidate方法的时候就不会选择这个bean
 		targetDefinition.setPrimary(false);
 
 		// Register the target bean as separate bean in the factory.

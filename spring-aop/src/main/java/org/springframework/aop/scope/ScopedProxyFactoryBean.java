@@ -74,6 +74,7 @@ public class ScopedProxyFactoryBean extends ProxyConfig
 	 * Create a new ScopedProxyFactoryBean instance.
 	 */
 	public ScopedProxyFactoryBean() {
+		// 默认将proxyTargetClass设置为true
 		setProxyTargetClass(true);
 	}
 
@@ -127,7 +128,9 @@ public class ScopedProxyFactoryBean extends ProxyConfig
 
 		// Add the AopInfrastructureBean marker to indicate that the scoped proxy
 		// itself is not subject to auto-proxying! Only its target bean is.
-		// 添加AopInfrastructureBean接口，跳过autoProxy流程，不进行自动代理
+		// 添加AopInfrastructureBean接口，跳过autoProxy流程，不进行自动代理。
+		// 因为FactoryBean对象调用getObject方法获取实际的bean的时候，仍然会进行bbp的postProcessAfterInitialization增强，
+		// autoProxyCreator就会进行自动代理
 		pf.addInterface(AopInfrastructureBean.class);
 
 		// 创建出代理对象，赋值给proxy字段

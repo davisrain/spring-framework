@@ -247,7 +247,9 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	private String description;
 
 	@Nullable
-	// 表示该beanDefinition的资源，比如通过扫描class文件生成的，该字段就会指向对应文件资源
+	// 表示该beanDefinition的资源
+	// 1.比如通过扫描class文件生成的，该字段就会指向对应文件资源
+	// 2.如果是进行过scope代理的bd，该属性是一个BeanDefinitionResource，里面持有了被装饰的原始bd，即beanName有scopedTarget.前缀的
 	private Resource resource;
 
 
