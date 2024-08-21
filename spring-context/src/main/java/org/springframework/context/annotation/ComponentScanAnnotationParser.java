@@ -81,7 +81,7 @@ class ComponentScanAnnotationParser {
 	public Set<BeanDefinitionHolder> parse(AnnotationAttributes componentScan, String declaringClass) {
 		// 根据所持有的属性初始化一个类路径BeanDefinition扫描器
 		ClassPathBeanDefinitionScanner scanner = new ClassPathBeanDefinitionScanner(this.registry,
-				// 获取注解的useDefaultFilters属性
+				// 获取注解的useDefaultFilters属性，默认为true
 				componentScan.getBoolean("useDefaultFilters"), this.environment, this.resourceLoader);
 
 		// 获取其nameGenerator属性
@@ -95,10 +95,13 @@ class ComponentScanAnnotationParser {
 		// 如果注解的scopedProxy属性不是DEFAULT，那么也设置进扫描器中
 		ScopedProxyMode scopedProxyMode = componentScan.getEnum("scopedProxy");
 		if (scopedProxyMode != ScopedProxyMode.DEFAULT) {
+			// 调用scanner的setScopedProxyMode方法会为scanner创建一个defaultScopedProxyMode为指定scopedProxyMode的
+			// AnnotationScopeMetadataResolver
 			scanner.setScopedProxyMode(scopedProxyMode);
 		}
 		// 如果是DEFAULT，获取注解的scopeResolver属性，并且实例化设置进扫描器中
 		else {
+			// 注解里面默认是AnnotationScopeMetadataResolver，AnnotationScopeMetadataResolver默认的scopedProxyMode是NO
 			Class<? extends ScopeMetadataResolver> resolverClass = componentScan.getClass("scopeResolver");
 			scanner.setScopeMetadataResolver(BeanUtils.instantiateClass(resolverClass));
 		}
@@ -121,7 +124,7 @@ class ComponentScanAnnotationParser {
 			}
 		}
 
-		// 获取注解的lazyInit属性
+		// 获取注解的lazyInit属性，默认是false
 		boolean lazyInit = componentScan.getBoolean("lazyInit");
 		// 如果为true，设置扫描器的BeanDefinitionDefaults中的lazyInit属性，表示扫描出的bd默认的lazyInit都为true
 		if (lazyInit) {
@@ -165,7 +168,7 @@ class ComponentScanAnnotationParser {
 		// 获取@Filter注解的type属性
 		FilterType filterType = filterAttributes.getEnum("type");
 
-		// 获取@Filter注解的classes属性进行遍历
+		// 获取@Filter注解的classes属性进行遍历，即classes数组里面的每一个元素都会生成一个TypeFilter
 		for (Class<?> filterClass : filterAttributes.getClassArray("classes")) {
 			// 根据type属性的不同，通过filterClass生成不同类型的TypeFilter添加进集合中
 			switch (filterType) {

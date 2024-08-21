@@ -94,7 +94,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * Constant that indicates autowiring a constructor.
 	 * @see #setAutowireMode
 	 */
-	// 表示自动注入一个构造器
+	// 表示按构造器来自动注入
 	public static final int AUTOWIRE_CONSTRUCTOR = AutowireCapableBeanFactory.AUTOWIRE_CONSTRUCTOR;
 
 	/**

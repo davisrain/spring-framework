@@ -141,9 +141,9 @@ abstract class ConfigurationClassUtils {
 		if (config != null && !Boolean.FALSE.equals(config.get("proxyBeanMethods"))) {
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_FULL);
 		}
-		// 如果标注了@Configuration注解 或者
-		// 标注了@Component @ComponentScan @Import @ImportResource这四种注解其中一个 或者
-		// 类中声明了标注了@Bean的方法
+		// 1.如果标注了@Configuration注解 或者
+		// 2.标注了@Component @ComponentScan @Import @ImportResource这四种注解其中一个 或者
+		// 3.类中声明了标注了@Bean的方法
 		// 那么也是ConfigurationClass的candidate，不过是lite类型的，将bd的属性CONFIGURATION_CLASS_ATTRIBUTE设置为lite
 		else if (config != null || isConfigurationCandidate(metadata)) {
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_LITE);

@@ -119,6 +119,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 
 	private MetadataReaderFactory metadataReaderFactory = new CachingMetadataReaderFactory();
 
+	// 该属性表示是否已经调用过setMetadataReaderFactory方法
 	private boolean setMetadataReaderFactoryCalled = false;
 
 	private final Set<Integer> registriesPostProcessed = new HashSet<>();
@@ -128,12 +129,15 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	@Nullable
 	private ConfigurationClassBeanDefinitionReader reader;
 
+	// 表示当前类中的beanNameGenerator属性是否已经被设置了
 	private boolean localBeanNameGeneratorSet = false;
 
 	/* Using short class names as default bean names by default. */
+	// 扫描进来的bean的beanName使用@Component注解的value属性，如果value属性没有设置的话，使用类的简单名称的首字母小写
 	private BeanNameGenerator componentScanBeanNameGenerator = AnnotationBeanNameGenerator.INSTANCE;
 
 	/* Using fully qualified class names as default bean names by default. */
+	// import进来的bean的beanName使用类的全限定名的方式
 	private BeanNameGenerator importBeanNameGenerator = IMPORT_BEAN_NAME_GENERATOR;
 
 
@@ -194,16 +198,23 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		this.importBeanNameGenerator = beanNameGenerator;
 	}
 
+	// 由于实现了EnvironmentAware接口，在初始化的时候该aware方法也会被调用，会传入applicationContext持有的Environment对象进来
 	@Override
 	public void setEnvironment(Environment environment) {
 		Assert.notNull(environment, "Environment must not be null");
 		this.environment = environment;
 	}
 
+	// 在该processor初始化的时候，会调用到ApplicationContextAwareProcessor的postProcessBeforeInitialization方法，
+	// 由于该processor实现了ResourceLoaderAware接口，因此会调用这个setResourceLoader方法。
+	// 会将applicationContext作为ResourceLoader传入，那么该processor使用的resourceLoader就是applicationContext对象
 	@Override
 	public void setResourceLoader(ResourceLoader resourceLoader) {
 		Assert.notNull(resourceLoader, "ResourceLoader must not be null");
 		this.resourceLoader = resourceLoader;
+		// 并且根据resourceLoader生成一个CachingMetadataReaderFactory，
+		// 那么metadataReaderFactory所使用的resourceLoader也就是applicationContext对象
+
 		if (!this.setMetadataReaderFactoryCalled) {
 			this.metadataReaderFactory = new CachingMetadataReaderFactory(resourceLoader);
 		}
@@ -283,6 +294,13 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 				}
 			}
 			// 检查bd是否是ConfigurationClass的候选，如果是的话，封装一个BeanDefinitionHolder添加进configCandidates集合中
+			// 判断逻辑是：
+			// 1.标注了@Configuration注解 或者
+			// 2.标注了@Component @ComponentScan @Import @ImportResource注解 或者
+			// 3.存在标注了@Bean注解的方法 都是ConfigurationClass
+			// 并且如果是ConfigurationClass的话，
+			// 1.会向BeanDefinition的attributes中添加full或者lite的属性，只有标注了@Configuration注解且proxyBeanMethods属性为true的才会为full
+			// 2.以及会解析类上标注的@Order注解，然后向attributes中添加order的属性
 			else if (ConfigurationClassUtils.checkConfigurationClassCandidate(beanDef, this.metadataReaderFactory)) {
 				configCandidates.add(new BeanDefinitionHolder(beanDef, beanName));
 			}
@@ -308,6 +326,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		if (registry instanceof SingletonBeanRegistry) {
 			// 如果是的话，判断是否有local的beanName生成器已经被设置了，如果没有
 			sbr = (SingletonBeanRegistry) registry;
+			// 如果当前类中的beanNameGenerator还没有被手动的设置，尝试从registry中获取已经存在的单例
 			if (!this.localBeanNameGeneratorSet) {
 				// 尝试查找配置类beanName生成器的单例，如果存在的话，将自身的componentScan和import的beanName生成器都设置为这个单例。
 				BeanNameGenerator generator = (BeanNameGenerator) sbr.getSingleton(
@@ -320,7 +339,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		}
 
 		// 如果environment为null的话，创建一个StandardEnvironment对象赋值。该bean在实例化的时候，因为实现了EnvironmentAware接口，
-		// 因此会调用setEnvironment方法将BeanFactory的environment设置进来
+		// 因此会调用setEnvironment方法将applicationContext的environment设置进来
 		if (this.environment == null) {
 			this.environment = new StandardEnvironment();
 		}

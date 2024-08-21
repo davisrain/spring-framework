@@ -464,6 +464,7 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 					if (isCandidateComponent(metadataReader)) {
 						// 如果满足条件，根据metadataReader创建一个ScannedGenericBeanDefinition
 						ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);
+						// 并且设置bd的source为class文件资源resource
 						sbd.setSource(resource);
 						// 根据bd判断是否是候选成员
 						if (isCandidateComponent(sbd)) {

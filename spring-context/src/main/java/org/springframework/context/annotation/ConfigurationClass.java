@@ -48,23 +48,31 @@ import org.springframework.util.ClassUtils;
  */
 final class ConfigurationClass {
 
+	// 表示该ConfigurationClass对应的AnnotationMetadata
 	private final AnnotationMetadata metadata;
 
+	// 表示对应的resource
 	private final Resource resource;
 
 	@Nullable
+	// 表示ConfigurationClass对应的beanName
 	private String beanName;
 
+	// 表示是自身是被哪些ConfigurationClass导入的
 	private final Set<ConfigurationClass> importedBy = new LinkedHashSet<>(1);
 
+	// 表示自身持有的标注了@Bean注解的方法集合
 	private final Set<BeanMethod> beanMethods = new LinkedHashSet<>();
 
+	// 表示@ImportResource注解标注的要导入的那些bean声明配置文件
 	private final Map<String, Class<? extends BeanDefinitionReader>> importedResources =
 			new LinkedHashMap<>();
 
+	// 表示@Import注解导入的ImportBeanDefinitionRegistrar集合
 	private final Map<ImportBeanDefinitionRegistrar, AnnotationMetadata> importBeanDefinitionRegistrars =
 			new LinkedHashMap<>();
 
+	// 表示已经跳过的标注了@Bean注解的方法名
 	final Set<String> skippedBeanMethods = new HashSet<>();
 
 
@@ -74,6 +82,7 @@ final class ConfigurationClass {
 	 * @param beanName must not be {@code null}
 	 * @see ConfigurationClass#ConfigurationClass(Class, ConfigurationClass)
 	 */
+	// 根据MetadataReader创建一个ConfigurationClass
 	public ConfigurationClass(MetadataReader metadataReader, String beanName) {
 		Assert.notNull(beanName, "Bean name must not be null");
 		this.metadata = metadataReader.getAnnotationMetadata();

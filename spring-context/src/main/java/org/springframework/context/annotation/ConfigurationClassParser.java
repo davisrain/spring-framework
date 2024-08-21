@@ -135,6 +135,7 @@ class ConfigurationClassParser {
 
 	private final ConditionEvaluator conditionEvaluator;
 
+	// 表示已经解析过ConfigurationClass
 	private final Map<ConfigurationClass, ConfigurationClass> configurationClasses = new LinkedHashMap<>();
 
 	private final Map<String, ConfigurationClass> knownSuperclasses = new HashMap<>();
@@ -204,7 +205,7 @@ class ConfigurationClassParser {
 
 	protected final void parse(@Nullable String className, String beanName) throws IOException {
 		Assert.notNull(className, "No bean class name for configuration class bean definition");
-		// 通过元数据读取器工厂生成一个元数据读取器SimpleMetadataReader
+		// 通过元数据读取器工厂生成一个元数据读取器SimpleMetadataReader，会根据className生成的resource尝试去缓存中获取
 		MetadataReader reader = this.metadataReaderFactory.getMetadataReader(className);
 		// 将元数据读取器和beanName封装成一个ConfigurationClass，调用processConfigurationClass方法进行处理
 		processConfigurationClass(new ConfigurationClass(reader, beanName), DEFAULT_EXCLUSION_FILTER);
@@ -271,6 +272,17 @@ class ConfigurationClassParser {
 		SourceClass sourceClass = asSourceClass(configClass, filter);
 		do {
 			// 然后将ConfigurationClass和SourceClass都作为参数，调用doProcessConfigurationClass执行具体的处理逻辑，并且递归到父类
+			// 具体的处理逻辑：
+			// 1.首先解析是否存在满足ConfigurationClass条件的内部类，如果存在的话，递归调用processConfigurationClass方法进行解析，
+			// 并且内部类生成的ConfigurationClass的importBy为外部类的ConfigurationClass
+
+			// 2.如果类上存在@PropertySource或者@PropertySources注解，将其解析到environment中，会根据注解的value属性，通过resourceLoader
+			// 加载对应的Resource，然后通过注解上面配置的PropertySourceFactory根据加载到的resource创建出PropertySource对象，存入到environment中
+
+			// 3.如果类上存在@ComponentScans或者@ComponentScan注解，并且不存在@Conditioanal注解或者REGISTER_BEAN阶段是通过的，
+			// 那么会使用ComponentScanAnnotationParser对注解进行解析，根据basePackages扫描对应包下的所有满足条件的类(是否满足条件是根据注解里面的includeFilters和excludeFilters属性来决定的)
+			// 并且封装成ScannedGenericBeanDefinition注册进registry中。然后遍历扫描出的类，查看是否有满足ConfigurationClass的，如果有的话，调用parse方法进行递归解析
+
 			sourceClass = doProcessConfigurationClass(configClass, sourceClass, filter);
 		}
 		while (sourceClass != null);
@@ -283,6 +295,10 @@ class ConfigurationClassParser {
 	 * Apply processing and build a complete {@link ConfigurationClass} by reading the
 	 * annotations, members and methods from the source class. This method can be called
 	 * multiple times as relevant sources are discovered.
+	 *
+	 * 应用处理并且构建一个完整的ConfigurationClass，通过从sourceClass读取注解、内部成员和方法。
+	 * 这个方法能够被调用多次随着相关的sourceClass被发现
+	 *
 	 * @param configClass the configuration class being build
 	 * @param sourceClass a source class
 	 * @return the superclass, or {@code null} if none found or previously processed
@@ -407,10 +423,11 @@ class ConfigurationClassParser {
 	/**
 	 * Register member (nested) classes that happen to be configuration classes themselves.
 	 */
-	private void processMemberClasses(ConfigurationClass configClass, SourceClass sourceClass,
+	private void processMemberClasses(/* outerClass */ConfigurationClass configClass, /* outerClass */ SourceClass sourceClass,
 			Predicate<String> filter) throws IOException {
 
 		// 获取到其持有的成员类SourceClass集合
+		// innerClasses
 		Collection<SourceClass> memberClasses = sourceClass.getMemberClasses();
 		// 如果集合不为空，说明存在内部类
 		if (!memberClasses.isEmpty()) {
@@ -427,6 +444,7 @@ class ConfigurationClassParser {
 			// 遍历候选集合
 			for (SourceClass candidate : candidates) {
 				// 如果导入栈中已经包含了该外部类的话，报错
+				// 形成了循环导入
 				if (this.importStack.contains(configClass)) {
 					this.problemReporter.error(new CircularImportProblem(configClass, this.importStack));
 				}
@@ -434,7 +452,8 @@ class ConfigurationClassParser {
 					// 将外部类入栈
 					this.importStack.push(configClass);
 					try {
-						// 将候选类转换为ConfigurationClass，并且将外部类configClass作为参数，表示该类是由外部类导入的，存入importedBy字段，然后递归处理
+						// 将候选内部类转换为ConfigurationClass，并且将外部类configClass作为参数，表示该类是由外部类导入的，存入importedBy字段
+						// 递归解析内部类
 						processConfigurationClass(candidate.asConfigClass(configClass), filter);
 					}
 					finally {
@@ -856,9 +875,11 @@ class ConfigurationClassParser {
 	}
 
 
+	// 作为一个导入栈去判断是否存在循环导入
 	@SuppressWarnings("serial")
 	private static class ImportStack extends ArrayDeque<ConfigurationClass> implements ImportRegistry {
 
+		// 该map用于记录导入关系，其中key为被导入的类的全限定名，value为导入key这个类的类的AnnotationMetadata集合
 		private final MultiValueMap<String, AnnotationMetadata> imports = new LinkedMultiValueMap<>();
 
 		public void registerImport(AnnotationMetadata importingClass, String importedClass) {

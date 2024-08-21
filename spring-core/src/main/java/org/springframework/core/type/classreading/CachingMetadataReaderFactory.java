@@ -73,7 +73,10 @@ public class CachingMetadataReaderFactory extends SimpleMetadataReaderFactory {
 	 */
 	public CachingMetadataReaderFactory(@Nullable ResourceLoader resourceLoader) {
 		super(resourceLoader);
+		// 如果传入的resourceLoader是DefaultResourceLoader类型的
 		if (resourceLoader instanceof DefaultResourceLoader) {
+			// 获取resourceLoader中的MetadataReader类型的缓存map给自身持有，如果resourceLoader中还不存在对应的key的话，
+			// 会创建一个空的map返回，这样自身持有的缓存和resourceLoader里面对应类型的缓存指向的是堆中的同一个对象
 			this.metadataReaderCache =
 					((DefaultResourceLoader) resourceLoader).getResourceCache(MetadataReader.class);
 		}
@@ -119,7 +122,9 @@ public class CachingMetadataReaderFactory extends SimpleMetadataReaderFactory {
 		// 如果metadataReader是CurrentMap类型的，那么不用加锁，否则需要同步操作
 		if (this.metadataReaderCache instanceof ConcurrentMap) {
 			// No synchronization necessary...
+			// 尝试从缓存中根据resource获取metadataReader
 			MetadataReader metadataReader = this.metadataReaderCache.get(resource);
+			// 如果缓存未命中，调用父类方法去创建一个metadataReader，并放入缓存
 			if (metadataReader == null) {
 				metadataReader = super.getMetadataReader(resource);
 				this.metadataReaderCache.put(resource, metadataReader);

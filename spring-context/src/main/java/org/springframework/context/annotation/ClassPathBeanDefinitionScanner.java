@@ -302,7 +302,7 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 				if (checkCandidate(beanName, candidate)) {
 					// 根据beanName和candidate创建一个BeanDefinitionHolder
 					BeanDefinitionHolder definitionHolder = new BeanDefinitionHolder(candidate, beanName);
-					// TODO 应用范围代理模式
+					//TODO 进行scope相关的代理
 					definitionHolder =
 							AnnotationConfigUtils.applyScopedProxyMode(scopeMetadata, definitionHolder, this.registry);
 					// 将holder添加到集合中
@@ -324,7 +324,9 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 	protected void postProcessBeanDefinition(AbstractBeanDefinition beanDefinition, String beanName) {
 		// 调用持有的BeanDefinitionDefaults对bd进行默认的配置
 		beanDefinition.applyDefaults(this.beanDefinitionDefaults);
-		// 如果自动注入候选的模式不为null的话，判断beanName是否匹配，如果是话，向bd中设置autowireCandidate为true
+		// 如果autowireCandidatePatterns不为null的话，那么需要判断对应的beanName是否匹配这些规则，
+		// 如果匹配，将bd的autowireCandidate属性设置为true，否则设置为false。
+		// 默认autowireCandidatePatterns为null，因此默认的bd的autowireCandidate都为true
 		if (this.autowireCandidatePatterns != null) {
 			beanDefinition.setAutowireCandidate(PatternMatchUtils.simpleMatch(this.autowireCandidatePatterns, beanName));
 		}
