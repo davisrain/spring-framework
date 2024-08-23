@@ -1,0 +1,2 @@
+com.dzy.CandidateComponentsIndexTests$Foo = org.springframework.stereotype.Component
+com.dzy.CandidateComponentsIndexTests$Bar = org.springframework.stereotype.Component

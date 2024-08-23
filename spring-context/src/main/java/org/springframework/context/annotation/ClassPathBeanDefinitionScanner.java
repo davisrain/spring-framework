@@ -308,7 +308,11 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 					// TODO 进行scope相关的代理
 					// 作用就是如果解析出来的ScopeMetadata的scopedProxyMode不是NO，进行aop代理，创建出一个ScopedProxyFactoryBean的beanDefinition
 					// 来替换原始的bd，然后FactoryBean的getObject返回一个代理对象，将原始bean作为targetSource，并且实现了ScopedObject接口，
-					// 使得我们能够通过单例的代理对象操作scope范围的非单例的bean
+					// 使得我们能够通过单例的代理对象操作scope范围的非单例的bean。
+
+					// 相当于是一个懒加载，在调用具体方法的时候才会通过targetSource的getTarget获取到实际的bean，
+					// 解决了生命周期长的bean对生命周期短的bean的引用问题，比如单例的bean想要引入一个session范围的bean，但是单例bean在项目启动的时候就生成了，并且会注入依赖，
+					// 但是这个时候session还不存在，所以就使用一个代理来代替session范围的bean。
 					definitionHolder =
 							AnnotationConfigUtils.applyScopedProxyMode(scopeMetadata, definitionHolder, this.registry);
 					// 将holder添加到集合中

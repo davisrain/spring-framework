@@ -350,6 +350,8 @@ class ConfigurationClassParser {
 				// Check the set of scanned definitions for any further config classes and parse recursively if needed
 				// 检查这些扫描到的bd中是否有是ConfigurationClass的，如果有的话，递归调用parse方法进行解析
 				for (BeanDefinitionHolder holder : scannedBeanDefinitions) {
+					// 判断bd的resource字段是否是BeanDefinitionResource类型的，如果是，获取到原始的bd。
+					// 因为扫描出来的bd可能是被scope代理的，所以需要拿到其原始的bd来判断
 					BeanDefinition bdCand = holder.getBeanDefinition().getOriginatingBeanDefinition();
 					if (bdCand == null) {
 						bdCand = holder.getBeanDefinition();
@@ -362,7 +364,7 @@ class ConfigurationClassParser {
 		}
 
 		// Process any @Import annotations
-		// 处理标注在configClass上的@Import注解，
+		// 处理标注在configurationClass上的@Import注解，
 		// 其中getImports方法会收集sourceClass上标注或元标注的@Import注解中的value属性所指向的所有类的集合，并且会将类转换为SourceClass的形式
 		processImports(configClass, sourceClass, getImports(sourceClass), filter, true);
 
