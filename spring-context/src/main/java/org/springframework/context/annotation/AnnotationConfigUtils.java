@@ -211,6 +211,7 @@ public abstract class AnnotationConfigUtils {
 
 		// 如果registry中不包含名为org.springframework.context.event.internalEventListenerProcessor的BeanDefinition的话，添加进去
 		// EventListenerMethodProcessor BeanFactoryPostProcessor
+		// TODO EventListenerMethodProcessor的作用
 		if (!registry.containsBeanDefinition(EVENT_LISTENER_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(EventListenerMethodProcessor.class);
 			def.setSource(source);
