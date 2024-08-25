@@ -108,7 +108,8 @@ import org.springframework.util.StringUtils;
  * @since 3.0
  * @see ConfigurationClassBeanDefinitionReader
  */
-class ConfigurationClassParser {
+// 类access_flag修改为public，方便测试
+public class ConfigurationClassParser {
 
 	private static final PropertySourceFactory DEFAULT_PROPERTY_SOURCE_FACTORY = new DefaultPropertySourceFactory();
 
@@ -282,6 +283,21 @@ class ConfigurationClassParser {
 			// 3.如果类上存在@ComponentScans或者@ComponentScan注解，并且不存在@Conditioanal注解或者REGISTER_BEAN阶段是通过的，
 			// 那么会使用ComponentScanAnnotationParser对注解进行解析，根据basePackages扫描对应包下的所有满足条件的类(是否满足条件是根据注解里面的includeFilters和excludeFilters属性来决定的)
 			// 并且封装成ScannedGenericBeanDefinition注册进registry中。然后遍历扫描出的类，查看是否有满足ConfigurationClass的，如果有的话，调用parse方法进行递归解析
+
+			//4.调用processImports方法解析@Import注解，如果@Import注解里面的value导入的类型可以有三种情况
+			//4.1 普通的类型，会被当做是ConfigurationClass进行解析一遍
+			//4.2 ImportSelector类型的，会实例化出ImportSelector，然后调用importSelects方法得到所有需要导入的类的全限定名数组，然后依次被当作ConfigurationClass解析。
+			// 如果是DeferredImportSelector类型的，会被延后到所有ConfigurationClass都解析完成之后再进行导入，并且会根据Group进行分组处理。
+			//4.3 ImportBeanDefinitionRegistrar，会被实例化之后保存在当前ConfigurationClass的一个map中，key为实例化出来的ImportBeanDefinitionRegistrar.
+			// value为导入这个registrar的类的AnnotationMetadata，然后等待后续ConfigurationClassBeanDefinitionReader的解析，
+			// 即调用它的registerBeanDefinition方法向registry中注册beanDefinition
+
+			//5.解析标注的@ImportResource注解，会将解析出来的resource的地址和进行解析的BeanDefinitionReader的类型一起保存在ConfigurationClass中
+
+			//6.解析类中标注的@Bean方法，以及实现的接口里面的标注了@Bean注解的默认方法。会将方法MethodMetadata和ConfigurationClass封装成一个BeanMethod对象，
+			// 保存在ConfigurationClass的beanMethod集合里面，等待后续在ConfigurationClassBeanDefinitionReader里面进行解析
+
+			//7.然后获取其父类，如果父类不是以java.开头的并且不存在于knowSuperClasses里面，循环解析其父类
 
 			sourceClass = doProcessConfigurationClass(configClass, sourceClass, filter);
 		}
@@ -926,8 +942,8 @@ class ConfigurationClassParser {
 		}
 	}
 
-
-	private class DeferredImportSelectorHandler {
+	// 类access_flag修改为public，方便测试
+	public class DeferredImportSelectorHandler {
 
 		@Nullable
 		private List<DeferredImportSelectorHolder> deferredImportSelectors = new ArrayList<>();

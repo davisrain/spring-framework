@@ -71,7 +71,7 @@ public class ClassPathScanningCandidateComponentProviderTests {
 
 	private static final ClassLoader TEST_BASE_CLASSLOADER = CandidateComponentsTestClassLoader.index(
 			ClassPathScanningCandidateComponentProviderTests.class.getClassLoader(),
-			new ClassPathResource("spring.components", NamedComponent.class));
+			new ClassPathResource("spring.components.ignore", NamedComponent.class));
 
 
 	@Test

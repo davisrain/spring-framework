@@ -146,9 +146,14 @@ class ConfigurationClassEnhancer {
 	 * ensuring that callbacks are registered for the new subclass.
 	 */
 	private Class<?> createClass(Enhancer enhancer) {
+		// 创建出代理类
 		Class<?> subclass = enhancer.createClass();
 		// Registering callbacks statically (as opposed to thread-local)
 		// is critical for usage in an OSGi environment (SPR-5932)...
+		// 调用代理类的public static void CGLIB$SET_STATIC_CALLBACKS方法将callbacks数组设置到
+		// 代理类的private static final CALLBACK[] CGLIB$STATIC_CALLBACKS属性中
+		// 这样在每次实例化代理类的时候，构造方法里面都会调用private static final void CGLIB$BIND_CALLBACKS方法，
+		// 将CGLIB$STATIC_CALLBACKS 或者 CGLIB$THREAD_CALLBACKS里面的callbacks数组绑定到自身对应的实例属性private Callback CGLIB$CALLBACK_i上
 		Enhancer.registerStaticCallbacks(subclass, CALLBACKS);
 		return subclass;
 	}

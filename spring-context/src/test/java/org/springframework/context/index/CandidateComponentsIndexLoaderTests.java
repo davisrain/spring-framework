@@ -37,14 +37,14 @@ public class CandidateComponentsIndexLoaderTests {
 	@Test
 	public void validateIndexIsDisabledByDefault() {
 		CandidateComponentsIndex index = CandidateComponentsIndexLoader.loadIndex(null);
-		assertThat(index).as("No spring.components should be available at the default location").isNull();
+		assertThat(index).as("No spring.components.ignore should be available at the default location").isNull();
 	}
 
 	@Test
 	public void loadIndexSeveralMatches() {
 		CandidateComponentsIndex index = CandidateComponentsIndexLoader.loadIndex(
 				CandidateComponentsTestClassLoader.index(getClass().getClassLoader(),
-						new ClassPathResource("spring.components", getClass())));
+						new ClassPathResource("spring.components.ignore", getClass())));
 		Set<String> components = index.getCandidateTypes("org.springframework", "foo");
 		assertThat(components).contains(
 				"org.springframework.context.index.Sample1",
@@ -55,7 +55,7 @@ public class CandidateComponentsIndexLoaderTests {
 	public void loadIndexSingleMatch() {
 		CandidateComponentsIndex index = CandidateComponentsIndexLoader.loadIndex(
 				CandidateComponentsTestClassLoader.index(getClass().getClassLoader(),
-						new ClassPathResource("spring.components", getClass())));
+						new ClassPathResource("spring.components.ignore", getClass())));
 		Set<String> components = index.getCandidateTypes("org.springframework", "biz");
 		assertThat(components).contains(
 				"org.springframework.context.index.Sample3");
@@ -65,7 +65,7 @@ public class CandidateComponentsIndexLoaderTests {
 	public void loadIndexNoMatch() {
 		CandidateComponentsIndex index = CandidateComponentsIndexLoader.loadIndex(
 				CandidateComponentsTestClassLoader.index(getClass().getClassLoader(),
-						new ClassPathResource("spring.components", getClass())));
+						new ClassPathResource("spring.components.ignore", getClass())));
 		Set<String> components = index.getCandidateTypes("org.springframework", "none");
 		assertThat(components).isEmpty();
 	}
@@ -74,7 +74,7 @@ public class CandidateComponentsIndexLoaderTests {
 	public void loadIndexNoPackage() {
 		CandidateComponentsIndex index = CandidateComponentsIndexLoader.loadIndex(
 				CandidateComponentsTestClassLoader.index(getClass().getClassLoader(),
-						new ClassPathResource("spring.components", getClass())));
+						new ClassPathResource("spring.components.ignore", getClass())));
 		Set<String> components = index.getCandidateTypes("com.example", "foo");
 		assertThat(components).isEmpty();
 	}
@@ -90,7 +90,7 @@ public class CandidateComponentsIndexLoaderTests {
 	public void loadIndexNoEntry() {
 		CandidateComponentsIndex index = CandidateComponentsIndexLoader.loadIndex(
 				CandidateComponentsTestClassLoader.index(getClass().getClassLoader(),
-						new ClassPathResource("empty-spring.components", getClass())));
+						new ClassPathResource("empty-spring.components.ignore", getClass())));
 		assertThat(index).isNull();
 	}
 

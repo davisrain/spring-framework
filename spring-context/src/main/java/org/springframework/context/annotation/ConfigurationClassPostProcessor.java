@@ -262,6 +262,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 					"postProcessBeanFactory already called on this post-processor against " + beanFactory);
 		}
 		this.factoriesPostProcessed.add(factoryId);
+		// 如果发现还没有调用过postProcessBeanDefinitionRegistry的话，调用processConfigBeanDefinitions方法
 		if (!this.registriesPostProcessed.contains(factoryId)) {
 			// BeanDefinitionRegistryPostProcessor hook apparently not supported...
 			// Simply call processConfigurationClasses lazily at this point then.
@@ -271,6 +272,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		// 对ConfigurationClass进行增强，即标注了@Configuration注解且注解属性proxyBeanMethods为true的ConfigurationClass，
 		// 使用动态代理增强其bean方法，让bean方法每次都返回同一个bean
 		enhanceConfigurationClasses(beanFactory);
+		// 添加一个ImportAwareBeanPostProcessor到beanFactory中，用于为实现了ImportAware接口的bean注入导入它的类的AnnotationMetadata
 		beanFactory.addBeanPostProcessor(new ImportAwareBeanPostProcessor(beanFactory));
 	}
 
@@ -356,11 +358,11 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		Set<ConfigurationClass> alreadyParsed = new HashSet<>(configCandidates.size());
 		do {
 			// 调用解析器进行解析，解析完成之后会将解析到的ConfigurationClass都保存在parser的configurationClasses字段中
-			// 对应的@PropertySource注解解析出的内容PropertySource会添加到environment中。
-			// 对应的@ComponentScan注解会将指定包下的满足includeFilter条件的类转换成ScannedGenericBeanDefinition添加到registry中
-			// 对应的@ImportResource注解包含的内容被自身的ConfigurationClass持有，等待后续解析
-			// @Import注解中包含的ImportBeanDefinitionRegistrar类型的类也被自身ConfigurationClass持有，等待后续解析
-			// 类中包含的@Bean方法也被自身ConfigurationClass持有，等待后续解析
+			// 1.对应的@PropertySource注解解析出的内容PropertySource会添加到environment中。
+			// 2.对应的@ComponentScan注解会将指定包下的满足includeFilter条件的类转换成ScannedGenericBeanDefinition添加到registry中
+			// 3.对应的@ImportResource注解包含的内容被自身的ConfigurationClass持有，等待后续解析
+			// 4.@Import注解中包含的ImportBeanDefinitionRegistrar类型的类也被自身ConfigurationClass持有，等待后续解析
+			// 5.类中包含的@Bean方法也被自身ConfigurationClass持有，等待后续解析
 			parser.parse(candidates);
 			// 对parser持有的ConfigurationClass集合进行验证。
 			// 检查标注有@Configuration注解且proxyBeanMethods属性为true的ConfigurationClass是否是可继承的；
@@ -381,6 +383,10 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 						this.importBeanNameGenerator, parser.getImportRegistry());
 			}
 			// 调用reader根据ConfigurationClass加载BeanDefinition
+			// 1.如果ConfigurationClass是被导入的，生成beanDefinition注册进registry中，这种情况会生成AnnotatedGenericBeanDefinition类型的bd
+			// 2.解析持有的@Bean方法，生成ConfigurationClassBeanDefinition注册进registry，这种情况会生成ConfigurationClassBeanDefinition类型的bd
+			// 3.解析@ImportResource导入的配置文件
+			// 4.解析持有的ImportBeanDefinitionRegistrar
 			this.reader.loadBeanDefinitions(configClasses);
 			// 并且将解析过的configClasses放入alreadyParsed集合
 			alreadyParsed.addAll(configClasses);
@@ -407,7 +413,10 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 						// 获取到对应的bd
 						BeanDefinition bd = registry.getBeanDefinition(candidateName);
 						// 如果检查到该bd是ConfigurationClass 并且 已经解析过的ConfigurationClass的类名中不包括它，
-						// 说明它需要被解析，加入到候选集合
+						// 说明它需要被解析，加入到候选集合。
+
+						// note：这里调用ConfigurationClassUtils还有一个重要的作用就是在bd中设置configurationClass的是full还是lite的属性，
+						// 这样使得导入的ConfigurationClass的bd也有对应的属性，使得后续的enhanceConfigurationClass方法能够根据该属性来判断是否进行代理
 						if (ConfigurationClassUtils.checkConfigurationClassCandidate(bd, this.metadataReaderFactory) &&
 								!alreadyParsedClasses.contains(bd.getBeanClassName())) {
 							candidates.add(new BeanDefinitionHolder(bd, candidateName));
@@ -423,7 +432,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 
 		// Register the ImportRegistry as a bean in order to support ImportAware @Configuration classes
 		// 如果容器中不存在name为IMPORT_REGISTRY_BEAN_NAME的bean，那么将parser中的importStack注册进去。
-		// 里面保存了被导入类和导入它的类的关系
+		// 里面保存了被导入类和导入它的类的关系，后续在ImportAwareBeanPostProcessor中会用到，用于将被导入类的导入它的类的AnnotationMetadata注入
 		if (sbr != null && !sbr.containsSingleton(IMPORT_REGISTRY_BEAN_NAME)) {
 			sbr.registerSingleton(IMPORT_REGISTRY_BEAN_NAME, parser.getImportRegistry());
 		}
@@ -514,7 +523,8 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		for (Map.Entry<String, AbstractBeanDefinition> entry : configBeanDefs.entrySet()) {
 			AbstractBeanDefinition beanDef = entry.getValue();
 			// If a @Configuration class gets proxied, always proxy the target class
-			// 向bd中设置属性PRESERVE_TARGET_CLASS_ATTRIBUTE为true
+			// 向bd中设置属性PRESERVE_TARGET_CLASS_ATTRIBUTE为true，
+			// 这个参数会使得后续在autoProxyCreator进行自动代理的时候，选择使用proxyTargetClass的方式，即cglib代理
 			beanDef.setAttribute(AutoProxyUtils.PRESERVE_TARGET_CLASS_ATTRIBUTE, Boolean.TRUE);
 			// Set enhanced subclass of the user-specified bean class
 			// 获取bd的beanClass，用于对该类进行动态代理

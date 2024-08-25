@@ -46,7 +46,8 @@ import org.springframework.util.ClassUtils;
  * @see BeanMethod
  * @see ConfigurationClassParser
  */
-final class ConfigurationClass {
+// 类access_flag修改为public，方便测试
+public final class ConfigurationClass {
 
 	// 表示该ConfigurationClass对应的AnnotationMetadata
 	private final AnnotationMetadata metadata;

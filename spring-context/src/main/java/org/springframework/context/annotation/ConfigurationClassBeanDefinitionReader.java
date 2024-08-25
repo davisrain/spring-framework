@@ -210,7 +210,7 @@ class ConfigurationClassBeanDefinitionReader {
 		// Do we need to mark the bean as skipped by its condition?
 		// 根据@Bean方法上标注的@Conditional注解判断@Bean方法是否需要被过滤
 		if (this.conditionEvaluator.shouldSkip(metadata, ConfigurationPhase.REGISTER_BEAN)) {
-			// 如果是的话，将方法名添加到configClass中持有
+			// 如果是的话，将方法名添加到configClass中的skippedBeanMethods集合
 			configClass.skippedBeanMethods.add(methodName);
 			return;
 		}
@@ -275,6 +275,9 @@ class ConfigurationClassBeanDefinitionReader {
 			// 并且设置bd的factoryMethodName为bean方法的名称，并且将唯一标志设置为true
 			beanDef.setUniqueFactoryMethodName(methodName);
 		}
+		// 综上所述：bd的factoryMethodName都为@Bean方法的方法名
+		// 1.如果是静态的@Bean方法，beanDefinition中只存在声明这个@Bean方法的bean的Class对象(可能是class类型也可能是class的全限定名)，且factoryBeanName为null
+		// 2.如果是实例@Bean方法，beanClass为null，factoryBeanName为声明这个@Bean方法的bean的beanName
 
 		// 如果bean方法的原数组是由反射获取的
 		if (metadata instanceof StandardMethodMetadata) {
@@ -282,13 +285,14 @@ class ConfigurationClassBeanDefinitionReader {
 			beanDef.setResolvedFactoryMethod(((StandardMethodMetadata) metadata).getIntrospectedMethod());
 		}
 
-		// 设置bd的自动注入的模式为构造器模式
+		// 设置bd的自动注入的模式为构造器模式，这样在ConstructorResolver的instantiateUsingFactoryMethod方法里面，
+		// 如果从ConstructorArgumentValues中找不到对应的参数，一定会通过beanFactory的resolveDependency按照类型去查找
 		beanDef.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR);
 		// TODO 该参数不知道有何作用，设置bd的属性skipRequiredCheck为true
 		beanDef.setAttribute(org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor.
 				SKIP_REQUIRED_CHECK_ATTRIBUTE, Boolean.TRUE);
 
-		// 处理一些通过的注解，@Lazy @Primary @DependsOn @Role @Description
+		// 处理一些通用的注解，@Lazy @Primary @DependsOn @Role @Description
 		AnnotationConfigUtils.processCommonDefinitionAnnotations(beanDef, metadata);
 
 		// 根据@Bean注解的autowire属性设置bd的autowireMode值
@@ -491,7 +495,9 @@ class ConfigurationClassBeanDefinitionReader {
 			this.derivedBeanName = derivedBeanName;
 			// 将当前bd的resource设置为configClass的resource
 			setResource(configClass.getResource());
-			// 设置lenientConstructorResolution标志为false
+			// 设置lenientConstructorResolution标志为false，即不是宽松的构造器解析。
+			// 在ConstructorResolver的instantiateUsingFactoryMethod方法里面，
+			// 选择实际要使用的factoryMethod的时候不允许存在ambiguous的factoryMethod集合
 			setLenientConstructorResolution(false);
 		}
 
