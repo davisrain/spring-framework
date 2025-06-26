@@ -235,7 +235,7 @@ public class ClassReader {
 		  case Symbol.CONSTANT_NAME_AND_TYPE_TAG:  // tag(1) + Constant_UTF8_info(2):name + Constant_UTF8_info(2):descriptor
           cpInfoSize = 5;
           break;
-        case Symbol.CONSTANT_DYNAMIC_TAG:
+        case Symbol.CONSTANT_DYNAMIC_TAG: // tag(1) + bootstrapMethodIndex(2) + Constant_NameAndType_info(2)
           cpInfoSize = 5;
           hasBootstrapMethods = true;
           hasConstantDynamic = true;
@@ -561,7 +561,7 @@ public class ClassReader {
         moduleMainClass = readClass(currentAttributeOffset, charBuffer);
       } else if (Constants.MODULE_PACKAGES.equals(attributeName)) {
         modulePackagesOffset = currentAttributeOffset;
-		// 如果属性名等于BootstrapMethods，将其解析为Attribute对象，并和当前存在的Attribute对象链接起来，形成一个属性链
+		// 如果不是上述的属性，且属性名不等于BootstrapMethods，将其解析为Attribute对象，并和当前存在的Attribute对象链接起来，形成一个属性链
       } else if (!Constants.BOOTSTRAP_METHODS.equals(attributeName)) {
         // The BootstrapMethods attribute is read in the constructor.
         Attribute attribute =
@@ -621,7 +621,27 @@ public class ClassReader {
     // Visit the RuntimeVisibleAnnotations attribute.
 	  // 运行时可见注解属性的结构是：attribute_name_index(u2) attribute_length(u4) num_annotations(u2) annotations(num_annotations)
 	  // annotation的结构是：type_index(u2，指向常量池的Constant_UTF8_info常量) num_element_value_pairs(u2) element_value_pairs(num_element_value_pairs)
-	  // 关于annotation的结构，详细内容可以查看https://docs.oracle.com/cd/E28389_01/apirefs.1111/b32476/oracle/toplink/libraries/asm/attrs/Annotation.html
+	  // element_value_pair的结构是：element_name_index(u2，指向常量池的Constant_UTF8_info常量） element_value
+	  // element_value的结构是：
+	  // {
+	  //   u1 tag;
+	  //   union {
+	  //	  u2 const_value_index; tag = [B,S,C,I,F,J,D,Z,s]，常量所在的常量池index，当value是byte short char integer float long double boolean String类型时，使用的是这个变量
+	  //	  {
+	  //		u2 type_name_index; 枚举的类型名称描述符所在的常量池index
+	  //		u2 const_name_index; 枚举元素的name所在的常量池index
+	  // 	  } enum_const_value; tag = e，当value是枚举时，使用这个变量
+	  //	  u2 class_info_index; tag = c，当value是类对象时，使用这个变量，表示的是类对象所在的常量池的index
+	  //      annotation; tag = @，注解的element_value仍然可以是注解，那么该annotation就是上述的annotation结构，进行嵌套
+	  //      {
+	  //         u2 num_values; 表示的是数组中包含的element_value的数量
+	  //         element_value values[num_values]; element_value数组
+	  //      } array_value; tag = [，注解的element_value是一个数组，里面的element_value就是上述的结构，进行嵌套
+	  //   }
+	  // }
+	  // 关于annotation的结构，详细内容可以查看
+	  // https://docs.oracle.com/cd/E28389_01/apirefs.1111/b32476/oracle/toplink/libraries/asm/attrs/Annotation.html
+	  // https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.16
     if (runtimeVisibleAnnotationsOffset != 0) {
 		// 读取注解的数量
       int numAnnotations = readUnsignedShort(runtimeVisibleAnnotationsOffset);
@@ -630,7 +650,7 @@ public class ClassReader {
 	  // 根据注解的数量进行遍历
       while (numAnnotations-- > 0) {
         // Parse the type_index field.
-		  // 读取当前注解的描述符，是以字段描述符的形式表示注解的，比如Ljava/lang/Target;
+		  // 读取当前注解的描述符，是以类的描述符的形式表示注解的，比如Ljava/lang/Target;
         String annotationDescriptor = readUTF8(currentAnnotationOffset, charBuffer);
         currentAnnotationOffset += 2;
         // Parse num_element_value_pairs and element_value_pairs and visit these values.
@@ -3153,7 +3173,7 @@ public class ClassReader {
     }
 	// 判断对应偏移量指向的字节内容，即读取element_value的tag
     switch (classFileBuffer[currentOffset++] & 0xFF) {
-		// 如果是B的话，说明后面两个字节指向的是常量池的Constant_Integer_info
+		// 如果是B的话，说明后面两个字节指向的是常量池的Constant_Integer_info，这是因为常量池最小只有Integer，没有Integer以下类型的常量
       case 'B': // const_value_index, CONSTANT_Integer
 		  // 读取出常量池中对应的常量，并转换为byte类型，调用annotationVisitor的visit方法，将元素名称和元素值都传入
         annotationVisitor.visit(
@@ -3200,7 +3220,9 @@ public class ClassReader {
 		  // 如果是e，表示是枚举类型
         annotationVisitor.visitEnum(
             elementName,
+			// 枚举类型描述符
             readUTF8(currentOffset, charBuffer),
+			// 具体枚举元素的name
             readUTF8(currentOffset + 2, charBuffer));
         currentOffset += 4;
         break;
@@ -3875,7 +3897,7 @@ public class ClassReader {
     while (currentOffset < endOffset) {
 		// 获取当前字节
       int currentByte = classBuffer[currentOffset++];
-	  // 如果当前字节的从左往右第二位bit为0，根据UTF8编码的性质，可以得出，第一个字符只包含1个字节，且最大只能为127。
+	  // 如果当前字节的从左往右第一位bit为0，根据UTF8编码的性质，可以得出，第一个字符只包含1个字节，且最大只能为127。
 		// UTF8编码的性质：如果字符只占1个字节，字符的第一个字节的第一位为0；
 		// 否则，字符的第一个字节前面有多少位1，代表该字符总共占用多少个字节，并且最后一位1后面会紧跟一个0，第一个字节剩余的位置才表示数据内容；
 		// 如果占用多个字节，那么后续字节的前两位都固定为10，只剩下6位用来表示数据。
