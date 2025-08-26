@@ -27,6 +27,7 @@
 // THE POSSIBILITY OF SUCH DAMAGE.
 package org.springframework.asm;
 
+import javax.annotation.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -527,6 +528,9 @@ public class ClassReader {
       } else if (Constants.ENCLOSING_METHOD.equals(attributeName)) {
         enclosingMethodOffset = currentAttributeOffset;
       } else if (Constants.NEST_HOST.equals(attributeName)) {
+		  // NestHost和NestMembers都是JDK11新增的属性，用于进行嵌套类之间访问私有属性和方法。可以参考：https://www.baeldung.com/java-nest-based-access-control
+		  // 在JDK11之前，内部类和外部类之间可以互相访问私有的属性和方法，但都是通过编译器在 被访问类 中生成package修饰符的桥接方法access$xxx来完成的
+		  // JDK11之后，新增这两个属性，在jvm层面来实现内部类和外部类私有属性和方法的访问
         nestHostClass = readClass(currentAttributeOffset, charBuffer);
       } else if (Constants.NEST_MEMBERS.equals(attributeName)) {
         nestMembersOffset = currentAttributeOffset;
@@ -1459,6 +1463,7 @@ public class ClassReader {
     // adapter between the reader and the writer. In this case, it might be possible to copy
     // the method attributes directly into the writer. If so, return early without visiting
     // the content of these attributes.
+	  // 如果methodVisitor是MethodWriter类型的，判断是否可以直接从原方法中拷贝属性表到要写入的方法
     if (methodVisitor instanceof MethodWriter) {
       MethodWriter methodWriter = (MethodWriter) methodVisitor;
       if (methodWriter.canCopyMethodAttributes(
@@ -1468,6 +1473,7 @@ public class ClassReader {
           readUnsignedShort(methodInfoOffset + 4),
           signatureIndex,
           exceptionsOffset)) {
+		  // 如果可以拷贝，直接从原方法中拷贝属性表
         methodWriter.setMethodAttributesSource(methodInfoOffset, currentOffset - methodInfoOffset);
         return currentOffset;
       }
@@ -1491,7 +1497,9 @@ public class ClassReader {
     }
 
     // Visit the AnnotationDefault attribute.
+	  // 这个属性只有注解类中的方法会存在，表示注解类中方法的默认值
     if (annotationDefaultOffset != 0) {
+		// 会生成一个AnnotationVisitor，调用readElementValue去解析注解的element_value
       AnnotationVisitor annotationVisitor = methodVisitor.visitAnnotationDefault();
       readElementValue(annotationVisitor, annotationDefaultOffset, null, charBuffer);
       if (annotationVisitor != null) {

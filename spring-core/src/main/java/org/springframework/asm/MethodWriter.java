@@ -2225,6 +2225,7 @@ final class MethodWriter extends MethodVisitor {
     // conservative check on the descriptor changes alone ensures this (being more precise is not
     // worth the additional complexity, because these cases should be rare -- if a transform changes
     // a method descriptor, most of the time it needs to change the method's code too).
+	  // 如果方法的描述符 或者签名 或者deprecated标志已经改变了，那么就不能直接复制原方法的属性
     if (source != symbolTable.getSource()
         || descriptorIndex != this.descriptorIndex
         || signatureIndex != this.signatureIndex
@@ -2233,15 +2234,20 @@ final class MethodWriter extends MethodVisitor {
     }
     boolean needSyntheticAttribute =
         symbolTable.getMajorVersion() < Opcodes.V1_5 && (accessFlags & Opcodes.ACC_SYNTHETIC) != 0;
+	// 如果方法的synthetic标志和原方法不一致，也不能复制
     if (hasSyntheticAttribute != needSyntheticAttribute) {
       return false;
     }
+	// 如果原方法不存在抛出的异常
     if (exceptionsOffset == 0) {
+		// 但要写入的方法有抛出的异常，不能复制
       if (numberOfExceptions != 0) {
         return false;
       }
     } else if (source.readUnsignedShort(exceptionsOffset) == numberOfExceptions) {
+		// 如果原方法抛出的异常和要写入方法的异常数量相等
       int currentExceptionOffset = exceptionsOffset + 2;
+	  // 判断每个异常是否在常量池的引用是否一致，如果存在不一致，不能复制
       for (int i = 0; i < numberOfExceptions; ++i) {
         if (source.readUnsignedShort(currentExceptionOffset) != exceptionIndexTable[i]) {
           return false;
@@ -2249,6 +2255,8 @@ final class MethodWriter extends MethodVisitor {
         currentExceptionOffset += 2;
       }
     }
+	// todo 但存在原方法和要写入的方法抛出异常数量不等的情况，确认是否返回true
+	  // 其余情况返回true，表示可以复制
     return true;
   }
 
@@ -2264,6 +2272,7 @@ final class MethodWriter extends MethodVisitor {
     // Don't copy the attributes yet, instead store their location in the source class reader so
     // they can be copied later, in {@link #putMethodInfo}. Note that we skip the 6 header bytes
     // of the method_info JVMS structure.
+	  // 先不进行拷贝，只是记录一下属性表在source中的位置，以便在后续的putMethodInfo中拷贝，记录的位置排除了method_info最开始的6个字节
     this.sourceOffset = methodInfoOffset + 6;
     this.sourceLength = methodInfoLength - 6;
   }
