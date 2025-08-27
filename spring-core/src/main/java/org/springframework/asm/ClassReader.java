@@ -2004,6 +2004,7 @@ public class ClassReader {
 
     // Read the 'exception_table_length' and 'exception_table' field to create a label for each
     // referenced instruction, and to make methodVisitor visit the corresponding try catch blocks.
+	  // 读取code属性中的异常表，并且给start end handler都创建一个label，然后使用methodVisitor访问tryCatchBlock
     int exceptionTableLength = readUnsignedShort(currentOffset);
     currentOffset += 2;
     while (exceptionTableLength-- > 0) {
@@ -2040,6 +2041,7 @@ public class ClassReader {
     //   This list in the <i>reverse order</i> or their order in the ClassFile structure.
     Attribute attributes = null;
 
+	// 开始读取code属性中的属性表
     int attributesCount = readUnsignedShort(currentOffset);
     currentOffset += 2;
     while (attributesCount-- > 0) {
@@ -2098,6 +2100,7 @@ public class ClassReader {
             readTypeAnnotations(methodVisitor, context, currentOffset, /* visible = */ false);
         // Same comment as above for the RuntimeVisibleTypeAnnotations attribute.
       } else if (Constants.STACK_MAP_TABLE.equals(attributeName)) {
+		  // 如果是StackMapTable属性，记录第一个frame开始的偏移量和StackMapFrame结束的偏移量
         if ((context.parsingOptions & SKIP_FRAMES) == 0) {
           stackMapFrameOffset = currentOffset + 2;
           stackMapTableEndOffset = currentOffset + attributeLength;
@@ -2209,6 +2212,7 @@ public class ClassReader {
     // opcode, or 0 if goto_w and jsr_w must be left unchanged (i.e. when expanding ASM specific
     // instructions).
 	  // wide的跳转命令和正常跳转命令之间的差值，如果开启了expand_asm_insns，那么该差值为0
+	  // todo 需要搞懂EXPAND_ASM_INSNS是干嘛的
     final int wideJumpOpcodeDelta =
         (context.parsingOptions & EXPAND_ASM_INSNS) == 0 ? Constants.WIDE_JUMP_OPCODE_DELTA : 0;
 
@@ -2463,12 +2467,16 @@ public class ClassReader {
         case Constants.JSR:
         case Constants.IFNULL:
         case Constants.IFNONNULL:
+			// 读取jump相关的指令，这些指令后面都会跟一个有符号两个字节的操作数，表示要跳转到的指令相对于当前指令的偏移量
+			// 因此读取这个偏移量+当前指令在字节码中的偏移量，找到对应字节码的label，一起传递给methodVisitor进行访问
           methodVisitor.visitJumpInsn(
               opcode, labels[currentBytecodeOffset + readShort(currentOffset + 1)]);
           currentOffset += 3;
           break;
         case Constants.GOTO_W:
         case Constants.JSR_W:
+			// 也是跳转指令，不过后面跟的操作数是4个字节的有符号数。
+			// 并且会减去wide指令和普通指令之间的差值，即变回普通的跳转指令，然后拿到对应位置字节码的label传入给methodVisitor
           methodVisitor.visitJumpInsn(
               opcode - wideJumpOpcodeDelta,
               labels[currentBytecodeOffset + readInt(currentOffset + 1)]);
@@ -2499,11 +2507,15 @@ public class ClassReader {
             // where <L> designates the instruction just after the GOTO_W.
             // First, change the ASM specific opcodes ASM_IFEQ ... ASM_JSR, ASM_IFNULL and
             // ASM_IFNONNULL to IFEQ ... JSR, IFNULL and IFNONNULL.
+			  // 以上这些字节码都是用于处理偏移量在32767以上的操作，因为有符号的两个字节最大只能表示32767
+			  // 先将ASM特定的字节码转换为jvm的原本的字节码
             opcode =
                 opcode < Constants.ASM_IFNULL
                     ? opcode - Constants.ASM_OPCODE_DELTA
                     : opcode - Constants.ASM_IFNULL_OPCODE_DELTA;
+			// 然后读取字节码后面两个字节的无符号数作为偏移量，根据偏移量找到对应字节码对应的label
             Label target = labels[currentBytecodeOffset + readUnsignedShort(currentOffset + 1)];
+			// 如果是GOTO或者JSR的话，将其替换成GOTO_W 和 JSR_W，因为这种情况下jvm自带有能够读取32767以上偏移量的字节码
             if (opcode == Opcodes.GOTO || opcode == Opcodes.JSR) {
               // Replace GOTO with GOTO_W and JSR with JSR_W.
               methodVisitor.visitJumpInsn(opcode + Constants.WIDE_JUMP_OPCODE_DELTA, target);
@@ -2511,12 +2523,19 @@ public class ClassReader {
               // Compute the "opposite" of opcode. This can be done by flipping the least
               // significant bit for IFNULL and IFNONNULL, and similarly for IFEQ ... IF_ACMPEQ
               // (with a pre and post offset by 1).
+				// 其余情况计算相反的字节码。一个数异或1的效果是：如果它原本是奇数，就-1，如果是偶数，就+1
+				// 当字节码小于GOTO时，跳转指令两两一组，但每组指令开始的那一个是奇数，因此异或1不能达到取反的效果，那么将它先+1的话，将开始的指令变成偶数就行了，最后再将1减去
+				// 而当字节码大于GOTO，即IFNULL和IFNONNULL，IFNULL是198，偶数开始，直接异或1就能达到取反效果
               opcode = opcode < Opcodes.GOTO ? ((opcode + 1) ^ 1) - 1 : opcode ^ 1;
+			  // 将当前指令向后三个字节的位置创建label，这个位置就是字节码取反后应该跳转到的位置，也是未取反前endif的位置
               Label endif = createLabel(currentBytecodeOffset + 3, labels);
+			  // 使用methodVisitor访问取反后的jump指令
               methodVisitor.visitJumpInsn(opcode, endif);
+			  // 紧接着取反后的字节码，添加一个goto_w指令，也就是当取反后的操作判断为false的时候（未取反前为true的时候）跳转到原本应该跳转的位置，goto_w后面跟的偏移量是允许大于32767的
               methodVisitor.visitJumpInsn(Constants.GOTO_W, target);
               // endif designates the instruction just after GOTO_W, and is visited as part of the
               // next instruction. Since it is a jump target, we need to insert a frame here.
+				// 因为endif紧跟着goto_w操作，并且这里变成了一个jump的target位置，所以这里需要插入一个frame
               insertFrame = true;
             }
             currentOffset += 3;

@@ -153,7 +153,7 @@ final class Constants implements Opcodes {
   static final int ASM_IFNULL_OPCODE_DELTA = 20;
 
   // ASM specific opcodes, used for long forward jump instructions.
-
+  // ASM特定的操作码，用于长距离的跳转
   static final int ASM_IFEQ = IFEQ + ASM_OPCODE_DELTA;
   static final int ASM_IFNE = IFNE + ASM_OPCODE_DELTA;
   static final int ASM_IFLT = IFLT + ASM_OPCODE_DELTA;
@@ -170,6 +170,7 @@ final class Constants implements Opcodes {
   static final int ASM_IF_ACMPNE = IF_ACMPNE + ASM_OPCODE_DELTA;
   static final int ASM_GOTO = GOTO + ASM_OPCODE_DELTA;
   static final int ASM_JSR = JSR + ASM_OPCODE_DELTA;
+  // 这里之后只加20是因为，如果加49的话，就超出一个byte的最大256了
   static final int ASM_IFNULL = IFNULL + ASM_IFNULL_OPCODE_DELTA;
   static final int ASM_IFNONNULL = IFNONNULL + ASM_IFNULL_OPCODE_DELTA;
   static final int ASM_GOTO_W = 220;
