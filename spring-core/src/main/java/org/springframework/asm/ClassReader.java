@@ -1658,6 +1658,8 @@ public class ClassReader {
     final int bytecodeStartOffset = currentOffset;
     final int bytecodeEndOffset = currentOffset + codeLength;
     final Label[] labels = context.currentMethodLabels = new Label[codeLength + 1];
+	// 读取字节码，尝试给字节码的位置添加label，比如跳转指令目的地字节码就需要生成label
+	  // 还有tableswtich和lookupswitch的每个标签的位置也需要添加label
     while (currentOffset < bytecodeEndOffset) {
       final int bytecodeOffset = currentOffset - bytecodeStartOffset;
       final int opcode = classBuffer[currentOffset] & 0xFF;
@@ -1829,7 +1831,10 @@ public class ClassReader {
         case Constants.JSR:
         case Constants.IFNULL:
         case Constants.IFNONNULL:
+			// 上述指令的后面两个字节是要跳转的字节码偏移量，因此使用readShort读取出来，加上当前字节码所属的偏移量，
+			// 得到要跳转的字节码的偏移量，根据该偏移量创建一个label出来
           createLabel(bytecodeOffset + readShort(currentOffset + 1), labels);
+		  // 然后将整个class文件的偏移量+3，继续读取下一个指令
           currentOffset += 3;
           break;
         case Constants.ASM_IFEQ:
@@ -1856,6 +1861,7 @@ public class ClassReader {
         case Constants.GOTO_W:
         case Constants.JSR_W:
         case Constants.ASM_GOTO_W:
+			// 上述指令的后面会跟4个字节的偏移量，创建对应的label
           createLabel(bytecodeOffset + readInt(currentOffset + 1), labels);
           currentOffset += 5;
           break;
@@ -1872,8 +1878,10 @@ public class ClassReader {
             case Constants.LSTORE:
             case Constants.DSTORE:
             case Constants.RET:
+				// wide指令表示字节码后面跟着的偏移量是两个字节的，因此总偏移量会加上1(wide) + 1(上述指令) + 2(偏移量) = 4
               currentOffset += 4;
               break;
+			  // todo 不知道是什么含义
             case Constants.IINC:
               currentOffset += 6;
               break;
@@ -1881,6 +1889,23 @@ public class ClassReader {
               throw new IllegalArgumentException();
           }
           break;
+		  /* tableswitch的结构如下：
+		  	tableswitch
+			<0-3 byte pad>
+			defaultbyte1
+			defaultbyte2
+			defaultbyte3
+			defaultbyte4
+			lowbyte1
+			lowbyte2
+			lowbyte3
+			lowbyte4
+			highbyte1
+			highbyte2
+			highbyte3
+			highbyte4
+			jump offsets...
+		   */
         case Constants.TABLESWITCH:
           // Skip 0 to 3 padding bytes.
           currentOffset += 4 - (bytecodeOffset & 3);
@@ -1894,6 +1919,20 @@ public class ClassReader {
             currentOffset += 4;
           }
           break;
+		  /*
+		  	lookupswitch的结构如下：
+		  	lookupswitch
+			<0-3 byte pad>
+			defaultbyte1
+			defaultbyte2
+			defaultbyte3
+			defaultbyte4
+			npairs1
+			npairs2
+			npairs3
+			npairs4
+			match-offset pairs...
+		   */
         case Constants.LOOKUPSWITCH:
           // Skip 0 to 3 padding bytes.
           currentOffset += 4 - (bytecodeOffset & 3);
@@ -1903,7 +1942,13 @@ public class ClassReader {
           currentOffset += 8;
           // Read the switch labels.
           while (numSwitchCases-- > 0) {
+			  // 每个pairs是由4个字节的int match以及4个字节的signed int offset组成，
+			  // 这里的int match就是switch中的case， signed int offset就是分支对应的字节码偏移量。
+			  // 因此这里创建label的时候需要读取的是字节码偏移量，所以会有currentOffset + 4
             createLabel(bytecodeOffset + readInt(currentOffset + 4), labels);
+			// 最后currentOffset + 8，也是因为pairs的组成导致的
+			  // tableswitch不需要int match是因为它的case是连续的，并不是离散的
+			  // 详情可查看：https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.lookupswitch
             currentOffset += 8;
           }
           break;
@@ -1921,6 +1966,7 @@ public class ClassReader {
         case Constants.BIPUSH:
         case Constants.NEWARRAY:
         case Constants.LDC:
+			// 上述的字节码后面跟着的操作数都是1个字节的，因此整体偏移量1(opcode) + 1(operand) = 2
           currentOffset += 2;
           break;
         case Constants.SIPUSH:
@@ -1938,9 +1984,13 @@ public class ClassReader {
         case Constants.CHECKCAST:
         case Constants.INSTANCEOF:
         case Constants.IINC:
+			// 上述的字节码后面跟着的操作数都是2个字节的，因此整体偏移量1(opcode) + 2(operand) = 3
           currentOffset += 3;
           break;
+		  // invokeinterface indexbyte1 indexbyte2 count 0
+		  // 这是invokeinterface后面跟的数据结构，其中indexbyte1 << 8 | indexbyte2构成了常量池index
         case Constants.INVOKEINTERFACE:
+			// invokedynamic indexbyte1 indexbyte2 0 0
         case Constants.INVOKEDYNAMIC:
           currentOffset += 5;
           break;
@@ -1997,6 +2047,7 @@ public class ClassReader {
       String attributeName = readUTF8(currentOffset, charBuffer);
       int attributeLength = readInt(currentOffset + 2);
       currentOffset += 6;
+	  // 读取LocalVariableTable属性，给startPc的添加label，并且在局部变量结束的位置也添加label
       if (Constants.LOCAL_VARIABLE_TABLE.equals(attributeName)) {
         if ((context.parsingOptions & SKIP_DEBUG) == 0) {
           localVariableTableOffset = currentOffset;
@@ -2014,10 +2065,12 @@ public class ClassReader {
           }
         }
       } else if (Constants.LOCAL_VARIABLE_TYPE_TABLE.equals(attributeName)) {
+		  // 读取LocalVariableTypeTable属性
         localVariableTypeTableOffset = currentOffset;
         // Here we do not extract the labels corresponding to the attribute content. We assume they
         // are the same or a subset of those of the LocalVariableTable attribute.
       } else if (Constants.LINE_NUMBER_TABLE.equals(attributeName)) {
+		  // 读取LineNumberTable属性，给startPc的位置添加label
         if ((context.parsingOptions & SKIP_DEBUG) == 0) {
           // Parse the attribute to find the corresponding (debug only) labels.
           int currentLineNumberTableOffset = currentOffset;
@@ -2108,6 +2161,9 @@ public class ClassReader {
       // and the only consequence will be the creation of an unneeded label. This is better than
       // creating a label for each NEW instruction, and faster than fully decoding the whole stack
       // map table.
+		// 尝试在stackMapFrame的范围内去查找ITEM_Uninitialized的值，如果找到的话，就猜测找到的是Uninitialized_variable_info的verification_type_info。
+		// 然后紧接着查找tag后面跟着的两个字节的offset，如果发现offset是大于等于0且小于codeLength，并且指向的字节码是new，说明找到了这个new操作。
+		// 在这个位置创建一个label
       for (int offset = stackMapFrameOffset; offset < stackMapTableEndOffset - 2; ++offset) {
         if (classBuffer[offset] == Frame.ITEM_UNINITIALIZED) {
           int potentialBytecodeOffset = readUnsignedShort(offset + 1);
@@ -2152,26 +2208,36 @@ public class ClassReader {
     // The delta to subtract from a goto_w or jsr_w opcode to get the corresponding goto or jsr
     // opcode, or 0 if goto_w and jsr_w must be left unchanged (i.e. when expanding ASM specific
     // instructions).
+	  // wide的跳转命令和正常跳转命令之间的差值，如果开启了expand_asm_insns，那么该差值为0
     final int wideJumpOpcodeDelta =
         (context.parsingOptions & EXPAND_ASM_INSNS) == 0 ? Constants.WIDE_JUMP_OPCODE_DELTA : 0;
 
+	// 将currentOffset指回字节码开始的位置，重新开始读取字节码
     currentOffset = bytecodeStartOffset;
     while (currentOffset < bytecodeEndOffset) {
+		// 计算字节码的偏移量
       final int currentBytecodeOffset = currentOffset - bytecodeStartOffset;
 
       // Visit the label and the line number(s) for this bytecode offset, if any.
+		// 尝试获取当前字节码的label，可能没有
       Label currentLabel = labels[currentBytecodeOffset];
+	  // 如果label存在的话，使用methodVisitor去访问它
       if (currentLabel != null) {
         currentLabel.accept(methodVisitor, (context.parsingOptions & SKIP_DEBUG) == 0);
       }
 
       // Visit the stack map frame for this bytecode offset, if any.
+		// 如果存在stackMapFrame，且当前的字节码偏移量就等于当前frame的字节码偏移量，说明当前字节码是一个frame开始的位置
+		// 特殊情况是当前frame的字节码偏移量为-1的时候，是隐式的第0个frame开始的位置
       while (stackMapFrameOffset != 0
           && (context.currentFrameOffset == currentBytecodeOffset
               || context.currentFrameOffset == -1)) {
         // If there is a stack map frame for this offset, make methodVisitor visit it, and read the
         // next stack map frame if there is one.
+		  // 如果当前字节码是一个frame开始的地方，使用methodVisitor去访问这个frame
+		  // 并且读取下一个frame的信息
         if (context.currentFrameOffset != -1) {
+			// 如果没有压缩frame 或者 开启了expandFrame
           if (!compressedFrames || expandFrames) {
             methodVisitor.visitFrame(
                 Opcodes.F_NEW,
@@ -2180,6 +2246,7 @@ public class ClassReader {
                 context.currentFrameStackCount,
                 context.currentFrameStackTypes);
           } else {
+			  // 压缩了frame的情况，jdk1.6之后默认压缩
             methodVisitor.visitFrame(
                 context.currentFrameType,
                 context.currentFrameLocalCountDelta,
@@ -2189,26 +2256,32 @@ public class ClassReader {
           }
           // Since there is already a stack map frame for this bytecode offset, there is no need to
           // insert a new one.
+			// 因为该offset对应的字节码已经是一个frame的开始了，所以没有必要再插入一个frame
           insertFrame = false;
         }
+		// 如果frame的偏移量还没有到结束的位置，继续读取下一个frame
         if (stackMapFrameOffset < stackMapTableEndOffset) {
           stackMapFrameOffset =
               readStackMapFrame(stackMapFrameOffset, compressedFrames, expandFrames, context);
         } else {
+			// 否则的话，将frame设置为0
           stackMapFrameOffset = 0;
         }
       }
 
       // Insert a stack map frame for this bytecode offset, if requested by setting insertFrame to
       // true during the previous iteration. The actual frame content is computed in MethodWriter.
+		// 如果insertFrame为true，并且EXPAND_FRAMES也设置了，调用methodVisitor插入一个frame
       if (insertFrame) {
         if ((context.parsingOptions & EXPAND_FRAMES) != 0) {
           methodVisitor.visitFrame(Constants.F_INSERT, 0, null, 0, null);
         }
+		// 将insertFrame设置为false
         insertFrame = false;
       }
 
       // Visit the instruction at this bytecode offset.
+		// 真正开始读取字节码
       int opcode = classBuffer[currentOffset] & 0xFF;
       switch (opcode) {
         case Constants.NOP:
@@ -2318,6 +2391,7 @@ public class ClassReader {
         case Constants.ATHROW:
         case Constants.MONITORENTER:
         case Constants.MONITOREXIT:
+			// 上述字节码后面都不带操作数，调用methodVisitor的visitInsn访问
           methodVisitor.visitInsn(opcode);
           currentOffset += 1;
           break;
@@ -2342,6 +2416,7 @@ public class ClassReader {
         case Constants.ALOAD_2:
         case Constants.ALOAD_3:
           opcode -= Constants.ILOAD_0;
+		  // 上述的指令都是4个一组，opcode都是每组不带数字的基础指令，var则是对应的数字
           methodVisitor.visitVarInsn(Opcodes.ILOAD + (opcode >> 2), opcode & 0x3);
           currentOffset += 1;
           break;
@@ -2366,6 +2441,7 @@ public class ClassReader {
         case Constants.ASTORE_2:
         case Constants.ASTORE_3:
           opcode -= Constants.ISTORE_0;
+		  // 上述的指令都是4个一组，opcode都是每组不带数字的基础指令，var则是对应的数字
           methodVisitor.visitVarInsn(Opcodes.ISTORE + (opcode >> 2), opcode & 0x3);
           currentOffset += 1;
           break;
@@ -3447,45 +3523,65 @@ public class ClassReader {
     final char[] charBuffer = context.charBuffer;
     final Label[] labels = context.currentMethodLabels;
     int frameType;
+	// 如果是frame是被压缩的，读取frameType
     if (compressed) {
       // Read the frame_type field.
       frameType = classFileBuffer[currentOffset++] & 0xFF;
     } else {
+		// 否则frameType都是Full类型的
       frameType = Frame.FULL_FRAME;
       context.currentFrameOffset = -1;
     }
     int offsetDelta;
     context.currentFrameLocalCountDelta = 0;
+	// 如果是same_frame类型的
     if (frameType < Frame.SAME_LOCALS_1_STACK_ITEM_FRAME) {
+		// offsetDelta就等于frameType
       offsetDelta = frameType;
       context.currentFrameType = Opcodes.F_SAME;
+	  // stack的数量也为0
       context.currentFrameStackCount = 0;
     } else if (frameType < Frame.RESERVED) {
+		// 如果是same_locals_1_stack_item_frame类型的
+		// offsetDelta等于frameType - 64
       offsetDelta = frameType - Frame.SAME_LOCALS_1_STACK_ITEM_FRAME;
       currentOffset =
           readVerificationTypeInfo(
               currentOffset, context.currentFrameStackTypes, 0, charBuffer, labels);
       context.currentFrameType = Opcodes.F_SAME1;
+	  // stack数量为1
       context.currentFrameStackCount = 1;
     } else if (frameType >= Frame.SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED) {
+		// 如果是大于等于same_locals_1_stack_item_frame_extended类型的
+		// 都读取offsetDelta
       offsetDelta = readUnsignedShort(currentOffset);
       currentOffset += 2;
       if (frameType == Frame.SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED) {
+		  // 如果是same_locals_1_stack_item_frame_extended类型
+		  // 读取新增的stack的verification_type_info
         currentOffset =
             readVerificationTypeInfo(
                 currentOffset, context.currentFrameStackTypes, 0, charBuffer, labels);
         context.currentFrameType = Opcodes.F_SAME1;
+		// stack数量为1
         context.currentFrameStackCount = 1;
       } else if (frameType >= Frame.CHOP_FRAME && frameType < Frame.SAME_FRAME_EXTENDED) {
+		  // 如果是chop_frame类型的
         context.currentFrameType = Opcodes.F_CHOP;
+		// localCountDelta等于251 - frameType
         context.currentFrameLocalCountDelta = Frame.SAME_FRAME_EXTENDED - frameType;
+		// local数量将去localCountDelta
         context.currentFrameLocalCount -= context.currentFrameLocalCountDelta;
+		// stack数量为0
         context.currentFrameStackCount = 0;
       } else if (frameType == Frame.SAME_FRAME_EXTENDED) {
+		  // 如果是same_frame_extended类型的
         context.currentFrameType = Opcodes.F_SAME;
         context.currentFrameStackCount = 0;
       } else if (frameType < Frame.FULL_FRAME) {
+		  // 如果是append_frame类型的
         int local = expand ? context.currentFrameLocalCount : 0;
+		// 读取新增的locals的verification_type_info
         for (int k = frameType - Frame.SAME_FRAME_EXTENDED; k > 0; k--) {
           currentOffset =
               readVerificationTypeInfo(
@@ -3496,19 +3592,24 @@ public class ClassReader {
         context.currentFrameLocalCount += context.currentFrameLocalCountDelta;
         context.currentFrameStackCount = 0;
       } else {
+		  // 如果是full_frame类型的
+		  // 读取locals的数量
         final int numberOfLocals = readUnsignedShort(currentOffset);
         currentOffset += 2;
         context.currentFrameType = Opcodes.F_FULL;
         context.currentFrameLocalCountDelta = numberOfLocals;
         context.currentFrameLocalCount = numberOfLocals;
+		// 遍历读取locals中的verification_type_info
         for (int local = 0; local < numberOfLocals; ++local) {
           currentOffset =
               readVerificationTypeInfo(
                   currentOffset, context.currentFrameLocalTypes, local, charBuffer, labels);
         }
+		// 读取stack_items的数量
         final int numberOfStackItems = readUnsignedShort(currentOffset);
         currentOffset += 2;
         context.currentFrameStackCount = numberOfStackItems;
+		// 遍历读取stacks中的verification_type_info
         for (int stack = 0; stack < numberOfStackItems; ++stack) {
           currentOffset =
               readVerificationTypeInfo(
@@ -3519,6 +3620,7 @@ public class ClassReader {
       throw new IllegalArgumentException();
     }
     context.currentFrameOffset += offsetDelta + 1;
+	// 在每个frame开始偏移量的位置创建一个label
     createLabel(context.currentFrameOffset, labels);
     return currentOffset;
   }
@@ -3544,6 +3646,7 @@ public class ClassReader {
       final char[] charBuffer,
       final Label[] labels) {
     int currentOffset = verificationTypeInfoOffset;
+	// 读取verification_type_info的tag
     int tag = classFileBuffer[currentOffset++] & 0xFF;
     switch (tag) {
       case Frame.ITEM_TOP:
@@ -3568,10 +3671,12 @@ public class ClassReader {
         frame[index] = Opcodes.UNINITIALIZED_THIS;
         break;
       case Frame.ITEM_OBJECT:
+		  // 如果tag是ITEM_Object，后面会跟一个u2类型的指向常量池Constant_Class_info的index，表明该对象的类型
         frame[index] = readClass(currentOffset, charBuffer);
         currentOffset += 2;
         break;
       case Frame.ITEM_UNINITIALIZED:
+		  // 如果tag是ITEM_Uninitialized，后面会跟一个u2类型的offset，表示new操作在字节码中的偏移量
         frame[index] = createLabel(readUnsignedShort(currentOffset), labels);
         currentOffset += 2;
         break;
