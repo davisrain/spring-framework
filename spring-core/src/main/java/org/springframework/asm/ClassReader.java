@@ -2155,6 +2155,7 @@ public class ClassReader {
       context.currentFrameStackCount = 0;
       context.currentFrameStackTypes = new Object[maxStack];
       if (expandFrames) {
+		  // 先计算方法中隐式的第一个frame，通过方法签名来进行计算
         computeImplicitFrame(context);
       }
       // Find the labels for UNINITIALIZED frame types. Instead of decoding each element of the
